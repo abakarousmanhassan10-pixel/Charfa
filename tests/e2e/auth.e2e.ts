@@ -19,13 +19,9 @@ test('register → dashboard → reload keeps session → logout → login', asy
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Create account' }).click();
 
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole('heading', { name: 'Hello, Awa Mahamat' })).toBeVisible();
-  await expect(page.getByText('You have not created a business yet.')).toBeVisible();
-  // Honest status: real checks, and integrations without credentials show as not configured.
-  const status = page.getByTestId('system-status');
-  await expect(status.getByText('Operational').first()).toBeVisible();
-  await expect(status.getByText('Not configured').first()).toBeVisible();
+  // New accounts without a business are sent to onboarding.
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await expect(page.getByRole('heading', { name: 'Set up your business' })).toBeVisible();
 
   // Tokens never land in web storage.
   const storage = await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }));
@@ -34,7 +30,14 @@ test('register → dashboard → reload keeps session → logout → login', asy
   expect(await page.evaluate(() => document.cookie)).not.toContain('touma_rt');
 
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Hello, Awa Mahamat' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Set up your business' })).toBeVisible();
+
+  await page.goto('/login');
+  await page.goto('/dashboard');
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await page.getByLabel('Business name').fill('Session Shop');
+  await page.getByRole('button', { name: 'Create my business' }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
 
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/login$/);
@@ -45,6 +48,7 @@ test('register → dashboard → reload keeps session → logout → login', asy
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole('heading', { name: 'Welcome back, Awa' })).toBeVisible();
 });
 
 test('wrong password shows a generic error', async ({ page }) => {

@@ -209,6 +209,328 @@
         ]
       }
     },
+    "/api/v1/businesses": {
+      "post": {
+        "operationId": "BusinessesController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBusinessDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "businesses"
+        ]
+      },
+      "get": {
+        "operationId": "BusinessesController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "businesses"
+        ]
+      }
+    },
+    "/api/v1/businesses/{businessId}": {
+      "get": {
+        "operationId": "BusinessesController_get_v1",
+        "parameters": [
+          {
+            "name": "businessId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission business.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "businesses"
+        ]
+      },
+      "patch": {
+        "operationId": "BusinessesController_update_v1",
+        "parameters": [
+          {
+            "name": "businessId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBusinessDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission business.update"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "businesses"
+        ]
+      },
+      "delete": {
+        "operationId": "BusinessesController_remove_v1",
+        "parameters": [
+          {
+            "name": "businessId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteBusinessDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission business.delete"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "businesses"
+        ]
+      }
+    },
+    "/api/v1/businesses/{businessId}/dashboard": {
+      "get": {
+        "operationId": "BusinessesController_dashboard_v1",
+        "parameters": [
+          {
+            "name": "businessId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission business.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "businesses"
+        ]
+      }
+    },
+    "/api/v1/businesses/{businessId}/members": {
+      "get": {
+        "operationId": "BusinessesController_members_v1",
+        "parameters": [
+          {
+            "name": "businessId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission members.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "businesses"
+        ]
+      }
+    },
+    "/api/v1/businesses/{businessId}/members/{membershipId}": {
+      "patch": {
+        "operationId": "BusinessesController_updateMember_v1",
+        "parameters": [
+          {
+            "name": "membershipId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "businessId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMemberRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission members.manage"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "businesses"
+        ]
+      },
+      "delete": {
+        "operationId": "BusinessesController_removeMember_v1",
+        "parameters": [
+          {
+            "name": "membershipId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "businessId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission business.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "businesses"
+        ]
+      }
+    },
+    "/api/v1/admin/overview": {
+      "get": {
+        "operationId": "AdminController_overview_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "operationId": "HealthController_live_v1",
@@ -390,6 +712,171 @@
             "example": "Africa/Ndjamena"
           }
         }
+      },
+      "CreateBusinessDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Café Awa"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ECOMMERCE",
+              "RESTAURANT",
+              "RETAIL_STORE",
+              "SMALL_BUSINESS",
+              "BRAND",
+              "AGENCY",
+              "FREELANCER",
+              "SERVICE_PROVIDER",
+              "OTHER"
+            ]
+          },
+          "description": {
+            "type": "object"
+          },
+          "website": {
+            "type": "object",
+            "example": "https://cafe-awa.example"
+          },
+          "industry": {
+            "type": "object"
+          },
+          "country": {
+            "type": "object",
+            "example": "TD",
+            "description": "ISO 3166-1 alpha-2"
+          },
+          "defaultLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "fr"
+            ],
+            "default": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Africa/Ndjamena",
+            "default": "UTC"
+          },
+          "currency": {
+            "type": "string",
+            "example": "XAF",
+            "default": "USD",
+            "description": "ISO 4217"
+          },
+          "brandVoice": {
+            "type": "object"
+          },
+          "targetAudience": {
+            "type": "object"
+          },
+          "objectives": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ]
+      },
+      "UpdateBusinessDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Café Awa"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ECOMMERCE",
+              "RESTAURANT",
+              "RETAIL_STORE",
+              "SMALL_BUSINESS",
+              "BRAND",
+              "AGENCY",
+              "FREELANCER",
+              "SERVICE_PROVIDER",
+              "OTHER"
+            ]
+          },
+          "description": {
+            "type": "object"
+          },
+          "website": {
+            "type": "object",
+            "example": "https://cafe-awa.example"
+          },
+          "industry": {
+            "type": "object"
+          },
+          "country": {
+            "type": "object",
+            "example": "TD",
+            "description": "ISO 3166-1 alpha-2"
+          },
+          "defaultLocale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "fr"
+            ],
+            "default": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Africa/Ndjamena",
+            "default": "UTC"
+          },
+          "currency": {
+            "type": "string",
+            "example": "XAF",
+            "default": "USD",
+            "description": "ISO 4217"
+          },
+          "brandVoice": {
+            "type": "object"
+          },
+          "targetAudience": {
+            "type": "object"
+          },
+          "objectives": {
+            "type": "object"
+          }
+        }
+      },
+      "DeleteBusinessDto": {
+        "type": "object",
+        "properties": {
+          "confirmName": {
+            "type": "string",
+            "description": "Must equal the business name exactly, to confirm deletion"
+          }
+        },
+        "required": [
+          "confirmName"
+        ]
+      },
+      "UpdateMemberRoleDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "ADMIN",
+              "EDITOR",
+              "VIEWER"
+            ]
+          }
+        },
+        "required": [
+          "role"
+        ]
       }
     }
   }

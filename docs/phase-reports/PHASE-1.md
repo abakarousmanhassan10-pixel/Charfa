@@ -1,47 +1,55 @@
-# Phase 1 report — Foundations & authentication
+# TOUMA AI — Phase 1 report (Foundation)
 
-![Dashboard](../images/phase1-dashboard.png)
+*Your Business. Your AI Marketing Team.*
 
-## Implemented
-- **Monorepo**: pnpm workspaces + Turborepo; `apps/{web,api,worker}`, `packages/{database,shared,config,ai-engine,social-connectors}`.
-- **Infrastructure**: Docker Compose (PostgreSQL 16, Redis 7, MinIO, migrate job, api, worker, web), Dockerfiles that run as a non-root user, and a CI workflow.
-- **Database**: the full Prisma schema with all 21 requested models plus `Session`, `ContentMedia` and `KnowledgeEntry`, relations, FKs, unique constraints, indexes, UTC timestamps, Decimal money and soft delete. Initial migration `20261110171718_init`. The seed creates only the 3 plans (19/49/99 USD, configurable).
-- **Config**: zod-validated env. The API refuses to boot with weak or missing secrets.
-- **API (NestJS)**: `/api/v1` versioning, Swagger, helmet, CORS allow-list, global validation (whitelist + forbid unknown), uniform error envelope, request ids, rate limiting, health/readiness checks with integration status.
-- **Auth**: register, login, refresh (rotation + reuse detection), logout, logout-all, me; argon2id; lockout; CSRF header + Origin check; httpOnly SameSite=Strict cookie; audit logs.
-- **Users**: `GET/PATCH /users/me` (locale, IANA timezone).
-- **Security primitives**: AES-256-GCM `TokenCipher` for OAuth tokens; audit metadata redaction.
-- **Shared RBAC matrix** for OWNER/ADMIN/EDITOR/VIEWER (enforced from Phase 2).
-- **Worker**: BullMQ maintenance queue with an idempotent job scheduler (expired-session purge) and graceful shutdown.
-- **Web**: landing, registration, login and a protected dashboard; EN/FR with an RTL-ready layout; in-memory access token; honest empty states (no fake stats).
-- **Contracts** for the AI engine and the social connectors (implemented in Phases 3 and 6).
+| Dashboard | Mobile |
+|---|---|
+| ![Dashboard](../images/phase1-dashboard.png) | ![Mobile](../images/phase1-dashboard-mobile.png) |
 
-## Tests (all passing)
+| Onboarding | Business settings |
+|---|---|
+| ![Onboarding](../images/phase1-onboarding.png) | ![Business settings](../images/phase1-business-settings.png) |
+
+## Tasks
+| # | Task | Status |
+|---|---|---|
+| 1 | Monorepo (pnpm + Turborepo) | ✅ |
+| 2 | Frontend (Next.js 15, React 19, Tailwind 4, shadcn-style UI) | ✅ |
+| 3 | Backend (NestJS 11, `/api/v1`, Swagger) | ✅ |
+| 4 | PostgreSQL 16 | ✅ |
+| 5 | Prisma + migrations (drift check: no difference) | ✅ |
+| 6 | Redis + BullMQ worker + Docker Compose | ✅ (images not built here: no Docker daemon) |
+| 7 | Secure registration (argon2id, password policy) | ✅ |
+| 8 | Login / logout / logout-all (rotating refresh tokens) | ✅ |
+| 9 | Protected routes (API global guard + web auth gate) | ✅ |
+| 10 | Roles & permissions (OWNER/ADMIN/EDITOR/VIEWER + platform roles) | ✅ |
+| 11 | Business creation & management (create, list, edit, soft delete, members) | ✅ |
+| 12 | Multi-tenant isolation (`BusinessAccessGuard`, 404 for non-members) | ✅ |
+| 13 | Responsive dashboard (welcome, business info, connected accounts, content overview, upcoming publications, sidebar, user settings) | ✅ |
+| 14 | EN/FR translations (catalog-parity test, RTL-ready) | ✅ |
+| 15 | Automated tests | ✅ |
+
+## Tests
 | Suite | Result |
 |---|---|
-| Unit — config | 5 passed |
-| Unit — shared (RBAC, schemas, i18n direction) | 6 passed |
-| Unit — api (auth service, password, cipher, audit redaction) | 19 passed |
-| Unit — worker | 1 passed |
-| Unit — web (i18n catalog parity, resolution) | 3 passed |
-| API integration (real Postgres/Redis) | 26 passed |
-| Playwright full stack | 6 passed |
+| Unit: config / shared / api / worker / web | 5 / 12 / 28 / 1 / 5, all passed |
+| API integration (real PostgreSQL + Redis) | 56 passed |
+| Playwright full stack (desktop + mobile) | 11 passed |
+| Typecheck / build | 11/11 tasks, 8/8 tasks |
 
-Migration drift check: `prisma migrate diff` → no difference. Typecheck: 11/11 tasks pass.
+## Fixed during testing
+- **Session lost on fast navigation.** If the browser dropped the refresh response (the user navigated away mid-refresh), the next load presented the rotated token and was logged out. Fix: re-issue within the 10 s grace window (same family, never after logout).
+- Clearing an optional business field was silently ignored. Empty strings are now stored as `null`.
+- `null` for a required field during an update gave a 500. It now returns a 400.
+- An EDITOR could have removed a VIEWER. Removing someone else now requires `members.manage`.
+- Form controls were misaligned next to fields with hints, and the dashboard opened scrolled after onboarding.
 
-## Credentials required
-None for Phase 1. OpenAI, S3, Meta, TikTok, Google and Stripe are all reported as **not configured** (see `docs/INTEGRATIONS.md`).
+## Requires credentials
+None for Phase 1. OpenAI, S3, Meta, TikTok, Google, Stripe and email are all reported as **not configured** (see `docs/INTEGRATIONS.md`).
 
-## Known limitations / remaining
-- Docker images were not built in this environment because no Docker daemon was available. `docker compose config` validates.
-- No email verification or password reset yet (they need an email provider; planned with Phase 2).
-- The rate-limit store is in-memory per instance. Switch the throttler to Redis storage before running several API replicas.
-- No ESLint config yet (TypeScript strict mode + Prettier only).
-- All of Phases 2–10.
-
-## Start
-```bash
-pnpm install && cp .env.example .env   # replace the secrets
-pnpm infra:up && pnpm db:deploy && pnpm db:seed
-pnpm build && pnpm dev                 # http://localhost:3000
-```
+## Remaining issues
+- Docker images not built in this environment (no daemon). `docker compose config` validates.
+- No email provider yet, so no email verification, password reset or team invitations. The members UI lists, re-roles and removes members, but adding new members needs invitations (Phase 2).
+- Rate-limit counters live in memory per instance. Switch to Redis storage before running several API replicas.
+- No ESLint configuration (strict TypeScript + Prettier only).
+- `MAX_OWNED_BUSINESSES` is a fixed abuse cap until plan limits arrive (Phase 10).

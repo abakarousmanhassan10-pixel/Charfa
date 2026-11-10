@@ -14,7 +14,7 @@ export const prisma = new PrismaClient();
 
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE "AuditLog", "Session", "Membership", "Notification", "User" RESTART IDENTITY CASCADE',
+    'TRUNCATE "AuditLog", "Session", "Membership", "Notification", "Business", "User" RESTART IDENTITY CASCADE',
   );
 }
 

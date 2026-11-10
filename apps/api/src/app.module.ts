@@ -9,6 +9,9 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './health/redis.provider';
+import { TenancyModule } from './tenancy/tenancy.module';
+import { BusinessesModule } from './businesses/businesses.module';
+import { AdminModule } from './admin/admin.module';
 
 @Global()
 @Module({})
@@ -31,7 +34,10 @@ export class AppModule {
         CryptoModule,
         AuditModule,
         AuthModule,
+        TenancyModule,
         UsersModule,
+        BusinessesModule,
+        AdminModule,
         HealthModule,
       ],
       providers: [

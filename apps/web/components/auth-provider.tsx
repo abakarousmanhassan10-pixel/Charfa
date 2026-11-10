@@ -21,6 +21,9 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; fullName: string; locale: string }) => Promise<void>;
   logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  updateProfile: (input: { fullName?: string; locale?: string; timezone?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -61,6 +64,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await apiLogout();
       setUser(null);
       setStatus('anonymous');
+    },
+    logoutAll: async () => {
+      await api('/auth/logout-all', { method: 'POST' });
+      await apiLogout();
+      setUser(null);
+      setStatus('anonymous');
+    },
+    refreshProfile: loadProfile,
+    updateProfile: async (input) => {
+      await api('/users/me', { method: 'PATCH', json: input });
+      await loadProfile();
     },
   };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -4,7 +4,10 @@
 
 TOUMA AI is the AI-powered marketing automation SaaS by **TOUMA**. It helps e-commerce stores, restaurants, retail shops, brands, agencies, freelancers and service providers run their marketing: product analysis, AI content and visuals, a 30-day content calendar, approval workflows, scheduled publishing through **official** social APIs, a unified inbox, analytics and subscriptions.
 
-> **Status: Phase 1 of 10 complete.** The foundations work: monorepo, infrastructure, full database schema and migrations, secure authentication, and the first dashboard. See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/phase-reports/PHASE-1.md](docs/phase-reports/PHASE-1.md).
+> **Status: Phase 1 (Foundation) complete and tested.** Monorepo, Docker, PostgreSQL + Prisma migrations, Redis/BullMQ, secure authentication, roles & permissions, business creation and management, multi-tenant isolation, and a responsive dashboard in English and French. See [docs/phase-reports/PHASE-1.md](docs/phase-reports/PHASE-1.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Pages
+Landing · Registration · Login · Onboarding · Dashboard · Business settings · User profile
 
 ## Monorepo
 
@@ -52,6 +55,7 @@ See [docs/TESTING.md](docs/TESTING.md).
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Database](docs/DATABASE.md)
 - [Security](docs/SECURITY.md)
 - [Testing](docs/TESTING.md)
 - [Deployment](docs/DEPLOYMENT.md)

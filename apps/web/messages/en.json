@@ -11,7 +11,17 @@
     "configured": "Configured",
     "comingSoon": "Available in a later release",
     "productName": "TOUMA AI",
-    "slogan": "Your Business. Your AI Marketing Team."
+    "slogan": "Your Business. Your AI Marketing Team.",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "optional": "optional",
+    "continue": "Continue",
+    "menu": "Menu",
+    "close": "Close",
+    "loadError": "Could not load data. Please retry.",
+    "retry": "Retry"
   },
   "landing": {
     "title": "Your Business. Your AI Marketing Team.",
@@ -75,11 +85,10 @@
       "inbox": "Inbox",
       "analytics": "Analytics",
       "billing": "Subscription",
-      "settings": "Settings"
+      "settings": "Settings",
+      "businessSettings": "Business settings",
+      "profile": "Profile"
     },
-    "businessesTitle": "Your businesses",
-    "noBusinesses": "You have not created a business yet.",
-    "noBusinessesHint": "Business management arrives in the next release. Your account is ready.",
     "analyticsTitle": "Performance",
     "noAnalytics": "No data yet. Metrics appear here once social accounts are connected and posts are published — we never display estimated numbers as measured results.",
     "systemTitle": "Platform status",
@@ -91,6 +100,108 @@
     "down": "Unavailable",
     "accountTitle": "Your account",
     "timezone": "Timezone",
-    "memberSince": "Member since"
+    "memberSince": "Member since",
+    "welcome": "Welcome back, {name}",
+    "welcomeHint": "Here is what is happening at {business}.",
+    "businessInfo": "Business information",
+    "editBusiness": "Edit",
+    "connectedAccounts": "Connected accounts",
+    "notConnected": "Not connected",
+    "connectedCount": "{count} connected",
+    "connectionsLater": "Social account connections (official APIs) arrive in a later release. Nothing is connected yet.",
+    "contentOverview": "Content overview",
+    "contentTotal": "Total content items",
+    "noContent": "No content yet. The AI content generator arrives in a later release.",
+    "status": {
+      "DRAFT": "Draft",
+      "IN_REVIEW": "In review",
+      "APPROVED": "Approved",
+      "SCHEDULED": "Scheduled",
+      "PUBLISHED": "Published",
+      "FAILED": "Failed"
+    },
+    "upcoming": "Upcoming publications",
+    "noUpcoming": "No publications scheduled.",
+    "userSettings": "User settings",
+    "manageProfile": "Manage profile",
+    "businessSettings": "Business settings",
+    "members": "Members",
+    "switchBusiness": "Active business",
+    "yourRole": "Your role",
+    "notSet": "Not set"
+  },
+  "business": {
+    "fields": {
+      "name": "Business name",
+      "type": "Business type",
+      "description": "Description",
+      "website": "Website",
+      "industry": "Industry",
+      "country": "Country code",
+      "defaultLocale": "Content language",
+      "timezone": "Timezone",
+      "currency": "Currency",
+      "brandVoice": "Brand voice",
+      "targetAudience": "Target audience",
+      "objectives": "Marketing objectives"
+    },
+    "hints": {
+      "country": "2-letter ISO code, e.g. TD, FR, US",
+      "timezone": "Used to schedule publications in your local time",
+      "brandVoice": "e.g. warm, expert, playful",
+      "description": "What you sell and what makes you different"
+    },
+    "types": {
+      "ECOMMERCE": "E-commerce store",
+      "RESTAURANT": "Restaurant",
+      "RETAIL_STORE": "Physical retail store",
+      "SMALL_BUSINESS": "Small business",
+      "BRAND": "Brand",
+      "AGENCY": "Agency",
+      "FREELANCER": "Freelancer",
+      "SERVICE_PROVIDER": "Service provider",
+      "OTHER": "Other"
+    },
+    "roles": {
+      "OWNER": "Owner",
+      "ADMIN": "Admin",
+      "EDITOR": "Editor",
+      "VIEWER": "Viewer"
+    },
+    "sections": {
+      "identity": "Identity",
+      "locale": "Region & language",
+      "marketing": "Marketing profile"
+    }
+  },
+  "onboarding": {
+    "title": "Set up your business",
+    "subtitle": "TOUMA AI uses this information to plan and write your marketing. You can change it at any time.",
+    "submit": "Create my business",
+    "step": "Step 1 of 1",
+    "addAnother": "Add another business"
+  },
+  "settings": {
+    "businessTitle": "Business settings",
+    "businessSubtitle": "Profile, region and team of {name}.",
+    "readOnly": "Your role ({role}) can view these settings but not change them.",
+    "members": "Team members",
+    "membersHint": "Invitations by email arrive in the next release.",
+    "you": "you",
+    "remove": "Remove",
+    "leave": "Leave business",
+    "changeRole": "Change role",
+    "danger": "Danger zone",
+    "deleteTitle": "Delete this business",
+    "deleteHint": "The business is removed for every member. Type its name to confirm.",
+    "deleteConfirmLabel": "Business name",
+    "deleteButton": "Delete business",
+    "profileTitle": "User profile",
+    "profileSubtitle": "Your personal information and preferences.",
+    "email": "Email",
+    "emailReadOnly": "Email changes will be available with email verification.",
+    "security": "Security",
+    "logoutAll": "Sign out of all devices",
+    "logoutAllHint": "Ends every active session, including this one."
   }
 }

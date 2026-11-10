@@ -34,19 +34,18 @@ async function parse<T>(res: Response): Promise<T> {
 /** Exchanges the refresh cookie for a new access token. Concurrent callers share one request. */
 export function refreshSession(): Promise<boolean> {
   refreshing ??= (async () => {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    try {
       const res = await fetch('/api/v1/auth/refresh', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { [CSRF_HEADER]: '1' },
       });
       if (res.ok) {
-        const body = await res.json();
-        accessToken = body.accessToken;
+        accessToken = (await res.json()).accessToken;
         return true;
       }
-      const body = await res.json().catch(() => ({}));
-      if (body.code !== 'REFRESH_RACE') break;
+    } catch {
+      /* network error: treated as signed out */
     }
     accessToken = null;
     return false;

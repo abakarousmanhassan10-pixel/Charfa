@@ -53,8 +53,7 @@ export class AuthController {
     try {
       return this.respond(res, await this.auth.refresh(req.cookies?.[REFRESH_COOKIE], requestMeta(req)));
     } catch (err) {
-      const code = (err as { response?: { code?: string } }).response?.code;
-      if (code !== 'REFRESH_RACE') this.clearCookie(res);
+      this.clearCookie(res);
       throw err;
     }
   }

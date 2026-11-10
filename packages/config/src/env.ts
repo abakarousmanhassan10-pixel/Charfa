@@ -43,6 +43,8 @@ export const appEnvSchema = z.object({
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(120),
   AUTH_THROTTLE_LIMIT: z.coerce.number().int().positive().default(10),
+  /** Abuse guard until plan limits arrive (Phase 10): max businesses a user can own. */
+  MAX_OWNED_BUSINESSES: z.coerce.number().int().positive().default(5),
   // Optional provider credentials. Absence means the integration is "not configured".
   OPENAI_API_KEY: z.string().optional(),
   S3_ENDPOINT: z.string().optional(),

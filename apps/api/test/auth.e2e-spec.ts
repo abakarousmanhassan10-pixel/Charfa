@@ -182,6 +182,16 @@ describe('Auth (e2e, real database)', () => {
       await request(http).get('/api/v1/auth/me').set('Authorization', `Bearer ${first.body.accessToken}`).expect(401);
     });
 
+    it('accepts a just-rotated token inside the grace window (lost response), but not after logout', async () => {
+      const { cookie } = await register(app);
+      await request(http).post('/api/v1/auth/refresh').set('Cookie', cookie).set('x-touma-csrf', '1').expect(200);
+      // The browser never stored the new cookie and presents the old one again.
+      const again = await request(http).post('/api/v1/auth/refresh').set('Cookie', cookie).set('x-touma-csrf', '1').expect(200);
+      await request(http).get('/api/v1/auth/me').set('Authorization', `Bearer ${again.body.accessToken}`).expect(200);
+      await request(http).post('/api/v1/auth/logout').set('Cookie', refreshCookie(again)!).set('x-touma-csrf', '1').expect(204);
+      await request(http).post('/api/v1/auth/refresh').set('Cookie', cookie).set('x-touma-csrf', '1').expect(401);
+    });
+
     it('logout revokes the session and clears the cookie', async () => {
       const { cookie, accessToken } = await register(app);
       const res = await request(http).post('/api/v1/auth/logout').set('Cookie', cookie).set('x-touma-csrf', '1').expect(204);

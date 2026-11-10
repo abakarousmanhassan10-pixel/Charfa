@@ -11,7 +11,17 @@
     "configured": "Configuré",
     "comingSoon": "Disponible dans une prochaine version",
     "productName": "TOUMA AI",
-    "slogan": "Votre entreprise. Votre équipe marketing IA."
+    "slogan": "Votre entreprise. Votre équipe marketing IA.",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
+    "cancel": "Annuler",
+    "optional": "facultatif",
+    "continue": "Continuer",
+    "menu": "Menu",
+    "close": "Fermer",
+    "loadError": "Impossible de charger les données. Réessayez.",
+    "retry": "Réessayer"
   },
   "landing": {
     "title": "Votre entreprise. Votre équipe marketing IA.",
@@ -75,11 +85,10 @@
       "inbox": "Messagerie",
       "analytics": "Statistiques",
       "billing": "Abonnement",
-      "settings": "Paramètres"
+      "settings": "Paramètres",
+      "businessSettings": "Paramètres de l'entreprise",
+      "profile": "Profil"
     },
-    "businessesTitle": "Vos entreprises",
-    "noBusinesses": "Vous n'avez pas encore créé d'entreprise.",
-    "noBusinessesHint": "La gestion des entreprises arrive dans la prochaine version. Votre compte est prêt.",
     "analyticsTitle": "Performances",
     "noAnalytics": "Aucune donnée pour l'instant. Les statistiques apparaîtront une fois vos comptes connectés et vos publications en ligne — nous n'affichons jamais d'estimations comme des résultats mesurés.",
     "systemTitle": "État de la plateforme",
@@ -91,6 +100,108 @@
     "down": "Indisponible",
     "accountTitle": "Votre compte",
     "timezone": "Fuseau horaire",
-    "memberSince": "Membre depuis"
+    "memberSince": "Membre depuis",
+    "welcome": "Bon retour, {name}",
+    "welcomeHint": "Voici ce qui se passe chez {business}.",
+    "businessInfo": "Informations sur l'entreprise",
+    "editBusiness": "Modifier",
+    "connectedAccounts": "Comptes connectés",
+    "notConnected": "Non connecté",
+    "connectedCount": "{count} connecté(s)",
+    "connectionsLater": "La connexion des comptes sociaux (API officielles) arrive dans une prochaine version. Aucun compte n'est encore connecté.",
+    "contentOverview": "Aperçu du contenu",
+    "contentTotal": "Éléments de contenu",
+    "noContent": "Aucun contenu pour l'instant. Le générateur de contenu IA arrive dans une prochaine version.",
+    "status": {
+      "DRAFT": "Brouillon",
+      "IN_REVIEW": "En revue",
+      "APPROVED": "Approuvé",
+      "SCHEDULED": "Programmé",
+      "PUBLISHED": "Publié",
+      "FAILED": "Échec"
+    },
+    "upcoming": "Publications à venir",
+    "noUpcoming": "Aucune publication programmée.",
+    "userSettings": "Paramètres utilisateur",
+    "manageProfile": "Gérer le profil",
+    "businessSettings": "Paramètres de l'entreprise",
+    "members": "Membres",
+    "switchBusiness": "Entreprise active",
+    "yourRole": "Votre rôle",
+    "notSet": "Non renseigné"
+  },
+  "business": {
+    "fields": {
+      "name": "Nom de l'entreprise",
+      "type": "Type d'entreprise",
+      "description": "Description",
+      "website": "Site web",
+      "industry": "Secteur d'activité",
+      "country": "Code pays",
+      "defaultLocale": "Langue du contenu",
+      "timezone": "Fuseau horaire",
+      "currency": "Devise",
+      "brandVoice": "Ton de la marque",
+      "targetAudience": "Public cible",
+      "objectives": "Objectifs marketing"
+    },
+    "hints": {
+      "country": "Code ISO à 2 lettres, ex. TD, FR, US",
+      "timezone": "Utilisé pour programmer les publications à votre heure locale",
+      "brandVoice": "ex. chaleureux, expert, ludique",
+      "description": "Ce que vous vendez et ce qui vous distingue"
+    },
+    "types": {
+      "ECOMMERCE": "Boutique e-commerce",
+      "RESTAURANT": "Restaurant",
+      "RETAIL_STORE": "Magasin physique",
+      "SMALL_BUSINESS": "Petite entreprise",
+      "BRAND": "Marque",
+      "AGENCY": "Agence",
+      "FREELANCER": "Indépendant",
+      "SERVICE_PROVIDER": "Prestataire de services",
+      "OTHER": "Autre"
+    },
+    "roles": {
+      "OWNER": "Propriétaire",
+      "ADMIN": "Administrateur",
+      "EDITOR": "Éditeur",
+      "VIEWER": "Lecteur"
+    },
+    "sections": {
+      "identity": "Identité",
+      "locale": "Région et langue",
+      "marketing": "Profil marketing"
+    }
+  },
+  "onboarding": {
+    "title": "Configurez votre entreprise",
+    "subtitle": "TOUMA AI utilise ces informations pour planifier et rédiger votre marketing. Vous pouvez les modifier à tout moment.",
+    "submit": "Créer mon entreprise",
+    "step": "Étape 1 sur 1",
+    "addAnother": "Ajouter une entreprise"
+  },
+  "settings": {
+    "businessTitle": "Paramètres de l'entreprise",
+    "businessSubtitle": "Profil, région et équipe de {name}.",
+    "readOnly": "Votre rôle ({role}) permet de consulter ces paramètres mais pas de les modifier.",
+    "members": "Membres de l'équipe",
+    "membersHint": "Les invitations par e-mail arrivent dans la prochaine version.",
+    "you": "vous",
+    "remove": "Retirer",
+    "leave": "Quitter l'entreprise",
+    "changeRole": "Changer le rôle",
+    "danger": "Zone sensible",
+    "deleteTitle": "Supprimer cette entreprise",
+    "deleteHint": "L'entreprise est supprimée pour tous les membres. Saisissez son nom pour confirmer.",
+    "deleteConfirmLabel": "Nom de l'entreprise",
+    "deleteButton": "Supprimer l'entreprise",
+    "profileTitle": "Profil utilisateur",
+    "profileSubtitle": "Vos informations personnelles et préférences.",
+    "email": "E-mail",
+    "emailReadOnly": "Le changement d'e-mail sera disponible avec la vérification d'e-mail.",
+    "security": "Sécurité",
+    "logoutAll": "Se déconnecter de tous les appareils",
+    "logoutAllHint": "Met fin à toutes les sessions actives, y compris celle-ci."
   }
 }

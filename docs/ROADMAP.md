@@ -2,8 +2,8 @@
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Monorepo, Docker, PostgreSQL, Redis, Prisma (full schema), authentication, first dashboard | ✅ Done |
-| 2 | Business management, memberships & invitations, tenant guard + permissions, product & service catalog, onboarding | ⏭ Next |
+| 1 | Monorepo, Docker, PostgreSQL, Redis, Prisma (full schema), authentication, RBAC, business management, tenant isolation, onboarding, dashboard, EN/FR | ✅ Done |
+| 2 | Email provider, email verification, password reset, team invitations, product & service catalog, knowledge base, Redis rate-limit store | ⏭ Next |
 | 3 | AI engine: provider abstraction, orchestrator, Business/Product analyst, Content creator, knowledge base, usage metering, prompt-injection defences | Planned |
 | 4 | Image generation provider, media library, secure uploads to S3 | Planned |
 | 5 | Content calendar (day/week/month, 30-day plan), approval workflow, previews, video briefs | Planned |

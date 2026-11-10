@@ -140,12 +140,18 @@ export class AuthService {
     if (!session) throw unauthorized();
 
     if (session.revokedAt) {
-      // Two tabs refreshing at the same moment: the loser presents a just-rotated token.
-      // Inside a short grace window this is not treated as theft; the client retries with the new cookie.
-      const justRotated =
+      // Grace window: a token rotated moments ago is presented again. This is normal when two tabs
+      // refresh at once, or when the browser dropped the response carrying the new cookie (e.g. the
+      // user navigated away mid-refresh). Within the window we issue a fresh pair in the same family
+      // instead of treating it as theft. Only rotated (not logged-out) sessions qualify.
+      const withinGrace =
         session.replacedById && Date.now() - session.revokedAt.getTime() < REFRESH_REUSE_GRACE_MS;
-      if (justRotated) {
-        throw new UnauthorizedException({ code: 'REFRESH_RACE', message: 'Session was just refreshed; retry.' });
+      if (withinGrace && session.expiresAt > new Date() && session.user.status === 'ACTIVE' && !session.user.deletedAt) {
+        const familyAlive = await this.prisma.session.count({ where: { familyId: session.familyId, revokedAt: null } });
+        if (familyAlive > 0) {
+          const { sessionId: _sid, ...rest } = await this.issueTokens(session.user, meta, session.familyId);
+          return rest;
+        }
       }
       await this.prisma.session.updateMany({
         where: { familyId: session.familyId, revokedAt: null },

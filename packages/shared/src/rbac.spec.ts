@@ -49,3 +49,18 @@ describe('textDirection', () => {
     expect(textDirection('fr')).toBe('ltr');
   });
 });
+
+import { businessInputSchema } from './business.schemas';
+
+describe('businessInputSchema', () => {
+  it('normalises and defaults', () => {
+    const v = businessInputSchema.parse({ name: '  Café Awa ', type: 'RESTAURANT', country: 'td', website: '' });
+    expect(v).toMatchObject({ name: 'Café Awa', country: 'TD', timezone: 'UTC', currency: 'USD', defaultLocale: 'en' });
+    expect(v.website).toBeUndefined();
+  });
+  it('rejects invalid timezone, website and type', () => {
+    expect(businessInputSchema.safeParse({ name: 'Ab', type: 'OTHER', timezone: 'Mars/Base' }).success).toBe(false);
+    expect(businessInputSchema.safeParse({ name: 'Ab', type: 'OTHER', website: 'javascript:alert(1)' }).success).toBe(false);
+    expect(businessInputSchema.safeParse({ name: 'Ab', type: 'SPACESHIP' }).success).toBe(false);
+  });
+});

@@ -43,6 +43,7 @@ function setup() {
       findFirst: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      count: jest.fn().mockResolvedValue(1),
     },
   };
   const passwords = {
@@ -133,7 +134,7 @@ describe('AuthService', () => {
     expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'auth.refresh_reuse_detected' }));
   });
 
-  it('does not revoke the family on a concurrent-refresh race inside the grace window', async () => {
+  it('re-issues within the grace window (dropped response / multi-tab) without revoking the family', async () => {
     const { prisma, service } = setup();
     prisma.session.findUnique.mockResolvedValue({
       id: 's1',
@@ -144,8 +145,26 @@ describe('AuthService', () => {
       expiresAt: new Date(Date.now() + 60_000),
       user: baseUser(),
     });
-    await expect(service.refresh('t', meta)).rejects.toMatchObject({ response: { code: 'REFRESH_RACE' } });
+    const res = await service.refresh('t', meta);
+    expect(res.accessToken).toEqual(expect.any(String));
+    expect(prisma.session.create.mock.calls[0][0].data.familyId).toBe('f1');
     expect(prisma.session.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('does not re-issue within the grace window once the family was logged out', async () => {
+    const { prisma, service } = setup();
+    prisma.session.count.mockResolvedValue(0);
+    prisma.session.findUnique.mockResolvedValue({
+      id: 's1',
+      familyId: 'f1',
+      userId: 'u1',
+      revokedAt: new Date(),
+      replacedById: 's2',
+      expiresAt: new Date(Date.now() + 60_000),
+      user: baseUser(),
+    });
+    await expect(service.refresh('t', meta)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.session.create).not.toHaveBeenCalled();
   });
 
   it('rotates a valid refresh token within the same family', async () => {
