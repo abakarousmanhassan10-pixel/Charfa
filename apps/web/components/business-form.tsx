@@ -13,10 +13,15 @@ import { ApiError } from '@/lib/api-client';
 import { apiFieldErrors, zodFieldErrors } from '@/lib/form-errors';
 
 export type BusinessFormValues = Record<
-  'name' | 'type' | 'description' | 'website' | 'industry' | 'country' | 'defaultLocale' | 'timezone' | 'currency' | 'brandVoice' | 'targetAudience' | 'objectives',
+  | 'name' | 'type' | 'description' | 'website' | 'industry' | 'country' | 'city' | 'address' | 'contactEmail' | 'contactPhone'
+  | 'defaultLocale' | 'timezone' | 'currency' | 'brandVoice' | 'targetAudience' | 'objectives',
   string
 >;
-const FIELDS = ['name', 'type', 'description', 'website', 'industry', 'country', 'defaultLocale', 'timezone', 'currency', 'brandVoice', 'targetAudience', 'objectives'];
+const FIELDS = ['name', 'type', 'description', 'website', 'industry', 'country', 'city', 'address', 'contactEmail', 'contactPhone', 'defaultLocale', 'timezone', 'currency', 'brandVoice', 'targetAudience', 'objectives'];
+const CLEARABLE = ['description', 'website', 'industry', 'country', 'city', 'address', 'contactEmail', 'contactPhone', 'brandVoice', 'targetAudience', 'objectives'] as const;
+
+/** Industry suggestions (free text is still allowed). */
+const INDUSTRIES = ['Food & beverage', 'Fashion & apparel', 'Beauty & cosmetics', 'Electronics', 'Home & furniture', 'Health & wellness', 'Education', 'Travel & hospitality', 'Automotive', 'Real estate', 'Professional services', 'Agriculture', 'Arts & crafts', 'Sports & fitness', 'Technology'];
 
 function browserTimezone() {
   try {
@@ -40,6 +45,10 @@ export function initialValues(b?: Business | null, locale = 'en'): BusinessFormV
     website: b?.website ?? '',
     industry: b?.industry ?? '',
     country: b?.country ?? '',
+    city: b?.city ?? '',
+    address: b?.address ?? '',
+    contactEmail: b?.contactEmail ?? '',
+    contactPhone: b?.contactPhone ?? '',
     defaultLocale: b?.defaultLocale ?? locale,
     timezone: b?.timezone ?? browserTimezone(),
     currency: b?.currency ?? 'USD',
@@ -96,7 +105,7 @@ export function BusinessForm({
     try {
       // Empty optional fields are sent as "" so the API can clear them on edit.
       const payload: Record<string, unknown> = { ...parsed.data };
-      for (const k of ['description', 'website', 'industry', 'country', 'brandVoice', 'targetAudience', 'objectives'] as const) {
+      for (const k of CLEARABLE) {
         if (payload[k] === undefined && initial[k] !== '') payload[k] = '';
       }
       await onSubmit(payload);
@@ -149,9 +158,29 @@ export function BusinessForm({
             <Input {...common('website')} type="url" inputMode="url" placeholder="https://" />
           </Field>
           <Field id="business-industry" label={label('industry')} error={errors.industry} optional optionalLabel={opt}>
-            <Input {...common('industry')} maxLength={120} />
+            <Input {...common('industry')} maxLength={120} list="industry-options" />
+            <datalist id="industry-options">
+              {INDUSTRIES.map((i) => (
+                <option key={i} value={i} />
+              ))}
+            </datalist>
           </Field>
         </div>
+      </fieldset>
+
+      <fieldset className="grid gap-4">
+        <legend className="mb-2 text-sm font-semibold">{t('business.sections.contact')}</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="business-contactEmail" label={label('contactEmail')} error={errors.contactEmail} optional optionalLabel={opt}>
+            <Input {...common('contactEmail')} type="email" autoComplete="email" maxLength={254} />
+          </Field>
+          <Field id="business-contactPhone" label={label('contactPhone')} error={errors.contactPhone} optional optionalLabel={opt}>
+            <Input {...common('contactPhone')} type="tel" autoComplete="tel" maxLength={32} />
+          </Field>
+        </div>
+        <Field id="business-address" label={label('address')} error={errors.address} optional optionalLabel={opt}>
+          <Input {...common('address')} autoComplete="street-address" maxLength={300} />
+        </Field>
       </fieldset>
 
       <fieldset className="grid gap-4">
@@ -159,6 +188,9 @@ export function BusinessForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field id="business-country" label={label('country')} hint={t('business.hints.country')} error={errors.country} optional optionalLabel={opt}>
             <Input {...common('country')} maxLength={2} className="uppercase" autoComplete="country" />
+          </Field>
+          <Field id="business-city" label={label('city')} error={errors.city} optional optionalLabel={opt}>
+            <Input {...common('city')} autoComplete="address-level2" maxLength={120} />
           </Field>
           <Field id="business-currency" label={label('currency')} error={errors.currency}>
             <Select {...common('currency')}>

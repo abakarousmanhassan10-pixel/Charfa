@@ -46,6 +46,22 @@ export const businessInputSchema = z.object({
     .transform((v) => (v === '' ? undefined : v))
     .refine((v) => v === undefined || /^https?:\/\/[^\s]+$/i.test(v), { message: 'Website must start with http:// or https://' }),
   industry: optionalText(120),
+  city: optionalText(120),
+  address: optionalText(300),
+  contactEmail: z
+    .string()
+    .trim()
+    .max(254)
+    .optional()
+    .transform((v) => (v === '' ? undefined : v?.toLowerCase()))
+    .refine((v) => v === undefined || z.string().email().safeParse(v).success, { message: 'Invalid email address' }),
+  contactPhone: z
+    .string()
+    .trim()
+    .max(32)
+    .optional()
+    .transform((v) => (v === '' ? undefined : v))
+    .refine((v) => v === undefined || /^\+?[0-9 ().-]{6,32}$/.test(v), { message: 'Invalid phone number' }),
   country: z
     .string()
     .trim()

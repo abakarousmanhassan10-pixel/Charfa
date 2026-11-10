@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, NotFoundException, SetMetadata, UseGuards, applyDecorators } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ApiForbiddenResponse, ApiNotFoundResponse, ApiParam } from '@nestjs/swagger';
+import { ApiForbiddenResponse, ApiHeader, ApiNotFoundResponse, ApiParam } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { roleHasPermission, type Permission } from '@touma/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -8,11 +8,23 @@ import type { AuthenticatedUser } from '../common/decorators/current-user.decora
 import type { TenantContext } from './tenant-context';
 
 export const REQUIRED_PERMISSION = 'touma:requiredPermission';
+export const BUSINESS_HEADER = 'x-business-id';
 const ID_PATTERN = /^[a-z0-9]{20,40}$/;
 
 /**
+ * The tenant is named either by the route (/businesses/:businessId/...) or, for flat resource routes
+ * (/products, /media, ...), by the X-Business-Id header. Either way it is only a claim until the
+ * membership check below succeeds.
+ */
+function requestedBusinessId(req: Request): unknown {
+  if (req.params.businessId !== undefined) return req.params.businessId;
+  const header = req.headers[BUSINESS_HEADER];
+  return Array.isArray(header) ? undefined : header;
+}
+
+/**
  * Tenant isolation boundary.
- *  1. Reads :businessId from the route.
+ *  1. Reads :businessId from the route, or the X-Business-Id header on flat resource routes.
  *  2. Requires an ACTIVE membership of the authenticated user in a non-deleted business.
  *  3. Requires the route's permission for the member's role.
  * Non-members get 404 (not 403), so the existence of other tenants' ids is never revealed.
@@ -28,7 +40,7 @@ export class BusinessAccessGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const permission = this.reflector.get<Permission>(REQUIRED_PERMISSION, context.getHandler());
     const req = context.switchToHttp().getRequest<Request & { user?: AuthenticatedUser; tenant?: TenantContext }>();
-    const businessId = req.params.businessId;
+    const businessId = requestedBusinessId(req);
     const user = req.user;
     if (!permission || !user) throw new ForbiddenException({ code: 'FORBIDDEN', message: 'Access denied' });
 
@@ -59,6 +71,17 @@ export function RequirePermission(permission: Permission) {
     SetMetadata(REQUIRED_PERMISSION, permission),
     UseGuards(BusinessAccessGuard),
     ApiParam({ name: 'businessId', type: String }),
+    ApiNotFoundResponse({ description: 'Business not found or caller is not a member' }),
+    ApiForbiddenResponse({ description: `Requires permission ${permission}` }),
+  );
+}
+
+/** Same protection for flat resource routes; the tenant comes from the X-Business-Id header. */
+export function RequireTenantPermission(permission: Permission) {
+  return applyDecorators(
+    SetMetadata(REQUIRED_PERMISSION, permission),
+    UseGuards(BusinessAccessGuard),
+    ApiHeader({ name: 'X-Business-Id', required: true, description: 'Business (tenant) id; membership is verified' }),
     ApiNotFoundResponse({ description: 'Business not found or caller is not a member' }),
     ApiForbiddenResponse({ description: `Requires permission ${permission}` }),
   );

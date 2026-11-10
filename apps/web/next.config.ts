@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ['@touma/shared'],
+  experimental: {
+    // Large video uploads stream through the same-origin /api proxy; allow up to 10 minutes.
+    proxyTimeout: 10 * 60 * 1000,
+  },
   async rewrites() {
     return [{ source: '/api/v1/:path*', destination: `${API_URL}/api/v1/:path*` }];
   },

@@ -4,10 +4,12 @@
 
 TOUMA AI is the AI-powered marketing automation SaaS by **TOUMA**. It helps e-commerce stores, restaurants, retail shops, brands, agencies, freelancers and service providers run their marketing: product analysis, AI content and visuals, a 30-day content calendar, approval workflows, scheduled publishing through **official** social APIs, a unified inbox, analytics and subscriptions.
 
-> **Status: Phase 1 (Foundation) complete and tested.** Monorepo, Docker, PostgreSQL + Prisma migrations, Redis/BullMQ, secure authentication, roles & permissions, business creation and management, multi-tenant isolation, and a responsive dashboard in English and French. See [docs/phase-reports/PHASE-1.md](docs/phase-reports/PHASE-1.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status: Phase 2 (Business & product management) complete and tested.** Phase 1 delivered the foundation (auth, RBAC, tenant isolation, dashboard). Phase 2 adds businesses with logo and contacts, products, services, categories, a secure S3 media library and the business knowledge base for TOUMA AI. See [docs/phase-reports](docs/phase-reports) and [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Pages
-Landing · Registration · Login · Onboarding · Dashboard · Business settings · User profile
+Landing · Registration · Login · Onboarding · Dashboard · `/dashboard/businesses` (+ `/new`, `/[id]`) · `/dashboard/products` (+ `/new`, `/[id]`) · `/dashboard/services` (+ `/new`, `/[id]`) · `/dashboard/categories` · `/dashboard/media` · `/dashboard/knowledge` · User profile
+
+Media uploads need S3-compatible storage: set the `S3_*` variables (Docker Compose wires local MinIO). Without them the media library reports "storage not configured".
 
 ## Monorepo
 

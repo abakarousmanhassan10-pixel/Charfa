@@ -108,7 +108,7 @@ export default function DashboardPage() {
             </div>
             {can('business.update') && (
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/settings/business">
+                <Link href={`/dashboard/businesses/${active.id}`}>
                   <Pencil className="h-4 w-4" aria-hidden />
                   {t('dashboard.editBusiness')}
                 </Link>
@@ -195,7 +195,7 @@ export default function DashboardPage() {
               </Link>
             </Button>
             <Button variant="outline" className="justify-start" asChild>
-              <Link href="/settings/business">
+              <Link href={`/dashboard/businesses/${active.id}`}>
                 <Settings className="h-4 w-4" aria-hidden />
                 {t('dashboard.businessSettings')}
               </Link>

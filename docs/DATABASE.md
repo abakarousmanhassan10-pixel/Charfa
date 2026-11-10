@@ -36,10 +36,14 @@ WebhookEvent (global, unique per provider + externalEventId)
 | Session | Refresh-token session | `refreshTokenHash` unique, `familyId` index, `replacedById` rotation chain |
 | Business | Tenant | `slug` unique (random suffix) |
 | Membership | User ↔ Business with role | `@@unique([userId, businessId])` |
-| Product / Service | Catalog (Phase 2) | `@@unique([businessId, sku])` |
-| KnowledgeEntry | Verified facts the AI may use | `verified` flag |
+| Product | Catalog item: price & discountPrice (Decimal), currency, SKU, stock (null = not tracked), availability, features, benefits, target audience | `@@unique([businessId, sku])`; SKU released (null) on soft delete |
+| Service | Catalog service: price, duration, availability + notes, booking info/URL | per-tenant indexes |
+| Category | Product or service category (`kind`), industry defaults (`isDefault`) or custom | `@@unique([businessId, kind, slug])`; delete → items become uncategorised (`SetNull`) |
+| ProductMedia | Ordered product images/videos | PK `(productId, mediaId)` |
+| KnowledgeEntry | Business knowledge by `category` (company, product, service, pricing, delivery/return policy, FAQ, support) | `verified` + `verifiedAt/verifiedById`; any edit resets verification |
 | SocialAccount | Connected platform account (Phase 6) | `@@unique([businessId, platform, externalAccountId])`; tokens encrypted |
-| Content / ContentMedia / MediaAsset | Content items and ordered media | `storageKey` unique |
+| MediaAsset | Uploaded image/video: server-generated `storageKey` (`businesses/{id}/media/...`), sniffed MIME, size, dimensions, SHA-256, folder, tags, alt text | `storageKey` unique; soft delete |
+| Content / ContentMedia | Content items and ordered media (Phase 3+) | |
 | CalendarEvent | Planned slot | `(businessId, scheduledAt)` index |
 | Publication | One publish of content to one account | `idempotencyKey` unique, `(socialAccountId, externalPostId)` unique, `lockedUntil` lease |
 | Conversation / Message / Comment | Unified inbox (Phase 8) | external ids unique per account/thread |
@@ -63,7 +67,13 @@ pnpm db:seed                 # idempotent: the 3 plans; never demo data
 - Use expand → migrate → contract for breaking changes, so the running API keeps working during a deploy.
 - CI fails if the schema and migrations drift (`prisma migrate diff --exit-code`).
 
-Applied so far: `20261110171718_init`. Phase 1 needed no further migration: businesses and memberships were in the initial schema.
+Applied so far:
+| Migration | Content |
+|---|---|
+| `20261110171718_init` | Full initial schema |
+| `20261110181312_phase2_catalog_media_knowledge` | Business city/address/contact; product discount, availability, target audience, `categoryId`; service booking & availability; `Category`, `ProductMedia`; media folder/tags/originalFilename; knowledge category & verification audit |
+
+Notes on the Phase 2 migration: it drops the unused free-text `Product.category` / `Service.category` and `MediaAsset.productId` columns (replaced by `Category` and `ProductMedia`), and adds `MediaAsset.originalFilename NOT NULL` without a default. No earlier release could create media rows, so no environment holds data in these columns. If you ever backport this to a database that has media rows, backfill `originalFilename` first.
 
 ## Local databases
 | DB | Use |

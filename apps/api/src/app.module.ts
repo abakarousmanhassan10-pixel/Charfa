@@ -12,6 +12,12 @@ import { RedisModule } from './health/redis.provider';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { BusinessesModule } from './businesses/businesses.module';
 import { AdminModule } from './admin/admin.module';
+import { StorageModule } from './storage/storage.module';
+import { MediaModule } from './media/media.module';
+import { CategoriesModule } from './categories/categories.module';
+import { ProductsModule } from './products/products.module';
+import { ServicesModule } from './services/services.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
 
 @Global()
 @Module({})
@@ -36,7 +42,13 @@ export class AppModule {
         AuthModule,
         TenancyModule,
         UsersModule,
+        StorageModule,
+        MediaModule,
+        CategoriesModule,
         BusinessesModule,
+        ProductsModule,
+        ServicesModule,
+        KnowledgeModule,
         AdminModule,
         HealthModule,
       ],

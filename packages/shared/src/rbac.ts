@@ -26,6 +26,11 @@ export const PERMISSIONS = [
   'billing.manage',
   'ai.use',
   'audit.read',
+  'media.read',
+  'media.write',
+  'knowledge.read',
+  'knowledge.write',
+  'knowledge.verify',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -37,6 +42,8 @@ const VIEWER: Permission[] = [
   'social.read',
   'inbox.read',
   'analytics.read',
+  'media.read',
+  'knowledge.read',
 ];
 
 const EDITOR: Permission[] = [
@@ -45,6 +52,8 @@ const EDITOR: Permission[] = [
   'content.write',
   'inbox.reply',
   'ai.use',
+  'media.write',
+  'knowledge.write',
 ];
 
 const ADMIN: Permission[] = [
@@ -56,6 +65,8 @@ const ADMIN: Permission[] = [
   'social.manage',
   'billing.read',
   'audit.read',
+  // Verifying knowledge = approving facts the AI may state to customers: a management decision.
+  'knowledge.verify',
 ];
 
 const OWNER: Permission[] = [...ADMIN, 'business.delete', 'billing.manage'];

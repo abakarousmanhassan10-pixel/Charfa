@@ -18,6 +18,10 @@
 | Input validation | Global `ValidationPipe` with `whitelist` + `forbidNonWhitelisted` (blocks mass-assignment such as `platformRole`) |
 | Error handling | Uniform error envelope with request id; no stack traces, SQL or provider payloads in responses |
 | Secrets | Env validated at boot (min length, distinct JWT secrets in production); `.env` is git-ignored; secrets never logged |
+| File uploads | Streamed to a 0600 temp file with a hard size cap; real type from magic bytes (JPEG/PNG/WebP/GIF/MP4/MOV/WebM only; SVG/HTML/PDF/executables rejected); declared type must match; per-type limits (`MEDIA_MAX_IMAGE_MB`, `MEDIA_MAX_VIDEO_MB`); image decoding and dimension limits; sanitised filenames; server-generated storage keys under the tenant prefix; rejected uploads are audited and never stored |
+| Media delivery | Private bucket; HMAC-signed expiring same-origin URLs; `nosniff` + `sandbox` CSP on served files; no storage credentials or keys in any response |
+| Resource ownership | Every catalog, media and knowledge query is scoped by `{ id, businessId }`; cross-tenant ids → 404; cross-tenant references in payloads (category, logo, product media) → 400 |
+| AI data boundary | Agents only receive `buildAgentContext(tenant)`: verified facts and active items of that one business; edits reset verification; only ADMIN/OWNER can verify (`knowledge.verify`) |
 | Encryption at rest | `TokenCipher` AES-256-GCM (random IV, auth tag, versioned format) for OAuth tokens (used from Phase 6) |
 | Audit | `AuditLog` for register/login/failure/lockout/logout/reuse-detection/profile updates, business create/update/delete, membership role change/remove/leave, admin overview access; metadata is redacted automatically |
 | Headers | HSTS, nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy; `x-powered-by` removed |
@@ -26,7 +30,7 @@
 
 - **Phase 2:** invitation tokens (hashed, expiring, single-use) with email verification, tenant isolation tests for every new resource (catalog), Redis-backed rate-limit storage for multi-instance deployments.
 - **Phase 3:** prompt-injection defences (untrusted content delimited, tool allow-lists per agent, output schema validation, no side-effecting tools without approval).
-- **Phase 4:** signed upload URLs, MIME sniffing (magic bytes), size limits, image re-encoding, private buckets.
+- **Phase 4:** image re-encoding/EXIF stripping and thumbnails in the worker, malware scanning hook, video transcoding, orphaned-object cleanup job, per-plan storage quotas.
 - **Phase 6:** OAuth `state` + PKCE, encrypted token storage, webhook signature verification (HMAC, constant-time comparison), scope checks.
 - **Phase 10:** payment webhook signature verification, GDPR export/deletion workflows, admin step-up auth, backup/restore drills.
 

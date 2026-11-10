@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  BarChart3, Building2, CalendarDays, CreditCard, Image as ImageIcon, Inbox, LayoutDashboard,
-  Loader2, LogOut, Menu, Package, Share2, UserRound, Wand2, X,
+  BarChart3, BookOpenCheck, BriefcaseBusiness, Building2, CalendarDays, CreditCard, FolderTree, Image as ImageIcon, Inbox,
+  LayoutDashboard, Loader2, LogOut, Menu, Package, Share2, UserRound, Wand2, X,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { useBusiness } from '@/components/business-provider';
@@ -19,10 +19,13 @@ type NavItem = { key: string; icon: typeof LayoutDashboard; href?: string };
 // Only implemented routes are links; upcoming modules are visibly disabled so nothing pretends to work.
 const NAV: NavItem[] = [
   { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { key: 'businessSettings', href: '/settings/business', icon: Building2 },
-  { key: 'products', icon: Package },
+  { key: 'businesses', href: '/dashboard/businesses', icon: Building2 },
+  { key: 'products', href: '/dashboard/products', icon: Package },
+  { key: 'services', href: '/dashboard/services', icon: BriefcaseBusiness },
+  { key: 'categories', href: '/dashboard/categories', icon: FolderTree },
+  { key: 'media', href: '/dashboard/media', icon: ImageIcon },
+  { key: 'knowledge', href: '/dashboard/knowledge', icon: BookOpenCheck },
   { key: 'content', icon: Wand2 },
-  { key: 'media', icon: ImageIcon },
   { key: 'calendar', icon: CalendarDays },
   { key: 'social', icon: Share2 },
   { key: 'inbox', icon: Inbox },
@@ -59,7 +62,7 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
             </span>
           );
         }
-        const active = pathname === href;
+        const active = href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
             key={key}

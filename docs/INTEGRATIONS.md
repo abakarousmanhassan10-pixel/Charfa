@@ -7,7 +7,7 @@ An integration with no credentials stays **not configured**. The app reports it 
 | OpenAI (text, structured outputs) | 3 | `OPENAI_API_KEY` | Not configured |
 | Image generation provider | 4 | provider-specific (modular) | Not configured |
 | Video generation provider | 4–5 | provider-specific (modular) | Not configured |
-| S3-compatible storage | 4 | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | Not configured (MinIO available locally) |
+| S3-compatible storage | 2 | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE` | Implemented; not configured in `.env` by default (media endpoints return 503 until set). Docker Compose wires the API to local MinIO. For AWS S3 leave `S3_ENDPOINT` empty and set `S3_FORCE_PATH_STYLE=false`; for Cloudflare R2 use its endpoint. The bucket must be private |
 | Meta (Instagram Graph API, Facebook Pages) | 6 | `META_APP_ID`, `META_APP_SECRET`, `META_WEBHOOK_VERIFY_TOKEN` | Not configured. Needs Meta App Review for `instagram_content_publish`, `pages_manage_posts`, etc. Instagram publishing requires Business/Creator accounts |
 | TikTok Content Posting API | 6 | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | Not configured. Direct Post needs an app audit; unaudited apps can only post privately |
 | YouTube Data API v3 | 6 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Not configured. Needs OAuth consent screen verification; unverified projects upload as private |

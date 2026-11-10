@@ -53,3 +53,25 @@ describe('BusinessAccessGuard', () => {
     await expect(guard.canActivate(ctx({ params: { businessId: BID }, user }))).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
+
+describe('BusinessAccessGuard with X-Business-Id header', () => {
+  it('reads the tenant from the header on flat routes and still verifies membership', async () => {
+    const reflector = { get: jest.fn().mockReturnValue('catalog.read') } as unknown as Reflector;
+    const prisma = { membership: { findFirst: jest.fn().mockResolvedValue(null) } };
+    const guard = new BusinessAccessGuard(reflector, prisma as never);
+    const req = { params: {}, headers: { 'x-business-id': BID }, user: { id: 'u1' } };
+    await expect(guard.canActivate(ctx(req))).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.membership.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ businessId: BID }) }));
+  });
+
+  it('rejects a missing or repeated header', async () => {
+    const reflector = { get: jest.fn().mockReturnValue('catalog.read') } as unknown as Reflector;
+    const prisma = { membership: { findFirst: jest.fn() } };
+    const guard = new BusinessAccessGuard(reflector, prisma as never);
+    await expect(guard.canActivate(ctx({ params: {}, headers: {}, user: { id: 'u1' } }))).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      guard.canActivate(ctx({ params: {}, headers: { 'x-business-id': [BID, BID] }, user: { id: 'u1' } })),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.membership.findFirst).not.toHaveBeenCalled();
+  });
+});

@@ -52,6 +52,20 @@ export const appEnvSchema = z.object({
   S3_BUCKET: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
+  /** Required for MinIO and most S3-compatible providers. */
+  S3_FORCE_PATH_STYLE: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  /**
+   * s3 (default): S3-compatible storage. memory: in-process store for automated tests ONLY;
+   * the loader refuses it unless APP_ENV=test.
+   */
+  STORAGE_DRIVER: z.enum(['s3', 'memory']).default('s3'),
+  MEDIA_MAX_IMAGE_MB: z.coerce.number().positive().max(100).default(10),
+  MEDIA_MAX_VIDEO_MB: z.coerce.number().positive().max(2048).default(200),
+  /** Lifetime of signed media URLs handed to browsers. */
+  MEDIA_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(3600),
 });
 
 export type AppEnv = z.infer<typeof appEnvSchema>;
@@ -71,6 +85,9 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
     );
   }
   const env = parsed.data;
+  if (env.STORAGE_DRIVER === 'memory' && env.APP_ENV !== 'test') {
+    throw new EnvValidationError(['STORAGE_DRIVER=memory is only allowed when APP_ENV=test']);
+  }
   if (env.NODE_ENV === 'production' && env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {
     throw new EnvValidationError(['JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must differ']);
   }
@@ -81,6 +98,7 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
 export function integrationStatus(env: AppEnv) {
   return {
     openai: Boolean(env.OPENAI_API_KEY),
-    storage: Boolean(env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY),
+    storage:
+      env.STORAGE_DRIVER === 'memory' || Boolean(env.S3_BUCKET && env.S3_REGION && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY),
   };
 }

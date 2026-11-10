@@ -81,8 +81,10 @@ test('business settings: edit, persist, switch businesses, delete with confirmat
   await expect(del).toBeDisabled();
   await page.getByLabel(/Business name: First Shop/).fill('First Shop');
   await del.click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/dashboard\/businesses$/);
   await expect(page.getByLabel('Active business').locator('option')).toHaveCount(1);
+  await expect(page.getByTestId('business-list')).not.toContainText('First Shop');
+  await page.goto('/dashboard');
   await expect(page.getByText('Here is what is happening at Second Shop.')).toBeVisible();
 });
 

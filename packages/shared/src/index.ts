@@ -4,3 +4,4 @@ export * from './auth.schemas';
 export * from './brand';
 export * from './email-layout';
 export * from './business.schemas';
+export * from './catalog';

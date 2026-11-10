@@ -30,6 +30,11 @@ describe('loadEnv', () => {
     ).toThrow(/must differ/);
   });
 
+  it('refuses the in-memory storage driver outside tests', () => {
+    expect(() => loadEnv({ ...valid, STORAGE_DRIVER: 'memory', APP_ENV: 'development' })).toThrow(/only allowed when APP_ENV=test/);
+    expect(loadEnv({ ...valid, STORAGE_DRIVER: 'memory', APP_ENV: 'test' }).STORAGE_DRIVER).toBe('memory');
+  });
+
   it('reports integrations as not configured without credentials', () => {
     expect(integrationStatus(loadEnv(valid))).toEqual({ openai: false, storage: false });
   });

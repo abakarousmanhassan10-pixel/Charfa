@@ -13,6 +13,12 @@ export interface Business {
   website: string | null;
   industry: string | null;
   country: string | null;
+  city: string | null;
+  address: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  logoMediaId: string | null;
+  logoUrl: string | null;
   defaultLocale: string;
   timezone: string;
   currency: string;

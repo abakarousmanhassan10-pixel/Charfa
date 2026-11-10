@@ -209,6 +209,726 @@
         ]
       }
     },
+    "/api/v1/media": {
+      "post": {
+        "operationId": "MediaController_upload_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPEG, PNG, WebP, GIF, MP4, MOV or WebM"
+                  },
+                  "folder": {
+                    "type": "string"
+                  },
+                  "altText": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission media.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "media"
+        ]
+      },
+      "get": {
+        "operationId": "MediaController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IMAGE",
+                "VIDEO"
+              ]
+            }
+          },
+          {
+            "name": "folder",
+            "required": false,
+            "in": "query",
+            "description": "Exact folder path; \"\" for root. Omit for all folders.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission media.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/api/v1/media/folders": {
+      "get": {
+        "operationId": "MediaController_folders_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission media.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/api/v1/media/{id}/content": {
+      "get": {
+        "operationId": "MediaController_content_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exp",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sig",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/api/v1/media/{id}": {
+      "get": {
+        "operationId": "MediaController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission media.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "media"
+        ]
+      },
+      "patch": {
+        "operationId": "MediaController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMediaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission media.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "media"
+        ]
+      },
+      "delete": {
+        "operationId": "MediaController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission media.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/api/v1/product-categories": {
+      "get": {
+        "operationId": "ProductCategoriesController_list_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "product-categories"
+        ]
+      },
+      "post": {
+        "operationId": "ProductCategoriesController_create_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "product-categories"
+        ]
+      }
+    },
+    "/api/v1/product-categories/restore-defaults": {
+      "post": {
+        "operationId": "ProductCategoriesController_restore_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "product-categories"
+        ]
+      }
+    },
+    "/api/v1/product-categories/{id}": {
+      "patch": {
+        "operationId": "ProductCategoriesController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "product-categories"
+        ]
+      },
+      "delete": {
+        "operationId": "ProductCategoriesController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "product-categories"
+        ]
+      }
+    },
+    "/api/v1/service-categories": {
+      "get": {
+        "operationId": "ServiceCategoriesController_list_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "service-categories"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceCategoriesController_create_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "service-categories"
+        ]
+      }
+    },
+    "/api/v1/service-categories/restore-defaults": {
+      "post": {
+        "operationId": "ServiceCategoriesController_restore_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "service-categories"
+        ]
+      }
+    },
+    "/api/v1/service-categories/{id}": {
+      "patch": {
+        "operationId": "ServiceCategoriesController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "service-categories"
+        ]
+      },
+      "delete": {
+        "operationId": "ServiceCategoriesController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "service-categories"
+        ]
+      }
+    },
     "/api/v1/businesses": {
       "post": {
         "operationId": "BusinessesController_create_v1",
@@ -512,6 +1232,1043 @@
         ]
       }
     },
+    "/api/v1/products": {
+      "get": {
+        "operationId": "ProductsController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": false,
+            "in": "query",
+            "description": "Category id, or \"none\" for uncategorised",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "ACTIVE",
+                "ARCHIVED"
+              ]
+            }
+          },
+          {
+            "name": "availability",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IN_STOCK",
+                "OUT_OF_STOCK",
+                "PREORDER",
+                "MADE_TO_ORDER",
+                "DISCONTINUED"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "updatedAt",
+              "type": "string",
+              "enum": [
+                "updatedAt",
+                "createdAt",
+                "name",
+                "price"
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "products"
+        ]
+      },
+      "post": {
+        "operationId": "ProductsController_create_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/{id}": {
+      "get": {
+        "operationId": "ProductsController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "products"
+        ]
+      },
+      "patch": {
+        "operationId": "ProductsController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "products"
+        ]
+      },
+      "delete": {
+        "operationId": "ProductsController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/products/{id}/media": {
+      "put": {
+        "operationId": "ProductsController_setMedia_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProductMediaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "products"
+        ]
+      }
+    },
+    "/api/v1/services": {
+      "get": {
+        "operationId": "ServicesController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": false,
+            "in": "query",
+            "description": "Category id, or \"none\"",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "ACTIVE",
+                "ARCHIVED"
+              ]
+            }
+          },
+          {
+            "name": "availability",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "AVAILABLE",
+                "BY_APPOINTMENT",
+                "UNAVAILABLE"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "updatedAt",
+                "createdAt",
+                "name",
+                "price"
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "services"
+        ]
+      },
+      "post": {
+        "operationId": "ServicesController_create_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateServiceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "services"
+        ]
+      }
+    },
+    "/api/v1/services/{id}": {
+      "get": {
+        "operationId": "ServicesController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "services"
+        ]
+      },
+      "patch": {
+        "operationId": "ServicesController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateServiceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "services"
+        ]
+      },
+      "delete": {
+        "operationId": "ServicesController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission catalog.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "services"
+        ]
+      }
+    },
+    "/api/v1/business-knowledge": {
+      "get": {
+        "operationId": "KnowledgeController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COMPANY",
+                "PRODUCT",
+                "SERVICE",
+                "PRICING",
+                "DELIVERY_POLICY",
+                "RETURN_POLICY",
+                "FAQ",
+                "CUSTOMER_SUPPORT",
+                "OTHER"
+              ]
+            }
+          },
+          {
+            "name": "verified",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission knowledge.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "business-knowledge"
+        ]
+      },
+      "post": {
+        "operationId": "KnowledgeController_create_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateKnowledgeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission knowledge.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "business-knowledge"
+        ]
+      }
+    },
+    "/api/v1/business-knowledge/summary": {
+      "get": {
+        "operationId": "KnowledgeController_summary_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission knowledge.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "business-knowledge"
+        ]
+      }
+    },
+    "/api/v1/business-knowledge/context": {
+      "get": {
+        "operationId": "KnowledgeController_context_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission knowledge.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Exactly what TOUMA AI agents will see for this business (verified facts only)",
+        "tags": [
+          "business-knowledge"
+        ]
+      }
+    },
+    "/api/v1/business-knowledge/{id}": {
+      "get": {
+        "operationId": "KnowledgeController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission knowledge.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "business-knowledge"
+        ]
+      },
+      "patch": {
+        "operationId": "KnowledgeController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateKnowledgeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission knowledge.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Edit an entry (resets verification)",
+        "tags": [
+          "business-knowledge"
+        ]
+      },
+      "delete": {
+        "operationId": "KnowledgeController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission knowledge.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "business-knowledge"
+        ]
+      }
+    },
+    "/api/v1/business-knowledge/{id}/verify": {
+      "post": {
+        "operationId": "KnowledgeController_verify_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission knowledge.verify"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "business-knowledge"
+        ]
+      }
+    },
+    "/api/v1/business-knowledge/{id}/unverify": {
+      "post": {
+        "operationId": "KnowledgeController_unverify_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission knowledge.verify"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "business-knowledge"
+        ]
+      }
+    },
     "/api/v1/admin/overview": {
       "get": {
         "operationId": "AdminController_overview_v1",
@@ -713,6 +2470,60 @@
           }
         }
       },
+      "UpdateMediaDto": {
+        "type": "object",
+        "properties": {
+          "altText": {
+            "type": "object",
+            "maxLength": 300
+          },
+          "folder": {
+            "type": "string",
+            "example": "products/summer"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Main dishes"
+          },
+          "description": {
+            "type": "object"
+          },
+          "sortOrder": {
+            "type": "number",
+            "default": 0
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Main dishes"
+          },
+          "description": {
+            "type": "object"
+          },
+          "sortOrder": {
+            "type": "number",
+            "default": 0
+          }
+        }
+      },
       "CreateBusinessDto": {
         "type": "object",
         "properties": {
@@ -748,6 +2559,21 @@
             "type": "object",
             "example": "TD",
             "description": "ISO 3166-1 alpha-2"
+          },
+          "city": {
+            "type": "object",
+            "example": "N'Djamena"
+          },
+          "address": {
+            "type": "object"
+          },
+          "contactEmail": {
+            "type": "object",
+            "example": "hello@cafe-awa.example"
+          },
+          "contactPhone": {
+            "type": "object",
+            "example": "+235 66 00 00 00"
           },
           "defaultLocale": {
             "type": "string",
@@ -819,6 +2645,21 @@
             "example": "TD",
             "description": "ISO 3166-1 alpha-2"
           },
+          "city": {
+            "type": "object",
+            "example": "N'Djamena"
+          },
+          "address": {
+            "type": "object"
+          },
+          "contactEmail": {
+            "type": "object",
+            "example": "hello@cafe-awa.example"
+          },
+          "contactPhone": {
+            "type": "object",
+            "example": "+235 66 00 00 00"
+          },
           "defaultLocale": {
             "type": "string",
             "enum": [
@@ -846,6 +2687,10 @@
           },
           "objectives": {
             "type": "object"
+          },
+          "logoMediaId": {
+            "type": "object",
+            "description": "Id of an IMAGE from this business media library; null removes the logo"
           }
         }
       },
@@ -877,6 +2722,374 @@
         "required": [
           "role"
         ]
+      },
+      "CreateProductDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Bissap juice 1L"
+          },
+          "description": {
+            "type": "object"
+          },
+          "categoryId": {
+            "type": "object"
+          },
+          "price": {
+            "type": "object",
+            "example": "1500.00",
+            "description": "Decimal string (never a float)"
+          },
+          "discountPrice": {
+            "type": "object",
+            "example": "1200.00",
+            "description": "Must be lower than price"
+          },
+          "currency": {
+            "type": "string",
+            "example": "XAF",
+            "description": "Defaults to the business currency"
+          },
+          "sku": {
+            "type": "object",
+            "example": "BSP-1L"
+          },
+          "stockQuantity": {
+            "type": "object",
+            "description": "Null = stock not tracked"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "IN_STOCK",
+              "OUT_OF_STOCK",
+              "PREORDER",
+              "MADE_TO_ORDER",
+              "DISCONTINUED"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "benefits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targetAudience": {
+            "type": "object"
+          },
+          "url": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateProductDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Bissap juice 1L"
+          },
+          "description": {
+            "type": "object"
+          },
+          "categoryId": {
+            "type": "object"
+          },
+          "price": {
+            "type": "object",
+            "example": "1500.00",
+            "description": "Decimal string (never a float)"
+          },
+          "discountPrice": {
+            "type": "object",
+            "example": "1200.00",
+            "description": "Must be lower than price"
+          },
+          "currency": {
+            "type": "string",
+            "example": "XAF",
+            "description": "Defaults to the business currency"
+          },
+          "sku": {
+            "type": "object",
+            "example": "BSP-1L"
+          },
+          "stockQuantity": {
+            "type": "object",
+            "description": "Null = stock not tracked"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "IN_STOCK",
+              "OUT_OF_STOCK",
+              "PREORDER",
+              "MADE_TO_ORDER",
+              "DISCONTINUED"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "benefits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targetAudience": {
+            "type": "object"
+          },
+          "url": {
+            "type": "object"
+          }
+        }
+      },
+      "SetProductMediaDto": {
+        "type": "object",
+        "properties": {
+          "mediaIds": {
+            "description": "Ordered media ids (images/videos of this business)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "mediaIds"
+        ]
+      },
+      "CreateServiceDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Home delivery"
+          },
+          "description": {
+            "type": "object"
+          },
+          "categoryId": {
+            "type": "object"
+          },
+          "price": {
+            "type": "object",
+            "example": "25000.00"
+          },
+          "currency": {
+            "type": "string",
+            "example": "XAF"
+          },
+          "durationMinutes": {
+            "type": "object",
+            "example": 60
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "AVAILABLE",
+              "BY_APPOINTMENT",
+              "UNAVAILABLE"
+            ]
+          },
+          "availabilityNotes": {
+            "type": "object",
+            "example": "Mon–Sat 9:00–18:00"
+          },
+          "bookingInfo": {
+            "type": "object",
+            "example": "Call or WhatsApp +235 66 00 00 00"
+          },
+          "bookingUrl": {
+            "type": "object"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "benefits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targetAudience": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateServiceDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Home delivery"
+          },
+          "description": {
+            "type": "object"
+          },
+          "categoryId": {
+            "type": "object"
+          },
+          "price": {
+            "type": "object",
+            "example": "25000.00"
+          },
+          "currency": {
+            "type": "string",
+            "example": "XAF"
+          },
+          "durationMinutes": {
+            "type": "object",
+            "example": 60
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "AVAILABLE",
+              "BY_APPOINTMENT",
+              "UNAVAILABLE"
+            ]
+          },
+          "availabilityNotes": {
+            "type": "object",
+            "example": "Mon–Sat 9:00–18:00"
+          },
+          "bookingInfo": {
+            "type": "object",
+            "example": "Call or WhatsApp +235 66 00 00 00"
+          },
+          "bookingUrl": {
+            "type": "object"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "benefits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targetAudience": {
+            "type": "object"
+          }
+        }
+      },
+      "CreateKnowledgeDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "COMPANY",
+              "PRODUCT",
+              "SERVICE",
+              "PRICING",
+              "DELIVERY_POLICY",
+              "RETURN_POLICY",
+              "FAQ",
+              "CUSTOMER_SUPPORT",
+              "OTHER"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "example": "Do you deliver on Sundays?",
+            "description": "Title, or the question for FAQs"
+          },
+          "body": {
+            "type": "string",
+            "example": "Yes, in N’Djamena from 11:00 to 20:00. Delivery costs 1 000 XAF."
+          }
+        },
+        "required": [
+          "category",
+          "title",
+          "body"
+        ]
+      },
+      "UpdateKnowledgeDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "COMPANY",
+              "PRODUCT",
+              "SERVICE",
+              "PRICING",
+              "DELIVERY_POLICY",
+              "RETURN_POLICY",
+              "FAQ",
+              "CUSTOMER_SUPPORT",
+              "OTHER"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "example": "Do you deliver on Sundays?",
+            "description": "Title, or the question for FAQs"
+          },
+          "body": {
+            "type": "string",
+            "example": "Yes, in N’Djamena from 11:00 to 20:00. Delivery costs 1 000 XAF."
+          }
+        }
       }
     }
   }

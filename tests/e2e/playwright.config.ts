@@ -19,6 +19,9 @@ const testEnv = {
   CORS_ORIGINS: 'http://localhost:3100',
   WEB_URL: 'http://localhost:3100',
   AUTH_THROTTLE_LIMIT: '1000',
+  THROTTLE_LIMIT: '10000',
+  // TEST-ONLY in-memory object storage (the API refuses it unless APP_ENV=test).
+  STORAGE_DRIVER: 'memory',
 };
 
 export default defineConfig({

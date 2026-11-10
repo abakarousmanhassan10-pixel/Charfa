@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength, Validate } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, Matches, MaxLength, MinLength, Validate } from 'class-validator';
 import { BUSINESS_ROLES, BUSINESS_TYPES, SUPPORTED_LOCALES } from '@touma/shared';
 import { IsIanaTimezone } from '../../users/users.dto';
 
@@ -50,6 +50,26 @@ export class CreateBusinessDto {
   @Matches(/^[A-Z]{2}$/, { message: 'country must be a 2-letter ISO code' })
   country?: string | null;
 
+  @ApiPropertyOptional({ example: "N'Djamena" }) @IsOptional() @Transform(trimEmptyToNull) @IsString() @MaxLength(120)
+  city?: string | null;
+
+  @ApiPropertyOptional() @IsOptional() @Transform(trimEmptyToNull) @IsString() @MaxLength(300)
+  address?: string | null;
+
+  @ApiPropertyOptional({ example: 'hello@cafe-awa.example' })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? (value.trim() === '' ? null : value.trim().toLowerCase()) : value))
+  @IsEmail()
+  @MaxLength(254)
+  contactEmail?: string | null;
+
+  @ApiPropertyOptional({ example: '+235 66 00 00 00' })
+  @IsOptional()
+  @Transform(trimEmptyToNull)
+  @IsString()
+  @Matches(/^\+?[0-9 ().-]{6,32}$/, { message: 'contactPhone must be a valid phone number' })
+  contactPhone?: string | null;
+
   @ApiPropertyOptional({ enum: SUPPORTED_LOCALES, default: 'en' })
   @IsOptional()
   @IsIn(SUPPORTED_LOCALES as unknown as string[])
@@ -76,7 +96,14 @@ export class CreateBusinessDto {
   objectives?: string | null;
 }
 
-export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {}
+export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {
+  @ApiPropertyOptional({ description: 'Id of an IMAGE from this business media library; null removes the logo' })
+  @IsOptional()
+  @Transform(trimEmptyToNull)
+  @IsString()
+  @Matches(/^[a-z0-9]{20,40}$/)
+  logoMediaId?: string | null;
+}
 
 export class DeleteBusinessDto {
   @ApiProperty({ description: 'Must equal the business name exactly, to confirm deletion' })

@@ -10,3 +10,7 @@ process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
 process.env.AUTH_THROTTLE_LIMIT = process.env.AUTH_THROTTLE_LIMIT || '1000';
 process.env.THROTTLE_LIMIT = '10000';
 process.env.CORS_ORIGINS = 'http://localhost:3000';
+// TEST-ONLY in-memory object storage (refused by the env loader outside APP_ENV=test).
+process.env.STORAGE_DRIVER = 'memory';
+process.env.MEDIA_MAX_IMAGE_MB = '1';
+process.env.MEDIA_MAX_VIDEO_MB = '2';

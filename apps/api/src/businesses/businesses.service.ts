@@ -7,6 +7,8 @@ import { AuditService } from '../audit/audit.service';
 import type { TenantContext } from '../tenancy/tenant-context';
 import type { CreateBusinessDto, UpdateBusinessDto } from './dto/business.dto';
 import { businessSlug } from './slug';
+import { CategoriesService } from '../categories/categories.service';
+import { MediaService } from '../media/media.service';
 
 const PUBLIC_FIELDS = {
   id: true,
@@ -17,6 +19,11 @@ const PUBLIC_FIELDS = {
   website: true,
   industry: true,
   country: true,
+  city: true,
+  address: true,
+  contactEmail: true,
+  contactPhone: true,
+  logoMediaId: true,
   defaultLocale: true,
   timezone: true,
   currency: true,
@@ -29,8 +36,8 @@ const PUBLIC_FIELDS = {
 
 type PublicBusiness = Pick<Business, keyof typeof PUBLIC_FIELDS>;
 
-export function withAccess(business: PublicBusiness, role: BusinessRole) {
-  return { ...business, role, permissions: [...ROLE_PERMISSIONS[role]] };
+export function withAccess(business: PublicBusiness, role: BusinessRole, logoUrl: string | null = null) {
+  return { ...business, logoUrl, role, permissions: [...ROLE_PERMISSIONS[role]] };
 }
 
 @Injectable()
@@ -38,8 +45,14 @@ export class BusinessesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly categories: CategoriesService,
+    private readonly media: MediaService,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
+
+  private present(business: PublicBusiness, role: BusinessRole) {
+    return withAccess(business, role, this.media.urlFor(business.logoMediaId));
+  }
 
   async create(userId: string, dto: CreateBusinessDto) {
     const owned = await this.prisma.membership.count({
@@ -64,6 +77,10 @@ export class BusinessesService {
               website: dto.website,
               industry: dto.industry,
               country: dto.country,
+              city: dto.city,
+              address: dto.address,
+              contactEmail: dto.contactEmail,
+              contactPhone: dto.contactPhone,
               defaultLocale: dto.defaultLocale ?? 'en',
               timezone: dto.timezone ?? 'UTC',
               currency: dto.currency ?? 'USD',
@@ -76,6 +93,7 @@ export class BusinessesService {
           await tx.membership.create({
             data: { userId, businessId: created.id, role: 'OWNER', status: 'ACTIVE', joinedAt: new Date() },
           });
+          await this.categories.seedDefaults(tx, created);
           return created;
         });
         await this.audit.record({
@@ -85,7 +103,7 @@ export class BusinessesService {
           entityType: 'Business',
           entityId: business.id,
         });
-        return withAccess(business, 'OWNER');
+        return this.present(business, 'OWNER');
       } catch (err) {
         const slugClash =
           err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002' && attempt < 2;
@@ -101,7 +119,7 @@ export class BusinessesService {
       select: { role: true, business: { select: PUBLIC_FIELDS } },
       orderBy: { createdAt: 'asc' },
     });
-    return memberships.map((m) => withAccess(m.business, m.role));
+    return memberships.map((m) => this.present(m.business, m.role));
   }
 
   async get(tenant: TenantContext) {
@@ -109,7 +127,7 @@ export class BusinessesService {
       where: { id: tenant.businessId, deletedAt: null },
       select: PUBLIC_FIELDS,
     });
-    return withAccess(business, tenant.role);
+    return this.present(business, tenant.role);
   }
 
   async update(tenant: TenantContext, dto: UpdateBusinessDto) {
@@ -120,6 +138,7 @@ export class BusinessesService {
     if (nulled.length) {
       throw new BadRequestException({ code: 'VALIDATION', message: nulled.map((k) => `${k} cannot be empty`) });
     }
+    if (dto.logoMediaId) await this.media.assertUsable(tenant.businessId, [dto.logoMediaId], 'IMAGE');
     const business = await this.prisma.business.update({
       where: { id: tenant.businessId },
       data: { ...dto, type: dto.type as Business['type'] | undefined },
@@ -133,7 +152,7 @@ export class BusinessesService {
       entityId: tenant.businessId,
       metadata: { fields: changed },
     });
-    return withAccess(business, tenant.role);
+    return this.present(business, tenant.role);
   }
 
   async softDelete(tenant: TenantContext, confirmName: string) {
