@@ -1,5 +1,5 @@
 {
-  "extends": "@aima/config/tsconfig/nest.json",
+  "extends": "@touma/config/tsconfig/nest.json",
   "compilerOptions": {
     "outDir": "dist",
     "baseUrl": "./",

@@ -1,5 +1,5 @@
 {
-  "name": "@aima/api",
+  "name": "@touma/api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,9 +12,9 @@
     "openapi": "ts-node --transpile-only scripts/export-openapi.ts"
   },
   "dependencies": {
-    "@aima/config": "workspace:*",
-    "@aima/database": "workspace:*",
-    "@aima/shared": "workspace:*",
+    "@touma/config": "workspace:*",
+    "@touma/database": "workspace:*",
+    "@touma/shared": "workspace:*",
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",
     "@nestjs/jwt": "^11.0.0",

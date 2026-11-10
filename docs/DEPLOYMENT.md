@@ -2,7 +2,7 @@
 
 | Component | Recommended target | Notes |
 |---|---|---|
-| Web | Vercel | Root `apps/web`; build `pnpm turbo run build --filter=@aima/web...`; env `API_URL` = public API origin |
+| Web | Vercel | Root `apps/web`; build `pnpm turbo run build --filter=@touma/web...`; env `API_URL` = public API origin |
 | API | Render / Fly.io / AWS ECS (container) | `infrastructure/docker/api.Dockerfile` target `runtime`; health check `/api/v1/health/ready` |
 | Worker | Same platform as API (background worker) | `infrastructure/docker/worker.Dockerfile`; scale horizontally, since BullMQ handles locking |
 | Migrations | One-off job before each API release | `api.Dockerfile` target `migrate` (`prisma migrate deploy`) |

@@ -26,13 +26,13 @@ importers:
 
   apps/api:
     dependencies:
-      '@aima/config':
+      '@touma/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@aima/database':
+      '@touma/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@aima/shared':
+      '@touma/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@nestjs/common':
@@ -117,7 +117,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@aima/shared':
+      '@touma/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@radix-ui/react-label':
@@ -151,7 +151,7 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
-      '@aima/config':
+      '@touma/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@tailwindcss/postcss':
@@ -184,10 +184,10 @@ importers:
 
   apps/worker:
     dependencies:
-      '@aima/config':
+      '@touma/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@aima/database':
+      '@touma/database':
         specifier: workspace:*
         version: link:../../packages/database
       bullmq:
@@ -215,7 +215,7 @@ importers:
 
   packages/ai-engine:
     devDependencies:
-      '@aima/config':
+      '@touma/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -247,7 +247,7 @@ importers:
         specifier: 6.19.3
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
     devDependencies:
-      '@aima/config':
+      '@touma/config':
         specifier: workspace:*
         version: link:../config
       prisma:
@@ -266,7 +266,7 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
-      '@aima/config':
+      '@touma/config':
         specifier: workspace:*
         version: link:../config
       '@types/jest':
@@ -284,7 +284,7 @@ importers:
 
   packages/social-connectors:
     devDependencies:
-      '@aima/config':
+      '@touma/config':
         specifier: workspace:*
         version: link:../config
       typescript:

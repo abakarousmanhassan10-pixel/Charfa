@@ -1,4 +1,4 @@
-// Project AIMA - database schema
+// TOUMA - database schema
 // Conventions:
 //  - All ids are cuid strings. All timestamps are stored in UTC (timestamptz).
 //  - Every tenant-scoped table carries businessId and is indexed on it.

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { BRAND } from '@touma/shared';
 import { cookies, headers } from 'next/headers';
 import { I18nProvider } from '@/components/i18n-provider';
 import { AuthProvider } from '@/components/auth-provider';
@@ -6,8 +7,10 @@ import { getMessages, LOCALE_COOKIE, resolveLocale, textDirection } from '@/lib/
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'AIMA — AI marketing automation',
-  description: 'AI marketing assistant: product analysis, content generation, scheduling and analytics.',
+  title: { default: `${BRAND.productName} — ${BRAND.slogan.en}`, template: `%s · ${BRAND.productName}` },
+  description: `${BRAND.slogan.en} AI marketing assistant: product analysis, content generation, scheduling and analytics.`,
+  applicationName: BRAND.productName,
+  openGraph: { title: BRAND.productName, description: BRAND.slogan.en, siteName: BRAND.name, type: 'website' },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

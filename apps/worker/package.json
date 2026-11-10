@@ -1,5 +1,5 @@
 {
-  "name": "@aima/worker",
+  "name": "@touma/worker",
   "version": "0.1.0",
   "private": true,
   "main": "dist/main.js",
@@ -11,8 +11,8 @@
     "test": "jest"
   },
   "dependencies": {
-    "@aima/config": "workspace:*",
-    "@aima/database": "workspace:*",
+    "@touma/config": "workspace:*",
+    "@touma/database": "workspace:*",
     "bullmq": "^5.81.5",
     "ioredis": "^5.4.2"
   },

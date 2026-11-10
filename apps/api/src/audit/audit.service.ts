@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@aima/database';
+import { Prisma } from '@touma/database';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface AuditEntry {

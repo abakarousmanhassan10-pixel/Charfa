@@ -7,7 +7,7 @@ ARG API_URL=http://api:4000
 ENV API_URL=${API_URL} NEXT_TELEMETRY_DISABLED=1
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm turbo run build --filter=@aima/web...
+RUN pnpm turbo run build --filter=@touma/web...
 
 FROM node:22-bookworm-slim AS runtime
 RUN corepack enable

@@ -21,7 +21,7 @@ const csp = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  transpilePackages: ['@aima/shared'],
+  transpilePackages: ['@touma/shared'],
   async rewrites() {
     return [{ source: '/api/v1/:path*', destination: `${API_URL}/api/v1/:path*` }];
   },

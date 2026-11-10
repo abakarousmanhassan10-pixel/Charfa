@@ -1,7 +1,7 @@
 {
   "common": {
-    "appName": "AIMA",
-    "tagline": "AI marketing assistant for every business",
+    "appName": "TOUMA",
+    "tagline": "TOUMA AI — the AI marketing assistant for every business",
     "signIn": "Sign in",
     "signUp": "Create account",
     "signOut": "Sign out",
@@ -9,20 +9,35 @@
     "language": "Language",
     "notConfigured": "Not configured",
     "configured": "Configured",
-    "comingSoon": "Available in a later release"
+    "comingSoon": "Available in a later release",
+    "productName": "TOUMA AI",
+    "slogan": "Your Business. Your AI Marketing Team."
   },
   "landing": {
-    "title": "Your marketing team, powered by AI",
+    "title": "Your Business. Your AI Marketing Team.",
     "subtitle": "Analyse your products, generate on-brand content, plan a 30-day calendar and publish to Instagram, Facebook, TikTok and YouTube — with you approving every step.",
     "cta": "Start free",
     "secondaryCta": "I already have an account",
     "features": {
-      "analysis": { "title": "Product analysis", "body": "AI that reads your catalog and only uses facts you have verified." },
-      "content": { "title": "Content generation", "body": "Captions, ads, images and video briefs in your brand voice and language." },
-      "calendar": { "title": "30-day calendar", "body": "Plan, approve and schedule posts in your business timezone." },
-      "inbox": { "title": "Unified inbox", "body": "Answer comments and messages with AI suggestions and human approval." }
+      "analysis": {
+        "title": "Product analysis",
+        "body": "AI that reads your catalog and only uses facts you have verified."
+      },
+      "content": {
+        "title": "Content generation",
+        "body": "Captions, ads, images and video briefs in your brand voice and language."
+      },
+      "calendar": {
+        "title": "30-day calendar",
+        "body": "Plan, approve and schedule posts in your business timezone."
+      },
+      "inbox": {
+        "title": "Unified inbox",
+        "body": "Answer comments and messages with AI suggestions and human approval."
+      }
     },
-    "pricing": "Plans from $19/month"
+    "pricing": "Plans from $19/month",
+    "footer": "© {year} TOUMA. All rights reserved."
   },
   "auth": {
     "loginTitle": "Welcome back",

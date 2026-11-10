@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { writeFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
-import { loadEnv } from '@aima/config';
+import { loadEnv } from '@touma/config';
 import { loadDotEnv } from '../src/load-dotenv';
 import { buildOpenApi, createApp } from '../src/bootstrap';
 

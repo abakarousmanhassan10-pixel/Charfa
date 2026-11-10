@@ -3,10 +3,10 @@
  * Phase 7 adds the publication queue; phase 1 ships the maintenance queue only.
  */
 export const QUEUES = {
-  maintenance: 'aima.maintenance',
-  // publication: 'aima.publication',      (phase 7)
-  // analyticsSync: 'aima.analytics-sync', (phase 9)
-  // tokenRefresh: 'aima.token-refresh',   (phase 6)
+  maintenance: 'touma.maintenance',
+  // publication: 'touma.publication',      (phase 7)
+  // analyticsSync: 'touma.analytics-sync', (phase 9)
+  // tokenRefresh: 'touma.token-refresh',   (phase 6)
 } as const;
 
 export const DEFAULT_JOB_OPTIONS = {

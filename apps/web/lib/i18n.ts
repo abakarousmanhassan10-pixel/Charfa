@@ -1,9 +1,9 @@
-import { DEFAULT_LOCALE, isSupportedLocale, textDirection, type SupportedLocale } from '@aima/shared';
+import { DEFAULT_LOCALE, isSupportedLocale, textDirection, type SupportedLocale } from '@touma/shared';
 import en from '../messages/en.json';
 import fr from '../messages/fr.json';
 
 export type Messages = typeof en;
-export const LOCALE_COOKIE = 'aima_locale';
+export const LOCALE_COOKIE = 'touma_locale';
 
 // Each locale must provide every key of the English catalog (enforced by the type below and by tests).
 const catalogs: Record<SupportedLocale, Messages> = { en, fr };

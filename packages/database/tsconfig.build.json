@@ -1,5 +1,5 @@
 {
-  "extends": "@aima/config/tsconfig/base.json",
+  "extends": "@touma/config/tsconfig/base.json",
   "compilerOptions": { "outDir": "dist", "rootDir": "src" },
   "include": ["src"]
 }

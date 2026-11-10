@@ -18,7 +18,7 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
-        <Logo />
+        <Logo showProduct />
         <nav className="flex items-center gap-3">
           <LocaleSwitcher />
           <Button variant="ghost" asChild>
@@ -61,7 +61,9 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t py-6 text-center text-xs text-muted-foreground">© {new Date().getFullYear()} AIMA</footer>
+      <footer className="border-t py-6 text-center text-xs text-muted-foreground">
+        {t('landing.footer', { year: new Date().getFullYear() })}
+      </footer>
     </div>
   );
 }

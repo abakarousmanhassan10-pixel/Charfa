@@ -49,7 +49,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <aside className="hidden w-64 shrink-0 flex-col border-e bg-card p-4 md:flex">
         <div className="px-2 pb-6">
-          <Logo />
+          <Logo showProduct />
+          <p className="mt-2 text-xs text-muted-foreground">{t('common.slogan')}</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1" aria-label="Main">
           {NAV.map((item) => {

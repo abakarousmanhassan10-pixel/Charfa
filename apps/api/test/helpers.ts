@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { loadEnv } from '@aima/config';
-import { PrismaClient } from '@aima/database';
+import { loadEnv } from '@touma/config';
+import { PrismaClient } from '@touma/database';
 import { createApp } from '../src/bootstrap';
 
 export async function startApp(): Promise<INestApplication> {
@@ -28,7 +28,7 @@ export const STRONG_PASSWORD = 'Correct-Horse-9-Battery';
 
 export function refreshCookie(res: request.Response): string | undefined {
   const raw = res.headers['set-cookie'] as unknown as string[] | undefined;
-  return raw?.find((c) => c.startsWith('aima_rt='))?.split(';')[0];
+  return raw?.find((c) => c.startsWith('touma_rt='))?.split(';')[0];
 }
 
 export async function register(app: INestApplication, email = uniqueEmail()) {

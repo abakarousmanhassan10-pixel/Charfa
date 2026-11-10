@@ -1,5 +1,5 @@
 {
-  "name": "@aima/ai-engine",
+  "name": "@touma/ai-engine",
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",
@@ -9,7 +9,7 @@
     "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "devDependencies": {
-    "@aima/config": "workspace:*",
+    "@touma/config": "workspace:*",
     "typescript": "^5.7.3"
   }
 }

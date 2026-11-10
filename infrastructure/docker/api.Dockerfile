@@ -7,8 +7,8 @@ WORKDIR /repo
 FROM base AS build
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm turbo run build --filter=@aima/api...
-RUN pnpm deploy --filter=@aima/api --prod --legacy /out \
+RUN pnpm turbo run build --filter=@touma/api...
+RUN pnpm deploy --filter=@touma/api --prod --legacy /out \
  && cp -r packages/database/prisma /out/prisma
 
 # One-shot migration runner (prisma migrate deploy) used before rolling out a new API version.

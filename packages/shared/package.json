@@ -1,5 +1,5 @@
 {
-  "name": "@aima/shared",
+  "name": "@touma/shared",
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",
@@ -14,7 +14,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@aima/config": "workspace:*",
+    "@touma/config": "workspace:*",
     "@types/jest": "^29.5.14",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",

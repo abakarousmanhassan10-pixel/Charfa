@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@aima/database';
+import type { PrismaClient } from '@touma/database';
 
 /** Deletes refresh sessions that expired or were revoked more than `retentionDays` ago. */
 export async function purgeExpiredSessions(prisma: PrismaClient, retentionDays = 30, now = new Date()) {

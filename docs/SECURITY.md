@@ -9,7 +9,7 @@
 | User enumeration | Same error and similar timing for unknown email and wrong password |
 | Sessions | Rotating refresh tokens, hashed at rest, family revocation on reuse, server-side session check on each request, logout-all |
 | Token exposure | Access token in memory only; refresh cookie `httpOnly`, `Secure` in production, `SameSite=Strict`, path-scoped |
-| CSRF | Cookie-authenticated endpoints need the `x-aima-csrf` header + an Origin allow-list, on top of SameSite=Strict |
+| CSRF | Cookie-authenticated endpoints need the `x-touma-csrf` header + an Origin allow-list, on top of SameSite=Strict |
 | XSS | React escaping; strict CSP (`frame-ancestors 'none'`, `object-src 'none'`, `connect-src 'self'`); helmet on the API |
 | Injection | Prisma parameterised queries only; no string-built SQL |
 | Input validation | Global `ValidationPipe` with `whitelist` + `forbidNonWhitelisted` (blocks mass-assignment such as `platformRole`) |

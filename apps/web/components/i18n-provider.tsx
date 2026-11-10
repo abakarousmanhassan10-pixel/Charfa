@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useCallback, useContext, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { SUPPORTED_LOCALES } from '@aima/shared';
+import { SUPPORTED_LOCALES } from '@touma/shared';
 import { LOCALE_COOKIE, translate, type Messages } from '@/lib/i18n';
 
 interface I18nContextValue {

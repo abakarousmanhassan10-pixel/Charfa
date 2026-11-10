@@ -1,5 +1,5 @@
 {
-  "name": "@aima/web",
+  "name": "@touma/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@aima/shared": "workspace:*",
+    "@touma/shared": "workspace:*",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-slot": "^1.1.1",
     "class-variance-authority": "^0.7.1",
@@ -23,7 +23,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@aima/config": "workspace:*",
+    "@touma/config": "workspace:*",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/jest": "^29.5.14",
     "@types/react": "^19.0.0",

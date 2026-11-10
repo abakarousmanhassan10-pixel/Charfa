@@ -1,7 +1,7 @@
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
-import { loadEnv } from '@aima/config';
-import { PrismaClient } from '@aima/database';
+import { loadEnv } from '@touma/config';
+import { PrismaClient } from '@touma/database';
 import { DEFAULT_JOB_OPTIONS, MaintenanceJob, QUEUES } from './queues';
 import { purgeExpiredSessions } from './jobs/purge-sessions';
 

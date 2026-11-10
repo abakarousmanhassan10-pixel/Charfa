@@ -16,20 +16,20 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: aima
-          POSTGRES_PASSWORD: aima_dev_password
-          POSTGRES_DB: aima_test
+          POSTGRES_USER: touma
+          POSTGRES_PASSWORD: touma_dev_password
+          POSTGRES_DB: touma_test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U aima" --health-interval 5s --health-timeout 3s --health-retries 20
+          --health-cmd "pg_isready -U touma" --health-interval 5s --health-timeout 3s --health-retries 20
       redis:
         image: redis:7-alpine
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
     env:
-      DATABASE_URL: postgresql://aima:aima_dev_password@localhost:5432/aima_test?schema=public
-      TEST_DATABASE_URL: postgresql://aima:aima_dev_password@localhost:5432/aima_test?schema=public
+      DATABASE_URL: postgresql://touma:touma_dev_password@localhost:5432/touma_test?schema=public
+      TEST_DATABASE_URL: postgresql://touma:touma_dev_password@localhost:5432/touma_test?schema=public
       REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4

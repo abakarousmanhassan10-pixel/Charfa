@@ -1,6 +1,8 @@
-# Project AIMA — AI-powered marketing automation SaaS
+# TOUMA AI
 
-AIMA helps e-commerce stores, restaurants, retail shops, brands, agencies, freelancers and service providers run their marketing: product analysis, AI content and visuals, a 30-day content calendar, approval workflows, scheduled publishing through **official** social APIs, a unified inbox, analytics and subscriptions.
+**Your Business. Your AI Marketing Team.**
+
+TOUMA AI is the AI-powered marketing automation SaaS by **TOUMA**. It helps e-commerce stores, restaurants, retail shops, brands, agencies, freelancers and service providers run their marketing: product analysis, AI content and visuals, a 30-day content calendar, approval workflows, scheduled publishing through **official** social APIs, a unified inbox, analytics and subscriptions.
 
 > **Status: Phase 1 of 10 complete.** The foundations work: monorepo, infrastructure, full database schema and migrations, secure authentication, and the first dashboard. See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/phase-reports/PHASE-1.md](docs/phase-reports/PHASE-1.md).
 
@@ -54,5 +56,6 @@ See [docs/TESTING.md](docs/TESTING.md).
 - [Testing](docs/TESTING.md)
 - [Deployment](docs/DEPLOYMENT.md)
 - [Integrations & credentials](docs/INTEGRATIONS.md)
+- [Brand identity](docs/BRAND.md)
 - [Roadmap](docs/ROADMAP.md)
-- [OpenAPI spec](docs/api/openapi.json) — regenerate with `pnpm --filter @aima/api openapi`
+- [OpenAPI spec](docs/api/openapi.json) — regenerate with `pnpm --filter @touma/api openapi`

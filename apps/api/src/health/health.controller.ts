@@ -2,7 +2,7 @@ import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/co
 import { ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import type Redis from 'ioredis';
-import { integrationStatus } from '@aima/config';
+import { integrationStatus } from '@touma/config';
 import { Public } from '../common/decorators/current-user.decorator';
 import { AppEnv, InjectEnv } from '../config';
 import { PrismaService } from '../prisma/prisma.service';

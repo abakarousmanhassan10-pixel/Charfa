@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
-import type { User } from '@aima/database';
+import type { User } from '@touma/database';
 import { AppEnv, InjectEnv } from '../config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -207,8 +207,8 @@ export class AuthService {
     return this.jwt.verifyAsync<AccessTokenPayload>(token, {
       secret: this.env.JWT_ACCESS_SECRET,
       algorithms: ['HS256'],
-      issuer: 'aima-api',
-      audience: 'aima-web',
+      issuer: 'touma-api',
+      audience: 'touma-web',
     });
   }
 
@@ -234,8 +234,8 @@ export class AuthService {
       secret: this.env.JWT_ACCESS_SECRET,
       expiresIn: this.env.JWT_ACCESS_TTL_SECONDS,
       algorithm: 'HS256',
-      issuer: 'aima-api',
-      audience: 'aima-web',
+      issuer: 'touma-api',
+      audience: 'touma-web',
     });
     return {
       accessToken,

@@ -1,6 +1,6 @@
 import { JwtService } from '@nestjs/jwt';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
-import { loadEnv } from '@aima/config';
+import { loadEnv } from '@touma/config';
 import { AuthService, MAX_FAILED_LOGINS } from './auth.service';
 import { PasswordService } from './password.service';
 import { sha256 } from '../common/crypto/token-cipher';
@@ -186,7 +186,7 @@ describe('AuthService', () => {
     const { service } = setup();
     const forged = await new JwtService({}).signAsync(
       { sub: 'u1', sid: 's1' },
-      { secret: 'x'.repeat(32), issuer: 'aima-api', audience: 'aima-web' },
+      { secret: 'x'.repeat(32), issuer: 'touma-api', audience: 'touma-web' },
     );
     await expect(service.verifyAccessToken(forged)).rejects.toThrow();
   });

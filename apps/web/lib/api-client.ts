@@ -2,7 +2,7 @@
  * Browser API client. The access token lives only in memory (never localStorage) to limit XSS impact.
  * The refresh token is an httpOnly, SameSite=Strict cookie scoped to /api/v1/auth.
  */
-export const CSRF_HEADER = 'x-aima-csrf';
+export const CSRF_HEADER = 'x-touma-csrf';
 
 export class ApiError extends Error {
   constructor(

@@ -1,5 +1,5 @@
 {
-  "name": "@aima/config",
+  "name": "@touma/config",
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",

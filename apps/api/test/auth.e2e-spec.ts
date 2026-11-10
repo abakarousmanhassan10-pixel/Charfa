@@ -26,7 +26,7 @@ describe('Auth (e2e, real database)', () => {
       expect(res.body.user).toMatchObject({ email, fullName: 'Amina', locale: 'fr', platformRole: 'USER' });
       expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|argon2/);
       const cookie = (res.headers['set-cookie'] as unknown as string[]).join(';');
-      expect(cookie).toMatch(/aima_rt=/);
+      expect(cookie).toMatch(/touma_rt=/);
       expect(cookie).toMatch(/HttpOnly/i);
       expect(cookie).toMatch(/SameSite=Strict/i);
       expect(cookie).toMatch(/Path=\/api\/v1\/auth/);
@@ -147,7 +147,7 @@ describe('Auth (e2e, real database)', () => {
       await request(http)
         .post('/api/v1/auth/refresh')
         .set('Cookie', cookie)
-        .set('x-aima-csrf', '1')
+        .set('x-touma-csrf', '1')
         .set('Origin', 'https://evil.example')
         .expect(403);
     });
@@ -157,7 +157,7 @@ describe('Auth (e2e, real database)', () => {
       const res = await request(http)
         .post('/api/v1/auth/refresh')
         .set('Cookie', cookie)
-        .set('x-aima-csrf', '1')
+        .set('x-touma-csrf', '1')
         .expect(200);
       const next = refreshCookie(res)!;
       expect(next).not.toEqual(cookie);
@@ -167,7 +167,7 @@ describe('Auth (e2e, real database)', () => {
 
     it('detects refresh token reuse and revokes the whole session family', async () => {
       const { cookie } = await register(app);
-      const first = await request(http).post('/api/v1/auth/refresh').set('Cookie', cookie).set('x-aima-csrf', '1').expect(200);
+      const first = await request(http).post('/api/v1/auth/refresh').set('Cookie', cookie).set('x-touma-csrf', '1').expect(200);
       const second = refreshCookie(first)!;
 
       // Simulate an attacker replaying the old token after the grace window.
@@ -175,19 +175,19 @@ describe('Auth (e2e, real database)', () => {
         where: { revokedAt: { not: null }, replacedById: { not: null } },
         data: { revokedAt: new Date(Date.now() - 60_000) },
       });
-      await request(http).post('/api/v1/auth/refresh').set('Cookie', cookie).set('x-aima-csrf', '1').expect(401);
+      await request(http).post('/api/v1/auth/refresh').set('Cookie', cookie).set('x-touma-csrf', '1').expect(401);
 
       // The legitimate holder of the newest token is also logged out.
-      await request(http).post('/api/v1/auth/refresh').set('Cookie', second).set('x-aima-csrf', '1').expect(401);
+      await request(http).post('/api/v1/auth/refresh').set('Cookie', second).set('x-touma-csrf', '1').expect(401);
       await request(http).get('/api/v1/auth/me').set('Authorization', `Bearer ${first.body.accessToken}`).expect(401);
     });
 
     it('logout revokes the session and clears the cookie', async () => {
       const { cookie, accessToken } = await register(app);
-      const res = await request(http).post('/api/v1/auth/logout').set('Cookie', cookie).set('x-aima-csrf', '1').expect(204);
-      expect((res.headers['set-cookie'] as unknown as string[]).join(';')).toMatch(/aima_rt=;/);
+      const res = await request(http).post('/api/v1/auth/logout').set('Cookie', cookie).set('x-touma-csrf', '1').expect(204);
+      expect((res.headers['set-cookie'] as unknown as string[]).join(';')).toMatch(/touma_rt=;/);
       await request(http).get('/api/v1/auth/me').set('Authorization', `Bearer ${accessToken}`).expect(401);
-      await request(http).post('/api/v1/auth/refresh').set('Cookie', cookie).set('x-aima-csrf', '1').expect(401);
+      await request(http).post('/api/v1/auth/refresh').set('Cookie', cookie).set('x-touma-csrf', '1').expect(401);
     });
 
     it('logout-all revokes every session of the user', async () => {

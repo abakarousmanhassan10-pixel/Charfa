@@ -1,5 +1,5 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { Prisma } from '@aima/database';
+import { Prisma } from '@touma/database';
 import type { Request, Response } from 'express';
 
 /**

@@ -1,7 +1,7 @@
 {
-  "name": "aima",
+  "name": "touma",
   "private": true,
-  "description": "Project AIMA - AI-powered marketing automation SaaS",
+  "description": "TOUMA - AI-powered marketing automation SaaS",
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=22.0.0"
@@ -12,12 +12,12 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "test:e2e": "pnpm --filter @aima/api test:e2e",
+    "test:e2e": "pnpm --filter @touma/api test:e2e",
     "test:web-e2e": "playwright test --config tests/e2e/playwright.config.ts",
-    "db:generate": "pnpm --filter @aima/database db:generate",
-    "db:migrate": "pnpm --filter @aima/database db:migrate",
-    "db:deploy": "pnpm --filter @aima/database db:deploy",
-    "db:seed": "pnpm --filter @aima/database db:seed",
+    "db:generate": "pnpm --filter @touma/database db:generate",
+    "db:migrate": "pnpm --filter @touma/database db:migrate",
+    "db:deploy": "pnpm --filter @touma/database db:deploy",
+    "db:seed": "pnpm --filter @touma/database db:seed",
     "infra:up": "docker compose -f infrastructure/docker/docker-compose.yml up -d postgres redis minio",
     "infra:down": "docker compose -f infrastructure/docker/docker-compose.yml down"
   },

@@ -5,7 +5,8 @@ const email = () => `e2e${Date.now()}${Math.floor(Math.random() * 1e6)}@example.
 
 test('landing page renders and links to registration', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('marketing');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your Business. Your AI Marketing Team.');
+  await expect(page).toHaveTitle('TOUMA AI — Your Business. Your AI Marketing Team.');
   await page.getByRole('link', { name: 'Start free' }).click();
   await expect(page).toHaveURL(/\/register$/);
 });
@@ -30,7 +31,7 @@ test('register → dashboard → reload keeps session → logout → login', asy
   const storage = await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }));
   expect(storage).not.toMatch(/ey[A-Za-z0-9_-]{10,}\./);
   // Refresh cookie is httpOnly (not visible to JS).
-  expect(await page.evaluate(() => document.cookie)).not.toContain('aima_rt');
+  expect(await page.evaluate(() => document.cookie)).not.toContain('touma_rt');
 
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Hello, Awa Mahamat' })).toBeVisible();
@@ -67,7 +68,7 @@ test('client-side validation blocks weak passwords', async ({ page }) => {
 test('French locale switch persists and sets lang attribute', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Language').selectOption('fr');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText("propulsée par l'IA");
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Votre entreprise. Votre équipe marketing IA.');
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   await page.goto('/login');

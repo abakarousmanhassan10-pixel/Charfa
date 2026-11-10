@@ -68,7 +68,7 @@
         "operationId": "AuthController_refresh_v1",
         "parameters": [
           {
-            "name": "x-aima-csrf",
+            "name": "x-touma-csrf",
             "in": "header",
             "description": "Must be \"1\"",
             "required": true,
@@ -99,7 +99,7 @@
         "operationId": "AuthController_logout_v1",
         "parameters": [
           {
-            "name": "x-aima-csrf",
+            "name": "x-touma-csrf",
             "in": "header",
             "description": "Must be \"1\"",
             "required": true,
@@ -239,8 +239,8 @@
     }
   },
   "info": {
-    "title": "Project AIMA API",
-    "description": "AI-powered marketing automation platform — REST API v1",
+    "title": "TOUMA AI API",
+    "description": "Your Business. Your AI Marketing Team. — TOUMA REST API v1",
     "version": "1.0.0",
     "contact": {}
   },
@@ -256,7 +256,7 @@
       "cookie": {
         "type": "apiKey",
         "in": "cookie",
-        "name": "aima_rt"
+        "name": "touma_rt"
       }
     },
     "schemas": {

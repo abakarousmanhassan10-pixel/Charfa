@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, MaxLength, MinLength, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
-import { SUPPORTED_LOCALES } from '@aima/shared';
+import { SUPPORTED_LOCALES } from '@touma/shared';
 
 @ValidatorConstraint({ name: 'ianaTimezone' })
 export class IsIanaTimezone implements ValidatorConstraintInterface {

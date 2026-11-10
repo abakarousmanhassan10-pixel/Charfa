@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@
 import type { Request } from 'express';
 import { AppEnv, InjectEnv } from '../config';
 
-export const CSRF_HEADER = 'x-aima-csrf';
+export const CSRF_HEADER = 'x-touma-csrf';
 
 /**
  * CSRF protection for endpoints authenticated by the refresh cookie (refresh, logout).

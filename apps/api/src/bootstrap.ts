@@ -6,7 +6,8 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { randomUUID } from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
-import type { AppEnv } from '@aima/config';
+import type { AppEnv } from '@touma/config';
+import { BRAND } from '@touma/shared';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { CSRF_HEADER } from './auth/csrf.guard';
@@ -15,11 +16,11 @@ export const API_PREFIX = 'api';
 
 export function buildOpenApi(app: INestApplication) {
   const config = new DocumentBuilder()
-    .setTitle('Project AIMA API')
-    .setDescription('AI-powered marketing automation platform — REST API v1')
+    .setTitle(`${BRAND.productName} API`)
+    .setDescription(`${BRAND.slogan.en} — ${BRAND.name} REST API v1`)
     .setVersion('1.0.0')
     .addBearerAuth()
-    .addCookieAuth('aima_rt')
+    .addCookieAuth('touma_rt')
     .build();
   return SwaggerModule.createDocument(app, config);
 }

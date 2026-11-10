@@ -1,13 +1,27 @@
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
+import { BRAND } from '@touma/shared';
 
-export function Logo() {
+/**
+ * Logo placeholder: "T" monogram + wordmark. Swap the monogram for the final SVG mark
+ * when brand assets are delivered; keep the accessible name.
+ */
+export function Logo({ showProduct = false }: { showProduct?: boolean }) {
   return (
-    <Link href="/" className="inline-flex items-center gap-2 font-semibold tracking-tight">
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-        <Sparkles className="h-4 w-4" aria-hidden />
+    <Link
+      href="/"
+      aria-label={BRAND.productName}
+      className="inline-flex items-center gap-2 font-semibold tracking-tight"
+    >
+      <span
+        aria-hidden
+        className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground"
+      >
+        T
       </span>
-      AIMA
+      <span className="text-base">
+        {BRAND.name}
+        {showProduct && <span className="ms-1 font-medium text-primary">AI</span>}
+      </span>
     </Link>
   );
 }

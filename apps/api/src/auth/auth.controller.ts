@@ -10,7 +10,7 @@ import { AuthService, type IssuedTokens } from './auth.service';
 import { CSRF_HEADER, CsrfGuard } from './csrf.guard';
 import { AuthResponse, AuthUserResponse, LoginDto, RegisterDto } from './dto/auth.dto';
 
-export const REFRESH_COOKIE = 'aima_rt';
+export const REFRESH_COOKIE = 'touma_rt';
 const REFRESH_COOKIE_PATH = '/api/v1/auth';
 
 /** Auth endpoints get a stricter rate limit than the global default. */

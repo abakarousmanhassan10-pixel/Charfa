@@ -1,7 +1,7 @@
 {
   "common": {
-    "appName": "AIMA",
-    "tagline": "L'assistant marketing IA pour toutes les entreprises",
+    "appName": "TOUMA",
+    "tagline": "TOUMA AI — l'assistant marketing IA pour toutes les entreprises",
     "signIn": "Se connecter",
     "signUp": "Créer un compte",
     "signOut": "Se déconnecter",
@@ -9,20 +9,35 @@
     "language": "Langue",
     "notConfigured": "Non configuré",
     "configured": "Configuré",
-    "comingSoon": "Disponible dans une prochaine version"
+    "comingSoon": "Disponible dans une prochaine version",
+    "productName": "TOUMA AI",
+    "slogan": "Votre entreprise. Votre équipe marketing IA."
   },
   "landing": {
-    "title": "Votre équipe marketing, propulsée par l'IA",
+    "title": "Votre entreprise. Votre équipe marketing IA.",
     "subtitle": "Analysez vos produits, générez du contenu fidèle à votre marque, planifiez un calendrier de 30 jours et publiez sur Instagram, Facebook, TikTok et YouTube — en validant chaque étape.",
     "cta": "Commencer gratuitement",
     "secondaryCta": "J'ai déjà un compte",
     "features": {
-      "analysis": { "title": "Analyse produit", "body": "Une IA qui lit votre catalogue et n'utilise que les informations que vous avez vérifiées." },
-      "content": { "title": "Génération de contenu", "body": "Légendes, publicités, images et briefs vidéo dans le ton et la langue de votre marque." },
-      "calendar": { "title": "Calendrier 30 jours", "body": "Planifiez, approuvez et programmez vos publications dans le fuseau horaire de votre entreprise." },
-      "inbox": { "title": "Boîte de réception unifiée", "body": "Répondez aux commentaires et messages avec des suggestions IA et une validation humaine." }
+      "analysis": {
+        "title": "Analyse produit",
+        "body": "Une IA qui lit votre catalogue et n'utilise que les informations que vous avez vérifiées."
+      },
+      "content": {
+        "title": "Génération de contenu",
+        "body": "Légendes, publicités, images et briefs vidéo dans le ton et la langue de votre marque."
+      },
+      "calendar": {
+        "title": "Calendrier 30 jours",
+        "body": "Planifiez, approuvez et programmez vos publications dans le fuseau horaire de votre entreprise."
+      },
+      "inbox": {
+        "title": "Boîte de réception unifiée",
+        "body": "Répondez aux commentaires et messages avec des suggestions IA et une validation humaine."
+      }
     },
-    "pricing": "Forfaits à partir de 19 $/mois"
+    "pricing": "Forfaits à partir de 19 $/mois",
+    "footer": "© {year} TOUMA. Tous droits réservés."
   },
   "auth": {
     "loginTitle": "Bon retour",
