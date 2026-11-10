@@ -1,0 +1,81 @@
+{
+  "common": {
+    "appName": "AIMA",
+    "tagline": "L'assistant marketing IA pour toutes les entreprises",
+    "signIn": "Se connecter",
+    "signUp": "Créer un compte",
+    "signOut": "Se déconnecter",
+    "loading": "Chargement…",
+    "language": "Langue",
+    "notConfigured": "Non configuré",
+    "configured": "Configuré",
+    "comingSoon": "Disponible dans une prochaine version"
+  },
+  "landing": {
+    "title": "Votre équipe marketing, propulsée par l'IA",
+    "subtitle": "Analysez vos produits, générez du contenu fidèle à votre marque, planifiez un calendrier de 30 jours et publiez sur Instagram, Facebook, TikTok et YouTube — en validant chaque étape.",
+    "cta": "Commencer gratuitement",
+    "secondaryCta": "J'ai déjà un compte",
+    "features": {
+      "analysis": { "title": "Analyse produit", "body": "Une IA qui lit votre catalogue et n'utilise que les informations que vous avez vérifiées." },
+      "content": { "title": "Génération de contenu", "body": "Légendes, publicités, images et briefs vidéo dans le ton et la langue de votre marque." },
+      "calendar": { "title": "Calendrier 30 jours", "body": "Planifiez, approuvez et programmez vos publications dans le fuseau horaire de votre entreprise." },
+      "inbox": { "title": "Boîte de réception unifiée", "body": "Répondez aux commentaires et messages avec des suggestions IA et une validation humaine." }
+    },
+    "pricing": "Forfaits à partir de 19 $/mois"
+  },
+  "auth": {
+    "loginTitle": "Bon retour",
+    "loginSubtitle": "Connectez-vous pour gérer votre marketing.",
+    "registerTitle": "Créez votre compte",
+    "registerSubtitle": "Configurez votre espace en quelques minutes.",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "fullName": "Nom complet",
+    "passwordHint": "Au moins 12 caractères avec majuscule, minuscule et chiffre.",
+    "noAccount": "Pas encore de compte ?",
+    "haveAccount": "Déjà inscrit ?",
+    "errors": {
+      "INVALID_CREDENTIALS": "E-mail ou mot de passe incorrect.",
+      "ACCOUNT_LOCKED": "Trop de tentatives. Réessayez dans 15 minutes.",
+      "ACCOUNT_DISABLED": "Ce compte n'est pas actif.",
+      "EMAIL_TAKEN": "Un compte existe déjà avec cet e-mail.",
+      "TOO_MANY_REQUESTS": "Trop de tentatives. Patientez une minute.",
+      "VALIDATION": "Veuillez vérifier les champs signalés.",
+      "NETWORK": "Le service est injoignable. Veuillez réessayer.",
+      "UNKNOWN": "Une erreur est survenue. Veuillez réessayer."
+    }
+  },
+  "dashboard": {
+    "greeting": "Bonjour, {name}",
+    "subtitle": "Voici l'état de votre espace de travail.",
+    "nav": {
+      "dashboard": "Tableau de bord",
+      "businesses": "Entreprises",
+      "products": "Produits",
+      "content": "Contenu IA",
+      "media": "Médiathèque",
+      "calendar": "Calendrier",
+      "social": "Comptes sociaux",
+      "inbox": "Messagerie",
+      "analytics": "Statistiques",
+      "billing": "Abonnement",
+      "settings": "Paramètres"
+    },
+    "businessesTitle": "Vos entreprises",
+    "noBusinesses": "Vous n'avez pas encore créé d'entreprise.",
+    "noBusinessesHint": "La gestion des entreprises arrive dans la prochaine version. Votre compte est prêt.",
+    "analyticsTitle": "Performances",
+    "noAnalytics": "Aucune donnée pour l'instant. Les statistiques apparaîtront une fois vos comptes connectés et vos publications en ligne — nous n'affichons jamais d'estimations comme des résultats mesurés.",
+    "systemTitle": "État de la plateforme",
+    "systemDatabase": "Base de données",
+    "systemRedis": "File de tâches",
+    "systemOpenai": "Génération de texte IA",
+    "systemStorage": "Stockage des médias",
+    "up": "Opérationnel",
+    "down": "Indisponible",
+    "accountTitle": "Votre compte",
+    "timezone": "Fuseau horaire",
+    "memberSince": "Membre depuis"
+  }
+}

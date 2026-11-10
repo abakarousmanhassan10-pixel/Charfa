@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aima
+          POSTGRES_PASSWORD: aima_dev_password
+          POSTGRES_DB: aima_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aima" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://aima:aima_dev_password@localhost:5432/aima_test?schema=public
+      TEST_DATABASE_URL: postgresql://aima:aima_dev_password@localhost:5432/aima_test?schema=public
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify migrations apply and match the schema
+        working-directory: packages/database
+        run: |
+          npx prisma migrate deploy
+          npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$DATABASE_URL" --exit-code
+      - run: pnpm build
+        env:
+          API_URL: http://localhost:4100
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm test:e2e
+      - run: npx playwright install --with-deps chromium
+      - run: pnpm test:web-e2e

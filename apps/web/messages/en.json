@@ -1,0 +1,81 @@
+{
+  "common": {
+    "appName": "AIMA",
+    "tagline": "AI marketing assistant for every business",
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "signOut": "Sign out",
+    "loading": "Loading…",
+    "language": "Language",
+    "notConfigured": "Not configured",
+    "configured": "Configured",
+    "comingSoon": "Available in a later release"
+  },
+  "landing": {
+    "title": "Your marketing team, powered by AI",
+    "subtitle": "Analyse your products, generate on-brand content, plan a 30-day calendar and publish to Instagram, Facebook, TikTok and YouTube — with you approving every step.",
+    "cta": "Start free",
+    "secondaryCta": "I already have an account",
+    "features": {
+      "analysis": { "title": "Product analysis", "body": "AI that reads your catalog and only uses facts you have verified." },
+      "content": { "title": "Content generation", "body": "Captions, ads, images and video briefs in your brand voice and language." },
+      "calendar": { "title": "30-day calendar", "body": "Plan, approve and schedule posts in your business timezone." },
+      "inbox": { "title": "Unified inbox", "body": "Answer comments and messages with AI suggestions and human approval." }
+    },
+    "pricing": "Plans from $19/month"
+  },
+  "auth": {
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Sign in to manage your marketing.",
+    "registerTitle": "Create your account",
+    "registerSubtitle": "Set up your workspace in minutes.",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full name",
+    "passwordHint": "At least 12 characters with uppercase, lowercase and a digit.",
+    "noAccount": "No account yet?",
+    "haveAccount": "Already registered?",
+    "errors": {
+      "INVALID_CREDENTIALS": "Invalid email or password.",
+      "ACCOUNT_LOCKED": "Too many failed attempts. Please try again in 15 minutes.",
+      "ACCOUNT_DISABLED": "This account is not active.",
+      "EMAIL_TAKEN": "An account with this email already exists.",
+      "TOO_MANY_REQUESTS": "Too many attempts. Please wait a minute.",
+      "VALIDATION": "Please check the highlighted fields.",
+      "NETWORK": "The service is unreachable. Please try again.",
+      "UNKNOWN": "Something went wrong. Please try again."
+    }
+  },
+  "dashboard": {
+    "greeting": "Hello, {name}",
+    "subtitle": "Here is the state of your workspace.",
+    "nav": {
+      "dashboard": "Dashboard",
+      "businesses": "Businesses",
+      "products": "Products",
+      "content": "AI content",
+      "media": "Media library",
+      "calendar": "Calendar",
+      "social": "Social accounts",
+      "inbox": "Inbox",
+      "analytics": "Analytics",
+      "billing": "Subscription",
+      "settings": "Settings"
+    },
+    "businessesTitle": "Your businesses",
+    "noBusinesses": "You have not created a business yet.",
+    "noBusinessesHint": "Business management arrives in the next release. Your account is ready.",
+    "analyticsTitle": "Performance",
+    "noAnalytics": "No data yet. Metrics appear here once social accounts are connected and posts are published — we never display estimated numbers as measured results.",
+    "systemTitle": "Platform status",
+    "systemDatabase": "Database",
+    "systemRedis": "Job queue",
+    "systemOpenai": "AI text generation",
+    "systemStorage": "Media storage",
+    "up": "Operational",
+    "down": "Unavailable",
+    "accountTitle": "Your account",
+    "timezone": "Timezone",
+    "memberSince": "Member since"
+  }
+}

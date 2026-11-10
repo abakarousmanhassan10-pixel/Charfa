@@ -1,0 +1,15 @@
+{
+  "name": "@aima/social-connectors",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+  },
+  "devDependencies": {
+    "@aima/config": "workspace:*",
+    "typescript": "^5.7.3"
+  }
+}

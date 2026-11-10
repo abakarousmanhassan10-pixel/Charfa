@@ -1,0 +1,10 @@
+{
+  "extends": "@aima/config/tsconfig/nest.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "baseUrl": "./",
+    "declaration": false,
+    "incremental": false
+  },
+  "include": ["src", "test", "scripts"]
+}

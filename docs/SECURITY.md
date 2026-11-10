@@ -1,0 +1,44 @@
+# Security
+
+## Implemented (Phase 1)
+
+| Control | Implementation |
+|---|---|
+| Password storage | argon2id, OWASP parameters; strong-password policy (12+ chars, mixed case, digit) on both client and server |
+| Brute force | Per-IP rate limit on auth endpoints (Redis-ready throttler) + account lockout after 5 failures |
+| User enumeration | Same error and similar timing for unknown email and wrong password |
+| Sessions | Rotating refresh tokens, hashed at rest, family revocation on reuse, server-side session check on each request, logout-all |
+| Token exposure | Access token in memory only; refresh cookie `httpOnly`, `Secure` in production, `SameSite=Strict`, path-scoped |
+| CSRF | Cookie-authenticated endpoints need the `x-aima-csrf` header + an Origin allow-list, on top of SameSite=Strict |
+| XSS | React escaping; strict CSP (`frame-ancestors 'none'`, `object-src 'none'`, `connect-src 'self'`); helmet on the API |
+| Injection | Prisma parameterised queries only; no string-built SQL |
+| Input validation | Global `ValidationPipe` with `whitelist` + `forbidNonWhitelisted` (blocks mass-assignment such as `platformRole`) |
+| Error handling | Uniform error envelope with request id; no stack traces, SQL or provider payloads in responses |
+| Secrets | Env validated at boot (min length, distinct JWT secrets in production); `.env` is git-ignored; secrets never logged |
+| Encryption at rest | `TokenCipher` AES-256-GCM (random IV, auth tag, versioned format) for OAuth tokens (used from Phase 6) |
+| Audit | `AuditLog` for register/login/failure/lockout/logout/reuse-detection/profile updates; metadata is redacted automatically |
+| Headers | HSTS, nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy; `x-powered-by` removed |
+
+## Planned controls (by phase)
+
+- **Phase 2:** tenant guard + permission decorator, tenant isolation tests for every resource, invitation tokens (hashed, expiring).
+- **Phase 3:** prompt-injection defences (untrusted content delimited, tool allow-lists per agent, output schema validation, no side-effecting tools without approval).
+- **Phase 4:** signed upload URLs, MIME sniffing (magic bytes), size limits, image re-encoding, private buckets.
+- **Phase 6:** OAuth `state` + PKCE, encrypted token storage, webhook signature verification (HMAC, constant-time comparison), scope checks.
+- **Phase 10:** payment webhook signature verification, GDPR export/deletion workflows, admin step-up auth, backup/restore drills.
+
+## Secret management
+
+- Local: `.env` (git-ignored), generated from `.env.example`.
+- Production: platform secret manager (Vercel / Render / Fly / AWS Secrets Manager). Rotate JWT secrets by deploying a new value; all sessions then re-authenticate.
+- `TOKEN_ENCRYPTION_KEY` rotation: the ciphertext format is versioned (`v1:`), so a dual-key decrypt path can be added for re-encryption.
+
+## Backups
+
+- Managed PostgreSQL with point-in-time recovery (7–30 days) and daily snapshots in another region.
+- Redis only holds rebuildable state (queues, rate limits); jobs are re-derivable from `Publication` rows.
+- Object storage: versioning + lifecycle rules.
+
+## Reporting
+
+Report vulnerabilities privately to the maintainers. Do not open public issues for security problems.

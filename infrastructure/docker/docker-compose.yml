@@ -1,0 +1,91 @@
+# Local infrastructure + full stack.
+#   Infra only:   pnpm infra:up
+#   Full stack:   docker compose -f infrastructure/docker/docker-compose.yml --env-file .env up --build
+name: aima
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aima
+      POSTGRES_PASSWORD: aima_dev_password
+      POSTGRES_DB: aima
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aima -d aima"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports: ["6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # S3-compatible object storage for local development (phase 4 media).
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: aima-minio
+      MINIO_ROOT_PASSWORD: aima-minio-dev-password
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+
+  migrate:
+    build: { context: ../.., dockerfile: infrastructure/docker/api.Dockerfile, target: migrate }
+    environment:
+      DATABASE_URL: postgresql://aima:aima_dev_password@postgres:5432/aima?schema=public
+    depends_on:
+      postgres: { condition: service_healthy }
+    profiles: [app]
+
+  api:
+    build: { context: ../.., dockerfile: infrastructure/docker/api.Dockerfile, target: runtime }
+    env_file: ../../.env
+    environment:
+      DATABASE_URL: postgresql://aima:aima_dev_password@postgres:5432/aima?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      APP_ENV: development
+      COOKIE_SECURE: "false"
+    ports: ["4000:4000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    profiles: [app]
+
+  worker:
+    build: { context: ../.., dockerfile: infrastructure/docker/worker.Dockerfile }
+    env_file: ../../.env
+    environment:
+      DATABASE_URL: postgresql://aima:aima_dev_password@postgres:5432/aima?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    profiles: [app]
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/web.Dockerfile
+      args: { API_URL: http://api:4000 }
+    ports: ["3000:3000"]
+    depends_on: [api]
+    profiles: [app]
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:

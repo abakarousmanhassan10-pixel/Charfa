@@ -1,0 +1,74 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: oklch(0.99 0.002 260);
+  --foreground: oklch(0.2 0.02 265);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.02 265);
+  --primary: oklch(0.5 0.2 270);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.01 265);
+  --secondary-foreground: oklch(0.25 0.02 265);
+  --muted: oklch(0.96 0.01 265);
+  --muted-foreground: oklch(0.5 0.02 265);
+  --accent: oklch(0.95 0.02 270);
+  --accent-foreground: oklch(0.25 0.05 270);
+  --destructive: oklch(0.58 0.22 27);
+  --border: oklch(0.91 0.01 265);
+  --input: oklch(0.89 0.01 265);
+  --ring: oklch(0.5 0.2 270);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.16 0.02 265);
+    --foreground: oklch(0.96 0.005 265);
+    --card: oklch(0.2 0.02 265);
+    --card-foreground: oklch(0.96 0.005 265);
+    --primary: oklch(0.68 0.17 270);
+    --primary-foreground: oklch(0.15 0.02 265);
+    --secondary: oklch(0.26 0.02 265);
+    --secondary-foreground: oklch(0.96 0.005 265);
+    --muted: oklch(0.26 0.02 265);
+    --muted-foreground: oklch(0.7 0.02 265);
+    --accent: oklch(0.28 0.04 270);
+    --accent-foreground: oklch(0.96 0.005 265);
+    --border: oklch(0.3 0.02 265);
+    --input: oklch(0.32 0.02 265);
+    --ring: oklch(0.68 0.17 270);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Arabic', sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
