@@ -19,14 +19,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code = 'INTERNAL_ERROR';
     let message: string | string[] = 'An unexpected error occurred';
+    // Extra fields a service may expose to clients. Anything else in an exception body is dropped.
+    const extra: Record<string, unknown> = {};
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const body = exception.getResponse();
       if (typeof body === 'string') message = body;
       else if (body && typeof body === 'object') {
-        const b = body as { message?: string | string[]; code?: string; error?: string };
+        const b = body as { message?: string | string[]; code?: string; error?: string; generationId?: unknown; usage?: unknown };
         message = b.message ?? exception.message;
+        for (const k of ['generationId', 'usage'] as const) if (b[k] !== undefined) extra[k] = b[k];
         code = b.code ?? (b.error ? b.error.toUpperCase().replace(/\s+/g, '_') : code);
       }
       if (code === 'INTERNAL_ERROR') code = HttpStatus[status] ?? 'ERROR';
@@ -47,6 +50,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     }
 
-    res.status(status).json({ statusCode: status, code, message, requestId });
+    res.status(status).json({ statusCode: status, code, message, requestId, ...extra });
   }
 }

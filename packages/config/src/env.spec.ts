@@ -35,6 +35,14 @@ describe('loadEnv', () => {
     expect(loadEnv({ ...valid, STORAGE_DRIVER: 'memory', APP_ENV: 'test' }).STORAGE_DRIVER).toBe('memory');
   });
 
+  it('refuses the fake AI provider outside tests and validates AI settings', () => {
+    expect(() => loadEnv({ ...valid, AI_PROVIDER: 'fake', APP_ENV: 'production' })).toThrow(/AI_PROVIDER=fake/);
+    expect(() => loadEnv({ ...valid, AI_TEMPERATURE: '3' })).toThrow();
+    const env = loadEnv({ ...valid, AI_TEMPERATURE: '' });
+    expect(env.AI_TEMPERATURE).toBeUndefined();
+    expect(env.AI_MODEL).toBe('gpt-4o-mini');
+  });
+
   it('reports integrations as not configured without credentials', () => {
     expect(integrationStatus(loadEnv(valid))).toEqual({ openai: false, storage: false });
   });

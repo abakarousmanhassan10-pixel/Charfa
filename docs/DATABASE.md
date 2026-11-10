@@ -49,7 +49,9 @@ WebhookEvent (global, unique per provider + externalEventId)
 | Conversation / Message / Comment | Unified inbox (Phase 8) | external ids unique per account/thread |
 | Plan / Subscription / Payment | Billing (Phase 10) | one subscription per business; provider ids unique; no card data |
 | AnalyticsSnapshot | Metrics per period | `source` MEASURED vs ESTIMATED; unique per account/publication/period |
-| Notification, AuditLog, WebhookEvent, AIUsage | Platform | audit is append-only; webhooks idempotent |
+| AIGeneration | One AI request: task, params, user instructions, validated output, human-edited output, error, provider/model/prompt version, context hash, injection flags, tokens, cost, latency, attempts, regeneration parent, saved draft (`contentId`) | per-tenant indexes; reuse lookup `(businessId, task, itemId, contextHash)` |
+| AIUsage | One row per provider call (initial / provider-retry / repair) with tokens, cost, latency, success | linked to `AIGeneration` |
+| Notification, AuditLog, WebhookEvent | Platform | audit is append-only; webhooks idempotent |
 
 ## Tenant isolation at the data layer
 1. The API's `BusinessAccessGuard` turns `:businessId` into a verified `TenantContext` (ACTIVE membership in a non-deleted business).
@@ -71,6 +73,7 @@ Applied so far:
 | Migration | Content |
 |---|---|
 | `20261110171718_init` | Full initial schema |
+| `20261110190749_phase3_ai_engine` | `AIGeneration`, enums `AITask` / `AIGenerationStatus`, `AIUsage.generationId` + `attemptKind` (additive) |
 | `20261110181312_phase2_catalog_media_knowledge` | Business city/address/contact; product discount, availability, target audience, `categoryId`; service booking & availability; `Category`, `ProductMedia`; media folder/tags/originalFilename; knowledge category & verification audit |
 
 Notes on the Phase 2 migration: it drops the unused free-text `Product.category` / `Service.category` and `MediaAsset.productId` columns (replaced by `Category` and `ProductMedia`), and adds `MediaAsset.originalFilename NOT NULL` without a default. No earlier release could create media rows, so no environment holds data in these columns. If you ever backport this to a database that has media rows, backfill `originalFilename` first.

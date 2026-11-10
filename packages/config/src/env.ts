@@ -43,10 +43,33 @@ export const appEnvSchema = z.object({
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(120),
   AUTH_THROTTLE_LIMIT: z.coerce.number().int().positive().default(10),
+  /** Session refreshes per minute per client IP (every page load refreshes; offices share IPs). */
+  AUTH_REFRESH_THROTTLE_LIMIT: z.coerce.number().int().positive().default(60),
   /** Abuse guard until plan limits arrive (Phase 10): max businesses a user can own. */
   MAX_OWNED_BUSINESSES: z.coerce.number().int().positive().default(5),
   // Optional provider credentials. Absence means the integration is "not configured".
+  // ─── TOUMA AI engine ───
+  /** openai (default) | fake: deterministic TEST-ONLY provider, refused unless APP_ENV=test. */
+  AI_PROVIDER: z.enum(['openai', 'fake']).default('openai'),
   OPENAI_API_KEY: z.string().optional(),
+  OPENAI_BASE_URL: z.string().url().optional(),
+  OPENAI_ORGANIZATION: z.string().optional(),
+  /** Any model supporting Structured Outputs (json_schema, strict). */
+  AI_MODEL: z.string().min(1).default('gpt-4o-mini'),
+  /** Leave empty to use each agent's default (analysis 0.3, strategy 0.6, content 0.8). */
+  AI_TEMPERATURE: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().min(0).max(2).optional()),
+  AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(256).max(32_000).default(4000),
+  AI_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(300_000).default(90_000),
+  AI_MAX_PROVIDER_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
+  AI_MAX_REPAIR_ATTEMPTS: z.coerce.number().int().min(0).max(3).default(1),
+  /** Per-business monthly caps (until plan limits arrive in Phase 10). */
+  AI_MONTHLY_GENERATIONS_PER_BUSINESS: z.coerce.number().int().positive().default(300),
+  AI_MONTHLY_TOKENS_PER_BUSINESS: z.coerce.number().int().positive().default(3_000_000),
+  /** Per-user requests per minute on generation endpoints. */
+  AI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
+  /** USD per 1M tokens, from the provider's pricing page. 0 = unknown (cost reported as not configured). */
+  AI_INPUT_COST_PER_1M_TOKENS: z.coerce.number().min(0).default(0),
+  AI_OUTPUT_COST_PER_1M_TOKENS: z.coerce.number().min(0).default(0),
   S3_ENDPOINT: z.string().optional(),
   S3_REGION: z.string().optional(),
   S3_BUCKET: z.string().optional(),
@@ -85,6 +108,9 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
     );
   }
   const env = parsed.data;
+  if (env.AI_PROVIDER === 'fake' && env.APP_ENV !== 'test') {
+    throw new EnvValidationError(['AI_PROVIDER=fake is only allowed when APP_ENV=test']);
+  }
   if (env.STORAGE_DRIVER === 'memory' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['STORAGE_DRIVER=memory is only allowed when APP_ENV=test']);
   }
@@ -97,7 +123,7 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
 /** Reports which optional external integrations are configured. Never returns secret values. */
 export function integrationStatus(env: AppEnv) {
   return {
-    openai: Boolean(env.OPENAI_API_KEY),
+    openai: env.AI_PROVIDER === 'fake' || Boolean(env.OPENAI_API_KEY),
     storage:
       env.STORAGE_DRIVER === 'memory' || Boolean(env.S3_BUCKET && env.S3_REGION && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY),
   };

@@ -25,7 +25,7 @@ const NAV: NavItem[] = [
   { key: 'categories', href: '/dashboard/categories', icon: FolderTree },
   { key: 'media', href: '/dashboard/media', icon: ImageIcon },
   { key: 'knowledge', href: '/dashboard/knowledge', icon: BookOpenCheck },
-  { key: 'content', icon: Wand2 },
+  { key: 'ai', href: '/dashboard/ai', icon: Wand2 },
   { key: 'calendar', icon: CalendarDays },
   { key: 'social', icon: Share2 },
   { key: 'inbox', icon: Inbox },

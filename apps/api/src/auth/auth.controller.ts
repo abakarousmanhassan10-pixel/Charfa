@@ -43,7 +43,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Throttle({ default: { limit: Number(process.env.AUTH_REFRESH_THROTTLE_LIMIT ?? 60), ttl: 60_000 } })
   @UseGuards(CsrfGuard)
   @Post('refresh')
   @HttpCode(200)

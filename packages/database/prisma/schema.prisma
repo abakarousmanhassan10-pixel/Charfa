@@ -287,6 +287,19 @@ enum AIAgent {
   ORCHESTRATOR
 }
 
+enum AITask {
+  BUSINESS_ANALYSIS
+  PRODUCT_ANALYSIS
+  MARKETING_STRATEGY
+  CONTENT
+}
+
+enum AIGenerationStatus {
+  SUCCEEDED
+  FAILED // provider or validation failure after retries
+  BLOCKED // refused before calling the provider (limit reached, not configured)
+}
+
 enum KnowledgeSource {
   BUSINESS_PROFILE
   PRODUCT
@@ -326,6 +339,7 @@ model User {
   auditLogs         AuditLog[]
   aiUsages          AIUsage[]
   knowledgeVerified KnowledgeEntry[] @relation("KnowledgeVerifier")
+  aiGenerations     AIGeneration[]
 
   @@index([status])
   @@index([deletedAt])
@@ -402,6 +416,7 @@ model Business {
   aiUsages           AIUsage[]
   knowledgeEntries   KnowledgeEntry[]
   categories         Category[]
+  aiGenerations      AIGeneration[]
 
   @@index([deletedAt])
   @@index([createdAt])
@@ -631,6 +646,7 @@ model Content {
   media          ContentMedia[]
   calendarEvents CalendarEvent[]
   publications   Publication[]
+  aiGeneration   AIGeneration?
 
   @@index([businessId, status])
   @@index([businessId, createdAt])
@@ -1011,11 +1027,68 @@ model AIUsage {
   success      Boolean  @default(true)
   error        String?
   latencyMs    Int?
+  generationId String?
+  /// initial | provider-retry | repair
+  attemptKind  String?
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
 
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  business   Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  generation AIGeneration? @relation(fields: [generationId], references: [id], onDelete: SetNull)
 
   @@index([businessId, createdAt])
   @@index([agent, createdAt])
+  @@index([generationId])
+}
+
+/// One user-level AI request (analysis, strategy or content), with its validated output.
+/// Provider calls (including retries and repairs) are itemised in AIUsage.
+model AIGeneration {
+  id             String             @id @default(cuid())
+  businessId     String
+  userId         String?
+  task           AITask
+  status         AIGenerationStatus
+  /// Product or service the generation is about (null for business-wide tasks).
+  itemType       String?
+  itemId         String?
+  platform       String?
+  format         String?
+  language       String
+  tone           String?
+  purpose        String?
+  /// Validated request parameters (enums and ids only; user instructions stored separately).
+  params         Json
+  instructions   String?
+  /// Validated, schema-conforming output. Null when the generation failed.
+  output         Json?
+  /// Output after human edits (save draft). The original output is kept for traceability.
+  editedOutput   Json?
+  errorCode      String?
+  errorMessage   String?
+  provider       String
+  model          String
+  promptVersion  String
+  /// Hash of the business facts used; lets analyses be reused while the data is unchanged.
+  contextHash    String
+  injectionFlags String[]
+  inputTokens    Int                @default(0)
+  outputTokens   Int                @default(0)
+  costUsd        Decimal            @default(0) @db.Decimal(12, 6)
+  latencyMs      Int                @default(0)
+  attempts       Int                @default(0)
+  parentId       String?
+  contentId      String?            @unique
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+
+  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent   AIGeneration?  @relation("Regeneration", fields: [parentId], references: [id], onDelete: SetNull)
+  children AIGeneration[] @relation("Regeneration")
+  content  Content?       @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  usages   AIUsage[]
+
+  @@index([businessId, createdAt])
+  @@index([businessId, task, status, createdAt])
+  @@index([businessId, task, itemId, contextHash])
 }

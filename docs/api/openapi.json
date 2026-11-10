@@ -2269,6 +2269,538 @@
         ]
       }
     },
+    "/api/v1/ai/status": {
+      "get": {
+        "operationId": "AiController_status_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission content.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Provider configuration (no secrets), limits and month-to-date usage",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/business-analysis": {
+      "post": {
+        "operationId": "AiController_businessAnalysis_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessAnalysisDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission ai.use"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/product-analysis": {
+      "post": {
+        "operationId": "AiController_productAnalysis_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductAnalysisDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission ai.use"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/marketing-strategy": {
+      "post": {
+        "operationId": "AiController_strategy_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission ai.use"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/content": {
+      "post": {
+        "operationId": "AiController_content_v1",
+        "parameters": [
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission ai.use"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/generations": {
+      "get": {
+        "operationId": "AiController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "task",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "BUSINESS_ANALYSIS",
+                "PRODUCT_ANALYSIS",
+                "MARKETING_STRATEGY",
+                "CONTENT"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUCCEEDED",
+                "FAILED",
+                "BLOCKED"
+              ]
+            }
+          },
+          {
+            "name": "itemId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission content.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/generations/latest/{task}": {
+      "get": {
+        "operationId": "AiController_latest_v1",
+        "parameters": [
+          {
+            "name": "task",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission content.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Latest successful analysis or strategy; { generation: null } when there is none",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/generations/{id}": {
+      "get": {
+        "operationId": "AiController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission content.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/generations/{id}/regenerate": {
+      "post": {
+        "operationId": "AiController_regenerate_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegenerateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission ai.use"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/generations/{id}/draft": {
+      "post": {
+        "operationId": "AiController_saveDraft_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDraftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "403": {
+            "description": "Requires permission content.write"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Save content as a DRAFT (optionally with human edits). Never publishes.",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/usage": {
+      "get": {
+        "operationId": "AiController_report_v1",
+        "parameters": [
+          {
+            "name": "days",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 366,
+              "default": 30,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Business-Id",
+            "in": "header",
+            "description": "Business (tenant) id; membership is verified",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Requires permission content.read"
+          },
+          "404": {
+            "description": "Business not found or caller is not a member"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Token consumption report (measured provider usage; cost from configured prices)",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/api/v1/admin/overview": {
       "get": {
         "operationId": "AdminController_overview_v1",
@@ -3088,6 +3620,207 @@
           "body": {
             "type": "string",
             "example": "Yes, in N’Djamena from 11:00 to 20:00. Delivery costs 1 000 XAF."
+          }
+        }
+      },
+      "BusinessAnalysisDto": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "fr",
+              "tr",
+              "ar"
+            ],
+            "description": "Language of the generated output"
+          },
+          "instructions": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Optional focus or style guidance. Treated as untrusted data; cannot override safety rules."
+          }
+        },
+        "required": [
+          "language"
+        ]
+      },
+      "ProductAnalysisDto": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "fr",
+              "tr",
+              "ar"
+            ],
+            "description": "Language of the generated output"
+          },
+          "instructions": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Optional focus or style guidance. Treated as untrusted data; cannot override safety rules."
+          },
+          "itemType": {
+            "type": "string",
+            "enum": [
+              "PRODUCT",
+              "SERVICE"
+            ]
+          },
+          "itemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "language",
+          "itemType",
+          "itemId"
+        ]
+      },
+      "StrategyDto": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "fr",
+              "tr",
+              "ar"
+            ],
+            "description": "Language of the generated output"
+          },
+          "instructions": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Optional focus or style guidance. Treated as untrusted data; cannot override safety rules."
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "INSTAGRAM",
+                "FACEBOOK",
+                "TIKTOK",
+                "YOUTUBE"
+              ]
+            }
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 300,
+            "example": "Increase weekday lunch orders"
+          },
+          "focusItemIds": {
+            "description": "Product/service ids to feature (must be ACTIVE items of this business)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "language",
+          "platforms"
+        ]
+      },
+      "ContentDto": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "fr",
+              "tr",
+              "ar"
+            ],
+            "description": "Language of the generated output"
+          },
+          "instructions": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Optional focus or style guidance. Treated as untrusted data; cannot override safety rules."
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "INSTAGRAM_CAPTION",
+              "INSTAGRAM_REEL_SCRIPT",
+              "INSTAGRAM_STORY",
+              "INSTAGRAM_CAROUSEL",
+              "FACEBOOK_PROMOTIONAL_POST",
+              "FACEBOOK_EDUCATIONAL_POST",
+              "FACEBOOK_PRODUCT_ANNOUNCEMENT",
+              "TIKTOK_VIDEO_SCRIPT",
+              "YOUTUBE_VIDEO",
+              "YOUTUBE_SHORTS_SCRIPT",
+              "PRODUCT_DESCRIPTION",
+              "AD_COPY",
+              "PROMOTIONAL_MESSAGE"
+            ]
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "PROMOTIONAL",
+              "EDUCATIONAL",
+              "ANNOUNCEMENT",
+              "ENGAGEMENT",
+              "STORYTELLING",
+              "TESTIMONIAL_REQUEST"
+            ]
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "PROFESSIONAL",
+              "FRIENDLY",
+              "PLAYFUL",
+              "INSPIRATIONAL",
+              "LUXURY",
+              "EDUCATIONAL",
+              "URGENT"
+            ]
+          },
+          "itemType": {
+            "type": "string",
+            "enum": [
+              "PRODUCT",
+              "SERVICE"
+            ]
+          },
+          "itemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "language",
+          "format",
+          "purpose",
+          "tone"
+        ]
+      },
+      "RegenerateDto": {
+        "type": "object",
+        "properties": {
+          "instructions": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "SaveDraftDto": {
+        "type": "object",
+        "properties": {
+          "output": {
+            "type": "object",
+            "description": "Edited content object (same schema as the generated output). Omit to save the output as generated."
           }
         }
       }

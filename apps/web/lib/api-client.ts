@@ -23,7 +23,15 @@ export function setAccessToken(token: string | null) {
 
 async function parse<T>(res: Response): Promise<T> {
   if (res.status === 204) return undefined as T;
-  const body = await res.json().catch(() => ({}));
+  const text = await res.text().catch(() => '');
+  // An empty success body means "no value": never turn it into an object that looks like data.
+  if (res.ok && text.trim() === '') return null as T;
+  let body: Record<string, any> = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    if (res.ok) throw new ApiError(res.status, 'INVALID_RESPONSE', 'The server sent an invalid response');
+  }
   if (!res.ok) {
     const code = body.code ?? (res.status === 429 ? 'TOO_MANY_REQUESTS' : res.status === 400 ? 'VALIDATION' : 'UNKNOWN');
     throw new ApiError(res.status, code, body.message ?? res.statusText);
@@ -34,18 +42,26 @@ async function parse<T>(res: Response): Promise<T> {
 /** Exchanges the refresh cookie for a new access token. Concurrent callers share one request. */
 export function refreshSession(): Promise<boolean> {
   refreshing ??= (async () => {
-    try {
-      const res = await fetch('/api/v1/auth/refresh', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { [CSRF_HEADER]: '1' },
-      });
-      if (res.ok) {
-        accessToken = (await res.json()).accessToken;
-        return true;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch('/api/v1/auth/refresh', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { [CSRF_HEADER]: '1' },
+        });
+        if (res.ok) {
+          accessToken = (await res.json()).accessToken;
+          return true;
+        }
+        // Rate limited: the session is still valid, so wait and retry once instead of signing out.
+        if (res.status === 429 && attempt === 0) {
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
+      } catch {
+        /* network error: treated as signed out */
       }
-    } catch {
-      /* network error: treated as signed out */
+      break;
     }
     accessToken = null;
     return false;

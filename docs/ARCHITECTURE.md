@@ -95,3 +95,6 @@ Browser ◄── signed URL /api/v1/media/:id/content?exp&sig ◄── API str
 
 ## AI knowledge boundary
 `KnowledgeService.buildAgentContext(tenant)` is the only way Phase 3 agents will get business facts. It takes a verified `TenantContext`, returns only VERIFIED knowledge plus ACTIVE products and services of that business, keeps unknowns explicit (`price: null`, `stock: "not tracked"`), and lists `missingInformation` so agents answer "I don't know" instead of inventing. `GET /business-knowledge/context` shows the business exactly what the AI will see.
+
+## AI engine
+`packages/ai-engine` is provider-neutral and framework-free: agents (prompt + schema + validation), the runner (retries, repairs, accounting), the OpenAI provider and a test-only fake provider. `apps/api/src/ai` hosts the orchestrator, usage limits and reports, history and drafts. The full design is in `docs/AI.md`.

@@ -18,6 +18,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { ServicesModule } from './services/services.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
+import { AiModule } from './ai/ai.module';
 
 @Global()
 @Module({})
@@ -49,6 +50,7 @@ export class AppModule {
         ProductsModule,
         ServicesModule,
         KnowledgeModule,
+        AiModule,
         AdminModule,
         HealthModule,
       ],
