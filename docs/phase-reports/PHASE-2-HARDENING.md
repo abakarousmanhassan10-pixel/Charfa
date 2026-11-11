@@ -8,31 +8,46 @@ This pass hardened what Phase 2 already had: no feature was rebuilt and nothing 
 
 | Area | Status |
 |---|---|
-| Task 1: Real S3 storage (AWS S3 / R2 / MinIO) | **Implemented, NOT VERIFIED against a real bucket.** No real upload or download has succeeded in this environment (see "Blocking issue"). Storage must not be considered configured until `storage:check` passes. |
+| Task 1: Real S3 storage (AWS S3 / R2 / MinIO) | **Verified against real MinIO**: `storage:check` passed (6/6 steps) and `test:real-storage` passed (5/5). AWS S3 and R2 use the same code path but have not been run against real accounts. |
 | Task 2: Media processing | Verified (real sharp/libvips, real ClamAV 1.5.4, real PostgreSQL). Video processing is not implemented. |
 | Task 3: Email verification, password reset, invitations | Verified end to end over real SMTP (local capture server), in the API and in the browser. No external email provider configured. |
 | Task 4: Redis rate limiting, ESLint, Docker, prod validation, health | Verified. Docker images were built on a substitute base image (Debian mirrors are unreachable here). |
 | Task 5: Security audit | Verified by automated tests (see table). |
-| Task 6: Full test run | All green. The real-storage suite is **NOT RUN**. |
+| Task 6: Full test run | All green, including the real-storage suite against MinIO. |
 
-## Blocking issue: real object storage was not verified
+## Task 1: Real object storage (verified against MinIO)
 
-The user asked: "Do not claim storage is configured until a real upload and download have succeeded." **That has not happened.**
+On user authorization, local MinIO was started with Docker Compose from the Bitnami image (`bitnamilegacy/minio:2025.4.22`, server `RELEASE.2025-04-22T22-12-26Z`), using `docker-compose.yml` plus `docker-compose.minio-bitnami.yml`.
+- Credentials were development-only and generated randomly for this run. They were kept in a mode-600 file in the session scratchpad, never committed or printed.
+- The API used `STORAGE_DRIVER=s3`, `S3_PROVIDER=minio`, `S3_ENDPOINT=http://127.0.0.1:9000`, bucket `touma-media-dev`.
+- No mocked storage was involved.
 
-- **What exists:** `S3ObjectStorage` with presets for `aws`, `r2` and `minio` (`packages/storage`), typed errors, and `verifyStorage()`. `verifyStorage()` performs upload → HEAD → download with byte comparison → presigned download over HTTP → proof that an unsigned request is refused → delete → proof the object is gone.
-  - `pnpm --filter @touma/api storage:check` runs it and exits 0 only if every step passes.
-  - `pnpm --filter @touma/api test:real-storage` runs the full API media path (upload, signed download, Range, thumbnail, delete) against the real bucket.
-  - Readiness (`/health/ready`) reports `storage.state: verified | failing` from the same round trip.
-- **Why it did not run here:**
-  - The sandbox has no AWS or R2 credentials.
-  - MinIO could not be started: `minio/minio` is no longer published on Docker Hub, `quay.io` and `dl.min.io` are blocked, and running both a substitute container (`bitnamilegacy/minio`) and a locally built MinIO binary was refused by this environment's permission policy.
-  - Unit tests mock the AWS SDK client only to check error mapping. No mocked storage was used for any verification claim.
-- **What is needed (one of):**
-  1. Permission to run a local MinIO (container or binary), or
-  2. real AWS S3 or Cloudflare R2 credentials for a test bucket, exported as `S3_*` variables in the session.
+**`pnpm --filter @touma/api storage:check`: exit 0, `ok: true`**
 
-  Then run `storage:check` and `test:real-storage`.
-- CI gained a `real-storage` job that builds the pinned MinIO release from source and runs both commands. **It has not been executed yet** (no CI run has happened on this branch).
+| Step | Result |
+|---|---|
+| upload | ok (41 ms) |
+| head (size, type) | ok (4 ms) |
+| download (bytes compared) | ok (6 ms) |
+| presigned-download over HTTP (and an unsigned URL is refused) | ok (26 ms) |
+| delete | ok (8 ms) |
+| deleted-check | ok (2 ms) |
+
+**`pnpm --filter @touma/api test:real-storage`: 5 passed, 0 failed**
+
+| Test | What it proves |
+|---|---|
+| readiness reports storage as verified only after a real round trip | `/health/ready` → `dependencies.storage.state = verified`, all six steps ok |
+| upload → signed download → thumbnail → delete | upload through the API, signed download (full and `Range` 206), WebP thumbnail variant, delete → signed URL 404, no pending deletions |
+| objects really live in the bucket, under the tenant prefix, and are private | separate S3 client sees the object at `businesses/{businessId}/media/…` (thumbnail under `…/thumbs/`) with identical bytes; anonymous direct bucket request is refused; responses never contain the storage key, bucket name or credentials; after delete both objects are gone from the bucket |
+| tenant isolation and role permissions hold for real stored files | business B gets 404 for A's media (read, edit, delete, list, claiming A's `X-Business-Id`, uploading into A); B's signature does not open A's file; A's object is untouched in the bucket; a VIEWER can read and download but gets 403 for upload and delete; unauthenticated → 401 / 404 |
+| storage errors are typed | wrong secret → `access_denied`; non-existent bucket (no auto-create) → `bucket_missing`; missing object → `not_found` |
+
+After the run the bucket was empty, so every test object was deleted. **Storage status: configured and verified for MinIO.**
+
+**AWS S3 / Cloudflare R2 compatibility** is kept: the same `S3ObjectStorage` covers all three, with presets (`aws`: virtual-hosted style, no endpoint; `r2`: region `auto`, account endpoint; `minio`: path style), and unit tests cover the presets. **They have not been run against real AWS or R2 accounts.** Before a production launch, run `storage:check` and `test:real-storage` with the production provider's variables; production config validation also refuses `S3_AUTO_CREATE_BUCKET`.
+
+CI job `real-storage` builds the same MinIO release from source and runs both commands. It has not been executed on GitHub yet.
 
 ## Task 2: Media processing (verified)
 
@@ -89,18 +104,19 @@ These are automated tests written by the same team that wrote the code. They are
 | Check | Result |
 |---|---|
 | Unit tests (`pnpm test`) | 154 passed (web 8, config 12, shared 28, ai-engine 53, worker 5, storage 11, api 37) |
-| API integration/API tests (`pnpm test:e2e`, real PostgreSQL, Redis, ClamAV, SMTP capture) | 155 passed, 2 skipped (= real-storage suite, **NOT RUN**) |
+| API integration/API tests (`pnpm test:e2e`, real PostgreSQL, Redis, ClamAV, SMTP capture) | 155 passed; the 5 real-storage tests are opt-in and run separately (below) |
 | Browser tests (Playwright, Chromium) | 22 passed (3 new: verification, reset, invitation) |
 | Typecheck | 14/14 tasks pass |
 | Lint | 0 errors, 0 warnings |
 | Production build | 9/9 tasks pass |
 | Docker build | 3/3 images built (substitute base image, see above) |
 | Migration drift | `prisma migrate diff`: no difference |
-| Real storage (`storage:check`, `test:real-storage`) | **NOT RUN**: blocked, see above |
+| Real storage, MinIO (`storage:check`) | exit 0, 6/6 steps ok |
+| Real storage, MinIO (`test:real-storage`) | 5 passed |
 
 ## Remaining issues (honest list)
 
-1. **Real S3/R2/MinIO storage has not been verified.** This is a release blocker for media.
+1. Real storage is verified on MinIO only. **AWS S3 and Cloudflare R2 have not been tested with real accounts**: run `storage:check` and `test:real-storage` with the production provider before launch. The local MinIO image (`bitnamilegacy/minio`) is an archived, no-longer-updated build: fine for development, not for production.
 2. **Videos** are validated, scanned, size-limited and stored as uploaded. Metadata is not stripped, and there is no transcoding or poster frame (ffmpeg is not in the stack yet).
 3. Image processing runs inside the upload request (sharp, bounded by the pixel limit). Under heavy load it should move to the worker.
 4. Rate limiting fails open when Redis is down (deliberate; auth lockout in PostgreSQL still applies).

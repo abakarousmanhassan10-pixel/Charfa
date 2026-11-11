@@ -1,0 +1,17 @@
+# Override for running local MinIO from the Bitnami image (its entrypoint and data path differ from
+# the upstream minio/minio image, which is no longer published on Docker Hub). Local development only.
+#   docker compose -f infrastructure/docker/docker-compose.yml \
+#     -f infrastructure/docker/docker-compose.minio-bitnami.yml up -d minio
+services:
+  minio:
+    image: bitnamilegacy/minio:2025.4.22
+    command: ["/opt/bitnami/scripts/minio/run.sh"]
+    environment:
+      MINIO_CONSOLE_PORT_NUMBER: "9001"
+    volumes: !override
+      - miniodata:/bitnami/minio/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 30

@@ -9,6 +9,17 @@
 | Real object storage | `pnpm --filter @touma/api storage:check` and `pnpm --filter @touma/api test:real-storage` | a real AWS S3 / R2 / MinIO bucket and `S3_*` variables; skipped and reported as NOT RUN otherwise |
 | Lint | `pnpm lint` | nothing |
 
+### Real storage with local MinIO
+```bash
+docker compose -f infrastructure/docker/docker-compose.yml -f infrastructure/docker/docker-compose.minio-bitnami.yml \
+  --env-file <file with MINIO_ROOT_USER / MINIO_ROOT_PASSWORD> up -d minio
+export STORAGE_DRIVER=s3 S3_PROVIDER=minio S3_ENDPOINT=http://127.0.0.1:9000 S3_REGION=us-east-1 \
+  S3_BUCKET=touma-media-dev S3_ACCESS_KEY_ID=<user> S3_SECRET_ACCESS_KEY=<password> S3_AUTO_CREATE_BUCKET=true
+pnpm --filter @touma/api storage:check
+pnpm --filter @touma/api test:real-storage
+```
+The real-storage suite checks the bytes in the bucket with an independent client, bucket privacy, tenant isolation and role permissions on stored files, and typed errors (wrong credentials, missing bucket, missing object). Use development-only credentials.
+
 ## Test database
 
 ```bash
