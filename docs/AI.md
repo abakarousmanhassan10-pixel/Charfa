@@ -192,3 +192,6 @@ Error codes:
   - `AI_JOB_STALLED`
   - `AI_JOB_FAILED`
 - Review: `APPROVAL_BLOCKED` 422 (with `issues`) · `APPROVAL_REQUIRED` 409 · `INVALID_STATE` 409 · `NO_DRAFT` 400 · `GENERATION_IN_PROGRESS` 409
+
+## Creative Studio
+Images, videos, storyboards and the brand kit are documented in [CREATIVE.md](CREATIVE.md). Storyboards run through this pipeline (task `STORYBOARD`, agent `storyboardCreator@1`); content generation now receives the brand kit (`content-creator@2`).

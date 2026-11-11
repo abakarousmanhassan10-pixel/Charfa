@@ -44,3 +44,6 @@ Email flows use real SMTP: API integration tests and `tests/e2e/account.e2e.ts` 
 - No mocked services in integration/E2E suites. Mocks are only used in unit tests.
 - A feature is not done until its unit, authorization and tenant-isolation tests pass.
 - CI (`.github/workflows/ci.yml`) also checks that migrations match the Prisma schema (`prisma migrate diff --exit-code`).
+
+## Creative Studio tests
+API: `apps/api/test/creative-{images,video,throttle}.e2e-spec.ts` run with the test-only fake providers (stubbed HTTP for the OpenAI adapters in `packages/creative`). Browser: `tests/e2e/creative.e2e.ts` including 390×844 mobile checks. These prove the workflows, not real provider output.

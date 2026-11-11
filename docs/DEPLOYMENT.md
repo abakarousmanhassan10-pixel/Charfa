@@ -54,3 +54,6 @@ docker build -f infrastructure/docker/web.Dockerfile -t touma-web .
 Behind a TLS-intercepting proxy, pass `--network host --build-arg HTTPS_PROXY=... --secret id=build_ca,src=ca.pem` (the CA is mounted only for the install step and never stored in a layer). `--build-arg BASE_IMAGE=` swaps the default `node:22-bookworm-slim`.
 
 Cookies are `Secure` automatically in production. Put the API behind HTTPS (`trust proxy` is set to 1 hop).
+
+### Creative Studio
+No extra service: the AI worker also runs the creative queue. Set `IMAGE_PROVIDER`/`VIDEO_PROVIDER` (see [CREATIVE.md](CREATIVE.md)); `VIDEO_PROVIDER` defaults to `none`. The API image installs fonts for overlay text. `fake` providers must never be set in production (production validation reports them). `/health/ready` includes the creative worker heartbeat.

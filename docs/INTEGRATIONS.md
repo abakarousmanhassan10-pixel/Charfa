@@ -16,3 +16,6 @@ An integration with no credentials stays **not configured**. The app reports it 
 | Malware scanning | 2 | `MALWARE_SCANNER=clamav`, `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT_MS` | Implemented (clamd INSTREAM); verified against a real clamd 1.5.4 with EICAR test signatures |
 
 When a platform's API can't publish a given format, the publication is set to `MANUAL_REQUIRED` and the user gets a manual publishing workflow.
+
+## Image and video providers (Phase 4)
+OpenAI `gpt-image-1` (images) and the OpenAI `/videos` API (video) are implemented behind provider interfaces. They are **unverified against the real services**. Configuration: [CREATIVE.md](CREATIVE.md).

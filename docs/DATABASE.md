@@ -95,3 +95,11 @@ Notes on the Phase 2 migration: it drops the unused free-text `Product.category`
 
 ## Backups
 Managed PostgreSQL with point-in-time recovery (7–30 days) plus daily snapshots in another region. Run restore drills each quarter. Redis holds only rebuildable state.
+
+## Creative Studio models (Phase 4, migration `20261111084926_creative_studio`)
+| Model | Purpose |
+|---|---|
+| BrandKit | One per business: colors (role + hex), fonts, visual style, tone, guidelines (logo = `Business.logoMediaId`) |
+| CreativeGeneration | One image/video request and its job: kind, status, provider/model, prompt, params, `idempotencyKey` + `requestHash` (unique per business), provider ref/status, reserved/produced units, `settledAt`, cost, processing time, brand snapshot |
+| CreativeOutput | One produced file: media asset, size, preservation (`EXACT`/`GUIDED`/`NONE`), `upscaled`, `selected` (favorite) |
+| AIUsagePeriod (extended) | Adds reserved/completed image and video-second counters; `AITask` gains `STORYBOARD` |

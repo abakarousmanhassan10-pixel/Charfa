@@ -60,3 +60,11 @@
 ## Reporting
 
 Report vulnerabilities privately to the maintainers. Do not open public issues for security problems.
+
+## Creative Studio controls (Phase 4)
+- **Tenant isolation:** every generation, output, brand kit and generated file is scoped by `businessId`; storage keys are tenant-prefixed; cross-tenant access answers 404 (tested, including spoofed tenant headers).
+- **Files:** uploaded product photos and every generated file go through content sniffing, malware scanning (fail-closed), re-encoding and quota checks. SVG is not accepted.
+- **Credentials:** provider keys are server-side environment variables, redacted from provider errors and never returned to the browser.
+- **Abuse and cost:** per-user rate limit, atomic monthly limits for images and video seconds, idempotency keys, no automatic resubmission of paid video jobs.
+- **No fake media:** unconfigured providers return 503; `fake` providers are refused outside `APP_ENV=test` and flagged by production validation.
+- **Truthfulness:** exact-product compositing, overlay text grounded against verified business data, illustrations labelled as such.

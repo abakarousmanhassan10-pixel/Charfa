@@ -115,3 +115,6 @@ Browser ◄── signed URL /api/v1/media/:id/content?exp&sig ◄── API str
 
 ## AI engine
 `packages/ai-engine` is provider-neutral and framework-free: agents (prompt + schema + validation), the runner (retries, repairs, accounting), the OpenAI provider and a test-only fake provider. `apps/api/src/ai` hosts the orchestrator, usage limits and reports, history and drafts. The full design is in `docs/AI.md`.
+
+## Creative Studio (Phase 4)
+`@touma/creative` holds provider-neutral contracts (`ImageProvider`, `VideoProvider`), the OpenAI adapters, prompt building and image composition (cutout, composite, overlay, logo). `apps/api/src/creative` owns the API, quota, idempotency and the BullMQ worker (`touma.creative`), which runs in the same process as the AI worker (`dist/ai-worker.js`). Generated files are stored through the existing media pipeline. See [CREATIVE.md](CREATIVE.md).

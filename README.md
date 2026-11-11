@@ -4,7 +4,9 @@
 
 TOUMA AI is the AI-powered marketing automation SaaS by **TOUMA**. It helps e-commerce stores, restaurants, retail shops, brands, agencies, freelancers and service providers run their marketing: product analysis, AI content and visuals, a 30-day content calendar, approval workflows, scheduled publishing through **official** social APIs, a unified inbox, analytics and subscriptions.
 
-> **Status: Phase 3 (TOUMA AI marketing engine) complete and tested.** Business and product analysis, marketing strategy and multilingual content generation with an orchestrator, strict output validation and token tracking (`docs/AI.md`).
+> **Status: Phase 4 (Creative Studio: AI images, videos, storyboards, brand kit) complete and tested; real provider generation is unverified.** See [docs/CREATIVE.md](docs/CREATIVE.md) and [docs/phase-reports/PHASE-4-CREATIVE-STUDIO.md](docs/phase-reports/PHASE-4-CREATIVE-STUDIO.md).
+>
+> Phase 3 (TOUMA AI marketing engine) complete and tested. Business and product analysis, marketing strategy and multilingual content generation with an orchestrator, strict output validation and token tracking (`docs/AI.md`).
 >
 > Phase 2 (Business & product management) complete and tested: Phase 1 delivered the foundation (auth, RBAC, tenant isolation, dashboard). Phase 2 adds businesses with logo and contacts, products, services, categories, a secure S3 media library and the business knowledge base for TOUMA AI. Phase 3 improvements (background AI generation, atomic usage limits, cost reports, accuracy checks, human approval): see [docs/phase-reports/PHASE-3-IMPROVEMENTS.md](docs/phase-reports/PHASE-3-IMPROVEMENTS.md). Phase 2 hardening (media processing, malware scanning, email verification, password reset, invitations, distributed rate limiting): see [docs/phase-reports/PHASE-2-HARDENING.md](docs/phase-reports/PHASE-2-HARDENING.md). See [docs/phase-reports](docs/phase-reports) and [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -24,6 +26,7 @@ TOUMA AI needs `OPENAI_API_KEY` (see `docs/AI.md`); without it the AI pages show
 | `packages/shared` | RBAC matrix, locales, validation schemas shared by web and api. |
 | `packages/config` | Shared tsconfig and validated environment loader. |
 | `packages/ai-engine` | AI orchestration contract (implemented in Phase 3). |
+| `packages/creative` | Image/video provider contracts, OpenAI adapters, prompt building and image composition (Phase 4). |
 | `packages/social-connectors` | Social connector contract (implemented in Phase 6). |
 | `infrastructure/docker` | Docker Compose (Postgres, Redis, MinIO, full stack) and Dockerfiles. |
 | `tests/e2e` | Playwright full-stack tests. |

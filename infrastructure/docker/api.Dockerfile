@@ -27,7 +27,8 @@ WORKDIR /repo/packages/database
 CMD ["npx", "prisma", "migrate", "deploy"]
 
 FROM ${BASE_IMAGE} AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# fontconfig + fonts: the Creative Studio draws overlay text with sharp/librsvg, which needs system fonts (without them text would not render).
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates fontconfig fonts-dejavu-core fonts-liberation && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /out .
