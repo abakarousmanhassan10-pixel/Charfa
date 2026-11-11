@@ -91,3 +91,27 @@ describe('checkContent (platform rules)', () => {
     expect(c.join('\n')).toMatch(/2–10 slides/);
   });
 });
+
+describe('checkStoryboard', () => {
+  const { checkStoryboard } = jest.requireActual('./validation') as typeof import('./validation');
+  const base = {
+    language: 'en', format: 'SHORT_VERTICAL', aspectRatio: '9:16', totalSeconds: 12, title: 'T', concept: 'C', hook: 'Have you tried it yet with your friends today?',
+    voiceoverScript: null, callToAction: 'Order now', musicMood: null, hashtags: [], videoPrompt: 'A prompt', claims: [], warnings: [], missingInformation: [],
+    scenes: [1, 2, 3].map((order) => ({ order, durationSeconds: 4, visual: 'v', camera: null, voiceover: null, onScreenText: null, audio: null, productFocus: null })),
+  } as never;
+  const req = { format: 'SHORT_VERTICAL' as const, seconds: 12, language: 'en' as const };
+  it('accepts a storyboard that matches the request', () => expect(checkStoryboard(base, req)).toEqual([]));
+  it('rejects the wrong format, aspect ratio and language', () => {
+    expect(checkStoryboard({ ...(base as object), format: 'SQUARE' } as never, req).join()).toMatch(/format must be SHORT_VERTICAL/);
+    expect(checkStoryboard({ ...(base as object), aspectRatio: '1:1' } as never, req).join()).toMatch(/aspectRatio must be 9:16/);
+    expect(checkStoryboard({ ...(base as object), language: 'fr' } as never, req).join()).toMatch(/language must be en/);
+  });
+  it('rejects unordered scenes, too few scenes, and timing that does not add up', () => {
+    const scenes = (d: number[]) => d.map((durationSeconds, i) => ({ order: i + 1, durationSeconds, visual: 'v', camera: null, voiceover: null, onScreenText: null, audio: null, productFocus: null }));
+    expect(checkStoryboard({ ...(base as object), scenes: [{ ...scenes([4])[0]!, order: 2 }, ...scenes([4, 4]).slice(1)] } as never, req).join()).toMatch(/ordered 1\.\.n/);
+    expect(checkStoryboard({ ...(base as object), scenes: scenes([12]), totalSeconds: 12 } as never, req).join()).toMatch(/at least 2 scenes/);
+    expect(checkStoryboard({ ...(base as object), scenes: scenes([8, 8, 8]), totalSeconds: 24 } as never, req).join()).toMatch(/add up to 24s/);
+    expect(checkStoryboard({ ...(base as object), totalSeconds: 20 } as never, req).join()).toMatch(/totalSeconds \(20\) must equal/);
+    expect(checkStoryboard({ ...(base as object), scenes: scenes([5, 4, 4]), totalSeconds: 13 } as never, req)).toEqual([]); // within the ±15% tolerance
+  });
+});

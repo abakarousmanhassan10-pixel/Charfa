@@ -2,11 +2,11 @@ import { BadRequestException, ConflictException, HttpException, Injectable, Logg
 import { Prisma, type AIGeneration, type AITask } from '@touma/database';
 import {
   AgentRunError, assessGrounding, businessAnalyst, contentCreator, contextHash, detectInjection, collectStrings, marketingStrategist, OutputValidationError,
-  productAnalyst, ProviderError, ProviderNotConfiguredError, runAgent,
+  productAnalyst, ProviderError, ProviderNotConfiguredError, runAgent, storyboardCreator,
   type AgentDefinition, type BusinessAnalysis, type BusinessContext, type ContentInput, type EngineConfig, type MarketingStrategy,
   type ProductAnalysis, type TextModelProvider,
 } from '@touma/ai-engine';
-import { FORMAT_RULES, type AiContentPurpose, type AiFormat, type AiLanguage, type AiPlatform, type AiTone } from '@touma/shared';
+import { FORMAT_RULES, type VideoFormat, type VideoStyle, type AiContentPurpose, type AiFormat, type AiLanguage, type AiPlatform, type AiTone } from '@touma/shared';
 import type { ZodTypeAny } from 'zod';
 import { Inject } from '@nestjs/common';
 import { AppEnv, InjectEnv } from '../config';
@@ -41,7 +41,8 @@ export type JobRequest =
   | { task: 'BUSINESS_ANALYSIS'; language: AiLanguage; instructions?: string | null }
   | { task: 'PRODUCT_ANALYSIS'; language: AiLanguage; item: Item; instructions?: string | null }
   | { task: 'MARKETING_STRATEGY'; language: AiLanguage; platforms: AiPlatform[]; goal?: string | null; focusItemIds?: string[]; instructions?: string | null }
-  | ({ task: 'CONTENT' } & ContentRequest);
+  | ({ task: 'CONTENT' } & ContentRequest)
+  | { task: 'STORYBOARD'; language: AiLanguage; format: VideoFormat; seconds: number; style: VideoStyle; tone: AiTone; item: Item | null; instructions?: string | null };
 
 /** A failure of a generation job, classified for retry decisions and stored on the generation. */
 export class AiJobError extends Error {
@@ -62,6 +63,7 @@ const AGENT_FOR: Record<AITask, AgentDefinition<never, ZodTypeAny>> = {
   PRODUCT_ANALYSIS: productAnalyst as never,
   MARKETING_STRATEGY: marketingStrategist as never,
   CONTENT: contentCreator as never,
+  STORYBOARD: storyboardCreator as never,
 };
 
 /**
@@ -169,6 +171,17 @@ export class AiOrchestratorService {
           itemId: req.item?.id,
           instructions,
         };
+      case 'STORYBOARD':
+        return {
+          task: req.task,
+          language: req.language,
+          params: { language: req.language, format: req.format, seconds: req.seconds, style: req.style, tone: req.tone, item: req.item } as Prisma.InputJsonObject,
+          format: req.format,
+          tone: req.tone,
+          itemType: req.item?.type,
+          itemId: req.item?.id,
+          instructions,
+        };
     }
   }
 
@@ -181,6 +194,7 @@ export class AiOrchestratorService {
         return 1;
       case 'MARKETING_STRATEGY':
         return 1 + ((await cachedProfile()) ? 0 : 1);
+      case 'STORYBOARD':
       case 'CONTENT': {
         let units = 1 + ((await cachedProfile()) ? 0 : 1);
         if (req.item && !(await this.latest(businessId, 'PRODUCT_ANALYSIS', { itemId: req.item.id, contextHash: hash }))) units += 1;
@@ -197,7 +211,7 @@ export class AiOrchestratorService {
   async submit(tenant: TenantContext, req: JobRequest, parentId?: string | null): Promise<AIGeneration> {
     this.requireConfigured();
     const ctx = await this.loadContext(tenant);
-    if (req.task === 'PRODUCT_ANALYSIS' || (req.task === 'CONTENT' && req.item)) await this.assertItem(tenant.businessId, ctx, (req as { item: Item }).item);
+    if (req.task === 'PRODUCT_ANALYSIS' || ((req.task === 'CONTENT' || req.task === 'STORYBOARD') && req.item)) await this.assertItem(tenant.businessId, ctx, (req as { item: Item }).item);
     if (req.task === 'MARKETING_STRATEGY') this.assertFocus(ctx, req.focusItemIds ?? []);
     const hash = contextHash(ctx);
     const units = await this.estimateUnits(tenant.businessId, req, hash);
@@ -257,6 +271,8 @@ export class AiOrchestratorService {
         return { task: 'MARKETING_STRATEGY', language, platforms: p.platforms as AiPlatform[], goal: (p.goal as string | null) ?? null, focusItemIds: (p.focusItems as string[]) ?? [], instructions };
       case 'CONTENT':
         return { task: 'CONTENT', language, format: p.format as AiFormat, purpose: p.purpose as AiContentPurpose, tone: p.tone as AiTone, item: (p.item as Item | null) ?? null, instructions };
+      case 'STORYBOARD':
+        return { task: 'STORYBOARD', language, format: p.format as VideoFormat, seconds: Number(p.seconds), style: p.style as VideoStyle, tone: p.tone as AiTone, item: (p.item as Item | null) ?? null, instructions };
     }
   }
 
@@ -434,14 +450,54 @@ export class AiOrchestratorService {
           item: req.item,
           angle,
           brandVoice: (ctx.business.brandVoice as string | null) ?? profile?.communicationStyle.recommendedTone ?? null,
+          brand: await this.brandFor(root.businessId).then((b) => (b ? { preferredTone: b.preferredTone, visualStyle: b.visualStyle, guidelines: b.guidelines } : null)),
         };
         await this.runInto(root, root, contentCreator, { ctx, input, instructions: req.instructions, hash });
         await add({ step: 'generation', status: 'done', generationId: root.id });
         await add({ step: 'validation', status: 'done', detail: 'Schema, platform rules and grounding against verified business data' });
         break;
       }
+      case 'STORYBOARD': {
+        await this.runStoryboard(root, req, ctx, hash, add);
+        break;
+      }
     }
     await add({ step: 'save', status: 'done' });
+  }
+
+  private async runStoryboard(root: AIGeneration, req: Extract<JobRequest, { task: 'STORYBOARD' }>, ctx: BusinessContext, hash: string, add: (s: StepReport) => Promise<void>) {
+    if (req.item) await this.assertItem(root.businessId, ctx, req.item);
+    const profile = await this.ensureBusinessAnalysis(root, ctx, hash, req.language, add);
+    let productAnalysis: ProductAnalysis | null = null;
+    if (req.item) {
+      const cached = await this.latest(root.businessId, 'PRODUCT_ANALYSIS', { itemId: req.item.id, contextHash: hash });
+      if (cached) {
+        productAnalysis = cached.output as unknown as ProductAnalysis;
+        await add({ step: 'product-analysis', status: 'reused', generationId: cached.id });
+      } else {
+        const r = await this.analysisStep(root, productAnalyst, { ctx, input: { language: req.language, itemType: req.item.type, itemId: req.item.id }, hash, meta: { itemType: req.item.type, itemId: req.item.id } });
+        productAnalysis = r.output as unknown as ProductAnalysis;
+        await add({ step: 'product-analysis', status: 'done', generationId: r.row.id });
+      }
+    } else await add({ step: 'product-analysis', status: 'skipped', detail: 'No product or service selected' });
+    const angle = await this.selectAngle(root, productAnalysis, null, 'PROMOTIONAL', add);
+    const brand = await this.brandFor(root.businessId);
+    await this.runInto(root, root, storyboardCreator, {
+      ctx,
+      input: { language: req.language, format: req.format, seconds: req.seconds, style: req.style, tone: req.tone, item: req.item, angle, brandVoice: (ctx.business.brandVoice as string | null) ?? profile?.communicationStyle.recommendedTone ?? null, brand: brand ? { visualStyle: brand.visualStyle, guidelines: brand.guidelines, colors: brand.colors } : null },
+      instructions: req.instructions,
+      hash,
+    });
+    await add({ step: 'generation', status: 'done', generationId: root.id });
+    await add({ step: 'validation', status: 'done', detail: 'Schema, timing and grounding against verified business data' });
+  }
+
+  /** The business's brand kit as the text agents see it (null when it has none). */
+  private async brandFor(businessId: string) {
+    const kit = await this.prisma.brandKit.findUnique({ where: { businessId } });
+    if (!kit) return null;
+    const colors = ((kit.colors as Array<{ name: string; hex: string; role: string }> | null) ?? []).map((c) => `${c.role.toLowerCase()} ${c.hex}`);
+    return { preferredTone: kit.preferredTone, visualStyle: kit.visualStyle, guidelines: kit.guidelines, colors };
   }
 
   private async ensureBusinessAnalysis(root: AIGeneration, ctx: BusinessContext, hash: string, language: AiLanguage, add: (s: StepReport) => Promise<void>) {

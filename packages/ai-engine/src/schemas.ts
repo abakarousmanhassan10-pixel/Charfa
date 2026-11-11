@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AI_FORMATS, AI_LANGUAGES, AI_PLATFORMS } from '@touma/shared';
+import { AI_FORMATS, AI_LANGUAGES, AI_PLATFORMS, ASPECT_RATIOS, VIDEO_FORMAT_KEYS } from '@touma/shared';
 
 const s = (max: number) => z.string().min(1).max(max);
 const list = <T extends z.ZodTypeAny>(item: T, max: number, min = 0) => z.array(item).min(min).max(max);
@@ -134,3 +134,38 @@ export const contentSchema = z.object({
   warnings: list(s(300), 8),
 });
 export type GeneratedContent = z.infer<typeof contentSchema>;
+
+/** Storyboard + script for one promotional video. Every factual statement is sourced like any other TOUMA AI output. */
+export const storyboardSchema = z.object({
+  language: z.enum(AI_LANGUAGES),
+  format: z.enum(VIDEO_FORMAT_KEYS as [string, ...string[]]),
+  aspectRatio: z.enum(ASPECT_RATIOS),
+  totalSeconds: z.number().min(4).max(120),
+  title: s(150),
+  concept: s(500),
+  hook: s(300),
+  voiceoverScript: z.string().max(3000).nullable(),
+  scenes: list(
+    z.object({
+      order: z.number().int().min(1).max(30),
+      durationSeconds: z.number().min(1).max(30),
+      visual: s(500),
+      camera: z.string().max(200).nullable(),
+      voiceover: z.string().max(600).nullable(),
+      onScreenText: z.string().max(200).nullable(),
+      audio: z.string().max(200).nullable(),
+      productFocus: z.string().max(200).nullable(),
+    }),
+    12,
+    1,
+  ),
+  callToAction: s(250),
+  musicMood: z.string().max(150).nullable(),
+  hashtags: list(z.string().max(60), 15),
+  /** One paragraph describing the visuals, usable as the prompt of a video model. */
+  videoPrompt: s(1000),
+  claims: list(z.object({ claim: s(400), source: s(80) }), 15),
+  warnings: list(s(300), 8),
+  missingInformation: list(s(300), 10),
+});
+export type Storyboard = z.infer<typeof storyboardSchema>;

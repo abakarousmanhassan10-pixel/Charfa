@@ -21,3 +21,27 @@ export function parsePricingTable(json: string | undefined): ModelPriceTable {
   }
   return out;
 }
+
+export type CreativePriceTable = Record<string, { perImageUsd?: number; perSecondUsd?: number }>;
+
+/** Parses CREATIVE_MODEL_PRICING: {"gpt-image-1":{"perImageUsd":0.04},"sora-2":{"perSecondUsd":0.1}} (USD). */
+export function parseCreativePricing(json: string | undefined): CreativePriceTable {
+  if (!json || !json.trim()) return {};
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    throw new Error('CREATIVE_MODEL_PRICING must be valid JSON');
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('CREATIVE_MODEL_PRICING must be an object keyed by model name');
+  const ok = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+  const out: CreativePriceTable = {};
+  for (const [model, v] of Object.entries(raw as Record<string, unknown>)) {
+    const p = v as { perImageUsd?: unknown; perSecondUsd?: unknown } | null;
+    if (!p || (p.perImageUsd === undefined && p.perSecondUsd === undefined) || (p.perImageUsd !== undefined && !ok(p.perImageUsd)) || (p.perSecondUsd !== undefined && !ok(p.perSecondUsd))) {
+      throw new Error(`CREATIVE_MODEL_PRICING["${model}"] needs a numeric perImageUsd and/or perSecondUsd (USD, >= 0)`);
+    }
+    out[model] = { ...(p.perImageUsd !== undefined ? { perImageUsd: p.perImageUsd as number } : {}), ...(p.perSecondUsd !== undefined ? { perSecondUsd: p.perSecondUsd as number } : {}) };
+  }
+  return out;
+}

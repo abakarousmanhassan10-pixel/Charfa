@@ -21,6 +21,7 @@ import { ProductsModule } from './products/products.module';
 import { ServicesModule } from './services/services.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { AiModule } from './ai/ai.module';
+import { CreativeModule } from './creative/creative.module';
 import { EmailModule } from './email/email.module';
 import { InvitationsModule } from './invitations/invitations.module';
 
@@ -64,6 +65,7 @@ export class AppModule {
         ServicesModule,
         KnowledgeModule,
         AiModule,
+        CreativeModule,
         AdminModule,
         HealthModule,
       ],

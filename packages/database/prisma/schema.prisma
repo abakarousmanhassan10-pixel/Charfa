@@ -292,6 +292,7 @@ enum AITask {
   PRODUCT_ANALYSIS
   MARKETING_STRATEGY
   CONTENT
+  STORYBOARD
 }
 
 enum AIGenerationStatus {
@@ -300,6 +301,18 @@ enum AIGenerationStatus {
   SUCCEEDED
   FAILED // provider or validation failure after retries
   BLOCKED // refused before calling the provider (limit reached, not configured)
+}
+
+enum CreativeKind {
+  IMAGE
+  VIDEO
+}
+
+enum CreativeStatus {
+  QUEUED // accepted; waiting for a worker (or for its next retry / provider poll)
+  RUNNING
+  SUCCEEDED
+  FAILED
 }
 
 enum AIReservationStatus {
@@ -423,28 +436,30 @@ model Business {
   updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
   deletedAt         DateTime?    @db.Timestamptz(3)
 
-  logo               MediaAsset?         @relation("BusinessLogo", fields: [logoMediaId], references: [id], onDelete: SetNull)
-  memberships        Membership[]
-  products           Product[]
-  services           Service[]
-  socialAccounts     SocialAccount[]
-  contents           Content[]
-  mediaAssets        MediaAsset[]        @relation("BusinessMedia")
-  calendarEvents     CalendarEvent[]
-  publications       Publication[]
-  conversations      Conversation[]
-  comments           Comment[]
-  subscription       Subscription?
-  payments           Payment[]
-  analyticsSnapshots AnalyticsSnapshot[]
-  notifications      Notification[]
-  auditLogs          AuditLog[]
-  aiUsages           AIUsage[]
-  knowledgeEntries   KnowledgeEntry[]
-  categories         Category[]
-  aiGenerations      AIGeneration[]
-  invitations        Invitation[]
-  aiUsagePeriods     AIUsagePeriod[]
+  logo                MediaAsset?          @relation("BusinessLogo", fields: [logoMediaId], references: [id], onDelete: SetNull)
+  memberships         Membership[]
+  products            Product[]
+  services            Service[]
+  socialAccounts      SocialAccount[]
+  contents            Content[]
+  mediaAssets         MediaAsset[]         @relation("BusinessMedia")
+  calendarEvents      CalendarEvent[]
+  publications        Publication[]
+  conversations       Conversation[]
+  comments            Comment[]
+  subscription        Subscription?
+  payments            Payment[]
+  analyticsSnapshots  AnalyticsSnapshot[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  aiUsages            AIUsage[]
+  knowledgeEntries    KnowledgeEntry[]
+  categories          Category[]
+  aiGenerations       AIGeneration[]
+  invitations         Invitation[]
+  aiUsagePeriods      AIUsagePeriod[]
+  brandKit            BrandKit?
+  creativeGenerations CreativeGeneration[]
 
   @@index([deletedAt])
   @@index([createdAt])
@@ -718,11 +733,12 @@ model MediaAsset {
   updatedAt          DateTime          @updatedAt @db.Timestamptz(3)
   deletedAt          DateTime?         @db.Timestamptz(3)
 
-  business   Business       @relation("BusinessMedia", fields: [businessId], references: [id], onDelete: Cascade)
-  products   ProductMedia[]
-  uploadedBy User?          @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
-  contents   ContentMedia[]
-  logoOf     Business?      @relation("BusinessLogo")
+  business        Business         @relation("BusinessMedia", fields: [businessId], references: [id], onDelete: Cascade)
+  products        ProductMedia[]
+  uploadedBy      User?            @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  contents        ContentMedia[]
+  logoOf          Business?        @relation("BusinessLogo")
+  creativeOutputs CreativeOutput[]
 
   @@index([businessId, type])
   @@index([businessId, deletedAt])
@@ -1149,19 +1165,24 @@ model AIGeneration {
 /// Monthly AI usage counters per business (UTC month). Limits are enforced by an atomic conditional
 /// UPDATE on this row, so concurrent requests cannot overshoot: reserved + completed + failed <= limit.
 model AIUsagePeriod {
-  id                   String   @id @default(cuid())
-  businessId           String
-  periodStart          DateTime @db.Timestamptz(3)
+  id                    String   @id @default(cuid())
+  businessId            String
+  periodStart           DateTime @db.Timestamptz(3)
   /// Units held by queued/running jobs.
-  reservedGenerations  Int      @default(0)
-  completedGenerations Int      @default(0)
-  failedGenerations    Int      @default(0)
+  reservedGenerations   Int      @default(0)
+  completedGenerations  Int      @default(0)
+  failedGenerations     Int      @default(0)
   /// Cumulative reserved units that were released unused (informational).
-  releasedGenerations  Int      @default(0)
-  reservedTokens       Int      @default(0)
-  usedTokens           Int      @default(0)
-  createdAt            DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
+  releasedGenerations   Int      @default(0)
+  reservedTokens        Int      @default(0)
+  usedTokens            Int      @default(0)
+  /// Creative Studio: images and video seconds, reserved while a job is queued/running and settled when it ends.
+  reservedImages        Int      @default(0)
+  completedImages       Int      @default(0)
+  reservedVideoSeconds  Int      @default(0)
+  completedVideoSeconds Int      @default(0)
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime @updatedAt @db.Timestamptz(3)
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
@@ -1248,4 +1269,107 @@ model StorageDeletion {
 
   @@index([completedAt, nextAttemptAt])
   @@index([storageKey])
+}
+
+/// Brand identity of one business, applied to generated images, videos and text. The logo itself is the business's
+/// existing logo (Business.logoMediaId), so there is one source of truth.
+model BrandKit {
+  id            String   @id @default(cuid())
+  businessId    String   @unique
+  /// [{ name, hex: "#RRGGBB", role: PRIMARY | SECONDARY | ACCENT | BACKGROUND | TEXT }]
+  colors        Json     @default("[]")
+  headingFont   String?
+  bodyFont      String?
+  /// One of the image styles (e.g. LUXURY), used as the default look of generated visuals.
+  visualStyle   String?
+  guidelines    String?
+  /// One of the AI tones (e.g. FRIENDLY): the preferred marketing tone for generated text.
+  preferredTone String?
+  updatedById   String?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+/// One image or video request of the Creative Studio and its background job. Units (images, video seconds) are
+/// reserved atomically against the monthly limits when the request is accepted and settled exactly once.
+model CreativeGeneration {
+  id             String         @id @default(cuid())
+  businessId     String
+  userId         String?
+  kind           CreativeKind
+  status         CreativeStatus @default(QUEUED)
+  provider       String
+  model          String
+  /// The prompt sent to the provider (built by TOUMA from verified facts and the brand kit; never contains secrets).
+  prompt         String
+  /// Validated request: type, style, aspect ratio, resolution, background, theme, overlay, platform, preservation...
+  params         Json
+  /// Client-supplied key making the submission idempotent; requestHash detects a key reused with different parameters.
+  idempotencyKey String?
+  requestHash    String?
+  itemType       String?
+  itemId         String?
+  /// The merchant's original product photo (a MediaAsset of this business).
+  sourceMediaId  String?
+  /// Generation this one is a variation of.
+  parentId       String?
+  brandSnapshot  Json?
+  /// Provider-side job id (video); recorded once so a retry never submits (and pays for) the job twice.
+  providerRef    String?
+  providerStatus String?
+  requestedUnits Int
+  /// Units the provider actually produced (billed), whether or not they could all be stored.
+  producedUnits  Int            @default(0)
+  reservedUnits  Int
+  /// IMAGE | VIDEO_SECOND
+  unitKind       String
+  periodStart    DateTime       @db.Timestamptz(3)
+  settledAt      DateTime?      @db.Timestamptz(3)
+  errorCode      String?
+  errorMessage   String?
+  inputTokens    Int            @default(0)
+  outputTokens   Int            @default(0)
+  costUsd        Decimal        @default(0) @db.Decimal(12, 6)
+  processingMs   Int            @default(0)
+  jobAttempts    Int            @default(0)
+  pollCount      Int            @default(0)
+  queuedAt       DateTime?      @db.Timestamptz(3)
+  startedAt      DateTime?      @db.Timestamptz(3)
+  completedAt    DateTime?      @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+
+  business Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  outputs  CreativeOutput[]
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, kind, createdAt])
+  @@index([status, queuedAt])
+  @@index([settledAt, status])
+}
+
+/// A stored result of a creative generation (an image or a video), kept in the media library as a MediaAsset.
+model CreativeOutput {
+  id            String   @id @default(cuid())
+  generationId  String
+  businessId    String
+  mediaId       String
+  index         Int
+  width         Int?
+  height        Int?
+  /// EXACT | GUIDED | NONE: how the original product appearance was preserved.
+  preservation  String?
+  /// true when the provider rendered fewer pixels than requested and the result was resized up.
+  upscaled      Boolean  @default(false)
+  revisedPrompt String?
+  /// The merchant's pick among the variations.
+  selected      Boolean  @default(false)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  generation CreativeGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  media      MediaAsset         @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([generationId, index])
+  @@index([businessId, mediaId])
 }

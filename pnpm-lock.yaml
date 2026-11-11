@@ -68,6 +68,9 @@ importers:
       '@touma/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@touma/creative':
+        specifier: workspace:*
+        version: link:../../packages/creative
       '@touma/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -301,6 +304,31 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
+      '@types/jest':
+        specifier: ^29.5.14
+        version: 29.5.14
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@22.20.5)(ts-node@10.9.2(@types/node@22.20.5)(typescript@5.9.3))
+      ts-jest:
+        specifier: ^29.2.5
+        version: 29.4.15(@babel/core@7.29.13)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.13))(jest-util@29.7.0)(jest@29.7.0(@types/node@22.20.5))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  packages/creative:
+    dependencies:
+      '@touma/shared':
+        specifier: workspace:*
+        version: link:../shared
+      sharp:
+        specifier: ^0.34.5
+        version: 0.34.5
+    devDependencies:
+      '@touma/config':
+        specifier: workspace:*
+        version: link:../config
       '@types/jest':
         specifier: ^29.5.14
         version: 29.5.14

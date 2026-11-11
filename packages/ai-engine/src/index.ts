@@ -13,5 +13,6 @@ export * from './agents/business-analyst';
 export * from './agents/product-analyst';
 export * from './agents/marketing-strategist';
 export * from './agents/content-creator';
+export * from './agents/storyboard-creator';
 export * from './providers/openai';
 export * from './testing/fake-provider';

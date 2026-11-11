@@ -114,3 +114,23 @@ describe('AI settings', () => {
     expect(() => loadEnv({ ...valid, AI_MODEL_PRICING: '{"m":{"inputPerMillion":-1,"outputPerMillion":1}}' })).toThrow(/numeric/);
   });
 });
+
+describe('Creative Studio settings', () => {
+  it('defaults: images through OpenAI (needs a key), video disabled, limits and polling', () => {
+    const env = loadEnv(valid);
+    expect(env).toMatchObject({ IMAGE_PROVIDER: 'openai', IMAGE_MODEL: 'gpt-image-1', VIDEO_PROVIDER: 'none', CREATIVE_MONTHLY_IMAGES_PER_BUSINESS: 100, CREATIVE_MONTHLY_VIDEO_SECONDS_PER_BUSINESS: 120 });
+    expect(env.CREATIVE_MODEL_PRICING).toEqual({});
+  });
+  it('parses per-model prices and rejects malformed ones', () => {
+    const env = loadEnv({ ...valid, CREATIVE_MODEL_PRICING: '{"gpt-image-1":{"perImageUsd":0.04},"sora-2":{"perSecondUsd":0.1}}' });
+    expect(env.CREATIVE_MODEL_PRICING['sora-2']).toEqual({ perSecondUsd: 0.1 });
+    expect(() => loadEnv({ ...valid, CREATIVE_MODEL_PRICING: '{"m":{}}' })).toThrow(/needs a numeric/);
+    expect(() => loadEnv({ ...valid, CREATIVE_MODEL_PRICING: 'nope' })).toThrow(/valid JSON/);
+  });
+  it('the fake providers are test-only', () => {
+    expect(() => loadEnv({ ...valid, IMAGE_PROVIDER: 'fake' })).toThrow(/only allowed when APP_ENV=test/);
+    expect(() => loadEnv({ ...valid, VIDEO_PROVIDER: 'fake' })).toThrow(/only allowed when APP_ENV=test/);
+    expect(loadEnv({ ...valid, APP_ENV: 'test', IMAGE_PROVIDER: 'fake', VIDEO_PROVIDER: 'fake' }).IMAGE_PROVIDER).toBe('fake');
+  });
+});
+

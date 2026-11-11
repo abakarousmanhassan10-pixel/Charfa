@@ -1,5 +1,5 @@
-import { FORMAT_RULES, type AiFormat, type AiLanguage, type AiPlatform } from '@touma/shared';
-import type { GeneratedContent } from './schemas';
+import { FORMAT_RULES, VIDEO_FORMATS, type AiFormat, type AiLanguage, type AiPlatform, type VideoFormat } from '@touma/shared';
+import type { GeneratedContent, Storyboard } from './schemas';
 
 // ─── Language ─────────────────────────────────────────────────────────────────
 
@@ -61,5 +61,23 @@ export function checkContent(c: GeneratedContent, req: { format: AiFormat; platf
     .filter(Boolean)
     .join(' ');
   issues.push(...checkLanguage(text, req.language));
+  return issues;
+}
+
+/** Structure and timing of a storyboard against what was asked for. */
+export function checkStoryboard(sb: Storyboard, req: { format: VideoFormat; seconds: number; language: AiLanguage }): string[] {
+  const issues: string[] = [];
+  const rule = VIDEO_FORMATS[req.format];
+  if (sb.format !== req.format) issues.push(`format must be ${req.format}`);
+  if (sb.aspectRatio !== rule.aspect) issues.push(`aspectRatio must be ${rule.aspect} for ${req.format}`);
+  if (sb.language !== req.language) issues.push(`language must be ${req.language}`);
+  if (sb.scenes.some((x, i) => x.order !== i + 1)) issues.push('scenes must be ordered 1..n');
+  if (sb.scenes.length < 2) issues.push('a storyboard needs at least 2 scenes');
+  const total = sb.scenes.reduce((n, x) => n + x.durationSeconds, 0);
+  const tolerance = Math.max(2, Math.round(req.seconds * 0.15));
+  if (Math.abs(total - req.seconds) > tolerance) issues.push(`scene durations add up to ${total}s but the video must be about ${req.seconds}s (±${tolerance}s)`);
+  if (Math.abs(sb.totalSeconds - total) > 1) issues.push(`totalSeconds (${sb.totalSeconds}) must equal the sum of the scene durations (${total})`);
+  const spoken = [sb.hook, sb.voiceoverScript, ...sb.scenes.flatMap((x) => [x.voiceover, x.onScreenText]), sb.callToAction].filter(Boolean).join(' ');
+  issues.push(...checkLanguage(spoken, req.language));
   return issues;
 }

@@ -1,0 +1,6 @@
+{
+  "extends": "@touma/config/tsconfig/base.json",
+  "compilerOptions": { "outDir": "dist", "rootDir": "src", "esModuleInterop": true },
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts"]
+}

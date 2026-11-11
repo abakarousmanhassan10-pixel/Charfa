@@ -18,6 +18,13 @@ process.env.AI_MONTHLY_GENERATIONS_PER_BUSINESS = '40';
 process.env.AI_RATE_LIMIT_PER_MINUTE = '1000';
 // Generation runs in a BullMQ worker; tests host it inside the API process (production runs `node dist/ai-worker.js`).
 process.env.AI_WORKER_INLINE = 'true';
+// Creative Studio: TEST-ONLY providers (refused by the env loader outside APP_ENV=test). The real adapters are covered by unit tests.
+process.env.IMAGE_PROVIDER = 'fake';
+process.env.VIDEO_PROVIDER = 'fake';
+process.env.CREATIVE_VIDEO_POLL_MS = '60';
+process.env.CREATIVE_JOB_BACKOFF_MS = '40';
+process.env.CREATIVE_RATE_LIMIT_PER_MINUTE = '1000';
+process.env.CREATIVE_MODEL_PRICING = JSON.stringify({ 'gpt-image-1': { perImageUsd: 0.04 }, 'sora-2': { perSecondUsd: 0.1 } });
 process.env.AI_JOB_ATTEMPTS = '3';
 process.env.AI_JOB_BACKOFF_MS = '40';
 // One provider call per job attempt, so retries are exercised at the queue level and stay fast.

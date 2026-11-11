@@ -1,0 +1,5 @@
+{
+  "extends": "@touma/config/tsconfig/base.json",
+  "compilerOptions": { "esModuleInterop": true, "noEmit": true },
+  "include": ["src"]
+}

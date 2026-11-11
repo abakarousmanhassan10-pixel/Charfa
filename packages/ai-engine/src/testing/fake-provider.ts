@@ -101,6 +101,30 @@ function defaultAnswer(req: GenerateRequest): unknown {
   const t = T[lang](bizName, item?.name ?? bizName);
 
   switch (req.schemaName) {
+    case 'video_storyboard': {
+      const seconds = Number(task.seconds ?? 8);
+      const per = Math.max(1, Math.floor(seconds / 3));
+      const durations = [per, per, seconds - 2 * per];
+      const aspect = task.aspectRatio ?? '9:16';
+      return {
+        language: lang,
+        format: task.format ?? 'SHORT_VERTICAL',
+        aspectRatio: aspect,
+        totalSeconds: seconds,
+        title: t.hook.slice(0, 100),
+        concept: t.s,
+        hook: t.hook,
+        voiceoverScript: t.long,
+        scenes: durations.map((d, i) => ({ order: i + 1, durationSeconds: d, visual: t.s, camera: i === 0 ? 'Slow push-in' : null, voiceover: i === 0 ? t.hook : t.s, onScreenText: t.seg, audio: null, productFocus: item?.name ?? null })),
+        callToAction: t.cta,
+        musicMood: null,
+        hashtags: [],
+        videoPrompt: `${t.s} ${t.s}`,
+        claims: item ? [{ claim: item.name, source: `${data.item ? (task.item?.type === 'SERVICE' ? 'service' : 'product') : 'product'}:${item.id}` }] : [],
+        warnings: [],
+        missingInformation: [],
+      };
+    }
     case 'business_marketing_profile':
       return {
         summary: t.long,

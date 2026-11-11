@@ -1,4 +1,4 @@
-import { DynamicModule, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { AiController } from './ai.controller';
 import { AiApprovalService } from './ai-approval.service';
@@ -10,22 +10,17 @@ import { AiWorkerService } from './ai-worker.service';
 import { AiOrchestratorService } from './orchestrator.service';
 
 /**
- * Everything a generation needs, without HTTP: orchestrator, usage accounting, queue producer and the
- * queue worker. The API imports it with the worker off (it runs in its own process in production, or
- * inline when AI_WORKER_INLINE=true); the standalone worker imports it with the worker forced on.
+ * Everything a generation needs, without HTTP: orchestrator, usage accounting, queue producer and the queue worker.
+ * A plain singleton module (imported by the AI API, the Creative Studio and the standalone worker), so there is exactly
+ * one instance of each service per process. The worker starts on boot only when AI_WORKER_INLINE=true; the standalone
+ * worker process (node dist/ai-worker.js) starts it explicitly.
  */
-@Module({})
-export class AiCoreModule {
-  static register(opts: { startWorker: boolean }): DynamicModule {
-    const providers = [AiOrchestratorService, AiUsageService, AiHistoryService, AiApprovalService, AiQueueService, AiWorkerService];
-    return {
-      module: AiCoreModule,
-      imports: [AiProviderModule, KnowledgeModule],
-      providers: [...providers, { provide: 'AI_WORKER_FORCE', useValue: opts.startWorker }],
-      exports: providers,
-    };
-  }
-}
+@Module({
+  imports: [AiProviderModule, KnowledgeModule],
+  providers: [AiOrchestratorService, AiUsageService, AiHistoryService, AiApprovalService, AiQueueService, AiWorkerService],
+  exports: [AiOrchestratorService, AiUsageService, AiHistoryService, AiApprovalService, AiQueueService, AiWorkerService],
+})
+export class AiCoreModule {}
 
-@Module({ imports: [AiCoreModule.register({ startWorker: false })], controllers: [AiController] })
+@Module({ imports: [AiCoreModule], controllers: [AiController] })
 export class AiModule {}

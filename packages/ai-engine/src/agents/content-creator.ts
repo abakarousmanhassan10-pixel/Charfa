@@ -15,12 +15,14 @@ export interface ContentInput {
   /** Marketing angle chosen by the orchestrator from the strategy/analysis (step 4). */
   angle: { name: string; hook?: string; description?: string } | null;
   brandVoice: string | null;
+  /** The business's brand kit (preferred tone, visual style, guidelines), when it has one. */
+  brand?: { preferredTone: string | null; visualStyle: string | null; guidelines: string | null } | null;
 }
 
 export const contentCreator: AgentDefinition<ContentInput, typeof contentSchema> = {
   agent: 'CONTENT_CREATOR',
   task: 'CONTENT',
-  promptVersion: 'content-creator@1',
+  promptVersion: 'content-creator@2',
   schemaName: 'marketing_content',
   schema: contentSchema,
   defaultTemperature: 0.8,
@@ -42,7 +44,7 @@ Write ONE ${i.format} (${rule.platform ?? 'any channel'}) for the business in <b
 Format guidance: ${rule.guidance}
 Required sections: ${rule.requires.join(', ')}. Leave unused sections empty ([] or null).
 Platform limits: ${limits}.
-Purpose: ${i.purpose}. Tone: ${i.tone}.${i.brandVoice ? ' Respect the brand voice given in the data.' : ''}
+Purpose: ${i.purpose}. Tone: ${i.tone}.${i.brandVoice ? ' Respect the brand voice given in the data.' : ''}${i.brand ? ' Follow the brand kit in the task (preferred tone, visual style, guidelines) without ever overriding the rules.' : ''}
 List every factual statement in "claims" with its source id. Prefer benefits over features, be specific with verified facts, and end with a clear call to action that does not invent contact details or offers.
 Write everything (including hashtags where natural) in ${AI_LANGUAGE_NAMES[i.language]}.`;
   },
@@ -55,6 +57,7 @@ Write everything (including hashtags where natural) in ${AI_LANGUAGE_NAMES[i.lan
     tone: i.tone,
     item: i.item,
     angle: i.angle,
+    brand: i.brand ?? null,
   }),
   scopeContext: (ctx: BusinessContext, i) => {
     if (!i.item) return { business: ctx.business, products: ctx.products.slice(0, 20), services: ctx.services.slice(0, 20), knowledge: ctx.knowledge };

@@ -13,7 +13,7 @@ import {
 import Busboy from 'busboy';
 import { createHash, randomUUID } from 'crypto';
 import { createReadStream, createWriteStream } from 'fs';
-import { open, readFile, rm } from 'fs/promises';
+import { open, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { pipeline } from 'stream/promises';
@@ -412,6 +412,136 @@ export class MediaService {
     ]);
     await this.audit.record({ action: 'media.delete', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'MediaAsset', entityId: id });
     await this.deletions.deleteKeys([media.storageKey, media.thumbnailKey], { businessId: tenant.businessId, reason: 'media-delete' });
+  }
+
+  /**
+   * Stores bytes produced by TOUMA itself (AI-generated images and videos) through the same checks as an upload:
+   * magic-byte type, size limits, malware scan (fail closed), images re-encoded without metadata with a thumbnail,
+   * business storage quota, server-generated tenant-scoped keys. Videos may come with a poster image, which becomes
+   * their thumbnail (TOUMA has no video decoder to extract one).
+   */
+  async ingestGenerated(
+    owner: { businessId: string; userId: string | null },
+    input: { data: Buffer; mime: AllowedMimeType; filename: string; folder: string; altText?: string; poster?: Buffer | null; tags?: string[] },
+  ): Promise<MediaAsset> {
+    this.requireStorage();
+    const sniffed = sniffMime(input.data.subarray(0, 4100));
+    if (!sniffed || sniffed !== input.mime) {
+      throw new UnsupportedMediaTypeException({ code: 'FILE_TYPE_MISMATCH', message: `Generated file content (${sniffed ?? 'unknown'}) does not match its type (${input.mime})` });
+    }
+    const rule = MEDIA_RULES[sniffed];
+    const max = rule.type === 'IMAGE' ? this.maxImageBytes : this.maxVideoBytes;
+    if (input.data.length === 0) throw new BadRequestException({ code: 'FILE_EMPTY', message: 'The generated file is empty' });
+    if (input.data.length > max) throw new PayloadTooLargeException({ code: 'FILE_TOO_LARGE', message: `${rule.type === 'IMAGE' ? 'Images' : 'Videos'} are limited to ${Math.round(max / 1048576)} MB` });
+
+    const tmp = join(tmpdir(), `touma-gen-${randomUUID()}`);
+    const keys: string[] = [];
+    try {
+      await writeFile(tmp, input.data, { mode: 0o600 });
+      let scan: Awaited<ReturnType<MalwareScanner['scanFile']>>;
+      try {
+        scan = await this.scanner.scanFile(tmp);
+      } catch (err) {
+        if (err instanceof ScannerUnavailableError) throw new ServiceUnavailableException({ code: 'SCAN_UNAVAILABLE', message: 'Generated files cannot be stored right now (virus scanning failed). Try again later.' });
+        throw err;
+      }
+      if (scan.status === 'INFECTED') throw new HttpException({ code: 'MALWARE_DETECTED', message: 'The generated file was rejected by the virus scanner' }, HttpStatus.UNPROCESSABLE_ENTITY);
+
+      let body: Buffer | null = null;
+      let thumb: Buffer | null = null;
+      let width: number | null = null;
+      let height: number | null = null;
+      try {
+        if (rule.type === 'IMAGE') {
+          ({ data: body, thumbnail: thumb, width, height } = await processImage(input.data, sniffed, this.env.MEDIA_MAX_IMAGE_PIXELS));
+        } else if (input.poster) {
+          const posterMime = sniffMime(input.poster.subarray(0, 4100));
+          if (posterMime && MEDIA_RULES[posterMime].type === 'IMAGE') ({ thumbnail: thumb, width, height } = await processImage(input.poster, posterMime, this.env.MEDIA_MAX_IMAGE_PIXELS));
+        }
+      } catch (err) {
+        if (err instanceof ImageRejectedError) throw new UnsupportedMediaTypeException({ code: err.code, message: err.message });
+        throw err;
+      }
+      const storedSize = body ? body.length : input.data.length;
+      const thumbSize = thumb ? thumb.length : 0;
+      const usage = await this.usage(owner.businessId);
+      if (usage.usedBytes + storedSize + thumbSize > usage.quotaBytes) throw this.quotaError(usage);
+
+      const id = randomUUID().replace(/-/g, '');
+      const storageKey = `businesses/${owner.businessId}/media/${id}.${rule.ext}`;
+      const thumbnailKey = thumb ? `businesses/${owner.businessId}/media/thumbs/${id}.webp` : null;
+      try {
+        await this.storage.put(storageKey, body ?? input.data, { contentType: sniffed, contentLength: storedSize });
+        keys.push(storageKey);
+        if (thumb && thumbnailKey) {
+          await this.storage.put(thumbnailKey, thumb, { contentType: 'image/webp', contentLength: thumb.length });
+          keys.push(thumbnailKey);
+        }
+      } catch (err) {
+        throw this.storageFailure(err);
+      }
+      const media = await this.prisma.mediaAsset.create({
+        data: {
+          businessId: owner.businessId,
+          type: rule.type,
+          status: 'READY',
+          origin: 'AI_GENERATED',
+          storageKey,
+          thumbnailKey,
+          originalFilename: sanitizeFilename(input.filename),
+          folder: FOLDER_REGEX.test(input.folder) ? input.folder : '',
+          mimeType: sniffed,
+          sizeBytes: BigInt(storedSize),
+          originalSizeBytes: BigInt(input.data.length),
+          thumbnailSizeBytes: thumb ? BigInt(thumbSize) : null,
+          width,
+          height,
+          checksumSha256: createHash('sha256').update(body ?? input.data).digest('hex'),
+          altText: input.altText?.trim().slice(0, 300) || null,
+          tags: input.tags?.map((t) => t.toLowerCase()) ?? [],
+          scanStatus: scan.status,
+          scanEngine: this.scanner.engine,
+          scannedAt: scan.status === 'SKIPPED' ? null : new Date(),
+          uploadedById: owner.userId,
+        },
+      });
+      keys.length = 0;
+      await this.audit.record({ action: 'media.generated_stored', actorId: owner.userId ?? undefined, businessId: owner.businessId, entityType: 'MediaAsset', entityId: media.id, metadata: { mime: sniffed, size: storedSize, scan: scan.status } });
+      return media;
+    } finally {
+      await rm(tmp, { force: true });
+      if (keys.length) await this.deletions.deleteKeys(keys, { businessId: owner.businessId, reason: 'generated-rollback' }).catch(() => undefined);
+    }
+  }
+
+  /** Reads a stored image of this business (a product photo or the logo) so a worker can process it. Capped at 25 MB. */
+  async readOriginal(businessId: string, mediaId: string): Promise<{ data: Buffer; mime: string; filename: string; width: number | null; height: number | null }> {
+    this.requireStorage();
+    const m = await this.prisma.mediaAsset.findFirst({ where: { id: mediaId, businessId, deletedAt: null, status: 'READY', type: 'IMAGE' } });
+    if (!m) throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Media not found' });
+    if (m.sizeBytes !== null && Number(m.sizeBytes) > 25 * 1024 * 1024) throw new PayloadTooLargeException({ code: 'FILE_TOO_LARGE', message: 'The image is too large to process' });
+    try {
+      const obj = await this.storage.get(m.storageKey);
+      const chunks: Buffer[] = [];
+      for await (const c of obj.body as AsyncIterable<Buffer>) chunks.push(Buffer.from(c));
+      return { data: Buffer.concat(chunks), mime: m.mimeType, filename: m.originalFilename, width: m.width, height: m.height };
+    } catch (err) {
+      if (err instanceof StorageError && err.kind === 'not_found') throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Media not found' });
+      throw this.storageFailure(err);
+    }
+  }
+
+  /** Removes AI-generated media of a business (failed or deleted generations): soft delete, then the durable deletion queue. */
+  async removeGenerated(businessId: string, mediaIds: string[], reason: string) {
+    if (!mediaIds.length) return;
+    const rows = await this.prisma.mediaAsset.findMany({ where: { id: { in: mediaIds }, businessId, origin: 'AI_GENERATED', deletedAt: null } });
+    if (!rows.length) return;
+    await this.prisma.$transaction([
+      this.prisma.productMedia.deleteMany({ where: { mediaId: { in: rows.map((r) => r.id) } } }),
+      this.prisma.business.updateMany({ where: { id: businessId, logoMediaId: { in: rows.map((r) => r.id) } }, data: { logoMediaId: null } }),
+      this.prisma.mediaAsset.updateMany({ where: { id: { in: rows.map((r) => r.id) } }, data: { deletedAt: new Date() } }),
+    ]);
+    await this.deletions.deleteKeys(rows.flatMap((r) => [r.storageKey, r.thumbnailKey]), { businessId, reason });
   }
 
   /** Ownership check used by other modules before linking media (products, logo). */

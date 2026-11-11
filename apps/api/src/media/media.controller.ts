@@ -67,6 +67,7 @@ export class MediaController {
     @Headers('range') range: string | undefined,
     @Res() res: Response,
     @Query('variant') variant?: string,
+    @Query('download') download?: string,
   ) {
     if (typeof sig !== 'string' || typeof exp !== 'string') throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Media not found' });
     if (variant !== undefined && variant !== 'thumb') throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Media not found' });
@@ -79,7 +80,7 @@ export class MediaController {
     res.setHeader('Cache-Control', `private, max-age=${maxAgeSeconds}`);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
-    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(media.originalFilename)}`);
+    res.setHeader('Content-Disposition', `${download === '1' ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(media.originalFilename)}`);
     object.body.on('error', () => res.destroy());
     object.body.pipe(res);
   }

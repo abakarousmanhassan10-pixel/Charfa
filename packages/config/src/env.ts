@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parsePricingTable } from './ai-pricing';
+import { parseCreativePricing, parsePricingTable } from './ai-pricing';
 
 /**
  * Centralised, validated environment configuration.
@@ -94,6 +94,36 @@ export const appEnvSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  // ─── Creative Studio (images, videos) ────────────────────────────────────────
+  /** openai = OpenAI Images (uses OPENAI_API_KEY); none = disabled. fake = deterministic test-only provider (APP_ENV=test only). */
+  IMAGE_PROVIDER: z.enum(['openai', 'none', 'fake']).default('openai'),
+  IMAGE_MODEL: z.string().min(1).default('gpt-image-1'),
+  /** Video is opt-in because it is costly: none (default), openai (Sora API, uses OPENAI_API_KEY) or the test-only fake. */
+  VIDEO_PROVIDER: z.enum(['none', 'openai', 'fake']).default('none'),
+  VIDEO_MODEL: z.string().min(1).default('sora-2'),
+  CREATIVE_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(600_000).default(180_000),
+  /** Monthly limits per business (an active plan's aiImagesPerMonth / aiVideoSecondsPerMonth take precedence). */
+  CREATIVE_MONTHLY_IMAGES_PER_BUSINESS: z.coerce.number().int().positive().default(100),
+  CREATIVE_MONTHLY_VIDEO_SECONDS_PER_BUSINESS: z.coerce.number().int().positive().default(120),
+  CREATIVE_JOB_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  CREATIVE_JOB_BACKOFF_MS: z.coerce.number().int().min(10).default(5_000),
+  CREATIVE_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(2),
+  /** How often a running video job asks the provider for its status, and when it gives up. */
+  CREATIVE_VIDEO_POLL_MS: z.coerce.number().int().min(20).default(10_000),
+  CREATIVE_VIDEO_TIMEOUT_MINUTES: z.coerce.number().int().min(1).default(20),
+  CREATIVE_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
+  /** Per-model prices (JSON, USD): {"gpt-image-1":{"perImageUsd":0.04},"sora-2":{"perSecondUsd":0.1}}. Unset = cost reported as unknown. */
+  CREATIVE_MODEL_PRICING: z
+    .string()
+    .optional()
+    .transform((v, ctx) => {
+      try {
+        return parseCreativePricing(v);
+      } catch (e) {
+        ctx.addIssue({ code: 'custom', message: (e as Error).message });
+        return z.NEVER;
+      }
+    }),
   /** Health endpoint of the standalone AI worker (node dist/ai-worker.js). */
   AI_WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(4002),
   /** Reservations of jobs that never finished are released after this many minutes by the reconciler. */
@@ -182,6 +212,9 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
   if (env.AI_PROVIDER === 'fake' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['AI_PROVIDER=fake is only allowed when APP_ENV=test']);
   }
+  if ((env.IMAGE_PROVIDER === 'fake' || env.VIDEO_PROVIDER === 'fake') && env.APP_ENV !== 'test') {
+    throw new EnvValidationError(['IMAGE_PROVIDER=fake and VIDEO_PROVIDER=fake are only allowed when APP_ENV=test']);
+  }
   if (env.STORAGE_DRIVER === 'memory' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['STORAGE_DRIVER=memory is only allowed when APP_ENV=test']);
   }
@@ -221,6 +254,7 @@ export function productionProblems(env: AppEnv): string[] {
   if (env.MALWARE_SCANNER === 'none' && !env.ALLOW_UNSCANNED_UPLOADS) p.push('MALWARE_SCANNER must be clamav (or set ALLOW_UNSCANNED_UPLOADS=true to accept the risk explicitly)');
   if (env.RATE_LIMIT_STORE !== 'redis') p.push('RATE_LIMIT_STORE must be redis');
   if (env.AI_PROVIDER === 'fake') p.push('AI_PROVIDER=fake is test-only');
+  if (env.IMAGE_PROVIDER === 'fake' || env.VIDEO_PROVIDER === 'fake') p.push('IMAGE_PROVIDER/VIDEO_PROVIDER=fake are test-only');
   return p;
 }
 

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { UnrecoverableError, Worker, type Job } from 'bullmq';
 import type IORedis from 'ioredis';
 import { roleHasPermission } from '@touma/shared';
@@ -37,11 +37,10 @@ export class AiWorkerService implements OnApplicationBootstrap, OnApplicationShu
     private readonly usage: AiUsageService,
     private readonly queue: AiQueueService,
     @InjectEnv() private readonly env: AppEnv,
-    @Inject('AI_WORKER_FORCE') private readonly force: boolean,
   ) {}
 
   async onApplicationBootstrap() {
-    if (this.env.AI_WORKER_INLINE || this.force) await this.start();
+    if (this.env.AI_WORKER_INLINE) await this.start();
   }
 
   get running() {
