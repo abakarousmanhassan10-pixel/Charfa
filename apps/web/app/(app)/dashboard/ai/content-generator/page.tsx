@@ -6,8 +6,9 @@ import { AiSection, Steps, UsageLine } from '@/components/ai/ai-section';
 import { ContentEditor } from '@/components/ai/content-editor';
 import { GeneratePanel } from '@/components/ai/generate-panel';
 import { ItemSelect, LanguageSelect, parseItem, PurposeSelect, ToneSelect } from '@/components/ai/selectors';
+import { ApprovalPanel, QualityLine } from '@/components/ai/review';
 import { useAiStatus, useGenerate } from '@/components/ai/use-ai';
-import type { ContentOutput, Generation } from '@/components/ai/types';
+import type { ContentOutput, Generation, QualityReport } from '@/components/ai/types';
 import { useBusiness } from '@/components/business-provider';
 import { useI18n } from '@/components/i18n-provider';
 import { Field } from '@/components/ui/field';
@@ -31,6 +32,8 @@ export default function ContentGeneratorPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<ApiError | null>(null);
+  /** Accuracy report of the saved text (it differs from the generation's when the person edited it). */
+  const [draftQuality, setDraftQuality] = useState<QualityReport | null>(null);
 
   useEffect(() => {
     if (!formats.includes(format)) setFormat(formats[0]!);
@@ -45,13 +48,14 @@ export default function ContentGeneratorPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      const res = await api<{ generation: Generation<ContentOutput>; content: { version: number } }>(`/ai/generations/${current.id}/draft`, {
+      const res = await api<{ generation: Generation<ContentOutput>; content: { version: number; quality?: QualityReport | null } }>(`/ai/generations/${current.id}/draft`, {
         method: 'POST',
         businessId: active.id,
         json: edited ? { output } : {},
       });
       gen.setResult({ ...res.generation, steps: current.steps });
       setSaved(res.content.version);
+      setDraftQuality(res.content.quality ?? null);
     } catch (err) {
       setSaveError(err instanceof ApiError ? err : new ApiError(0, 'UNKNOWN', String(err)));
     } finally {
@@ -65,9 +69,11 @@ export default function ContentGeneratorPage() {
         instructions={instructions}
         onInstructions={setInstructions}
         pending={gen.pending}
+        job={gen.job}
         configured={status.data?.configured ?? false}
         onGenerate={() => {
           setSaved(null);
+          setDraftQuality(null);
           void gen.run('/ai/content', { format, purpose, tone, language, ...parseItem(item), instructions: instructions || undefined });
         }}
       >
@@ -94,6 +100,7 @@ export default function ContentGeneratorPage() {
         <div className="grid gap-3">
           <Steps steps={current.steps} />
           <UsageLine usage={current.usage} model={current.model} />
+          <QualityLine quality={draftQuality ?? current.quality} />
           <ContentEditor
             initial={current.output}
             rule={rule}
@@ -104,9 +111,11 @@ export default function ContentGeneratorPage() {
             onSave={save}
             onRegenerate={(feedback) => {
               setSaved(null);
+              setDraftQuality(null);
               void gen.regenerate(current.id, feedback || undefined);
             }}
           />
+          <ApprovalPanel generation={current} onChange={(g) => gen.setResult({ ...g, steps: g.steps?.length ? g.steps : current.steps } as Generation<ContentOutput>)} />
         </div>
       ) : (
         !gen.pending && <EmptyState title={t('ai.cg.empty')} hint={t('ai.cg.emptyHint')} />

@@ -122,6 +122,26 @@ services:
       redis: { condition: service_healthy }
     profiles: [app]
 
+  # Consumes the AI generation queue (same image as the API, different command). Scale it horizontally.
+  ai-worker:
+    build: { context: ../.., dockerfile: infrastructure/docker/api.Dockerfile, target: runtime }
+    command: ["node", "dist/ai-worker.js"]
+    env_file: ../../.env
+    environment:
+      DATABASE_URL: postgresql://touma:touma_dev_password@postgres:5432/touma?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      APP_ENV: development
+      AI_WORKER_INLINE: "false"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 3s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    profiles: [app]
+
   web:
     build:
       context: ../..

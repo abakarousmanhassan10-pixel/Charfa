@@ -1,4 +1,5 @@
-import { checkContent, checkGrounding, checkLanguage } from './validation';
+import { checkGrounding } from './grounding';
+import { checkContent, checkLanguage } from './validation';
 import type { GeneratedContent } from './schemas';
 import { ctx } from './fixtures.spec-helper';
 

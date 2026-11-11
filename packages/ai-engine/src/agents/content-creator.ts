@@ -1,6 +1,7 @@
 import { AI_LANGUAGE_NAMES, FORMAT_RULES, type AiContentPurpose, type AiFormat, type AiLanguage, type AiPlatform, type AiTone } from '@touma/shared';
 import type { BusinessContext } from '../context';
 import { contentSchema } from '../schemas';
+import { checkFactPreservation } from '../grounding';
 import { checkContent } from '../validation';
 import type { AgentDefinition } from './types';
 
@@ -60,5 +61,9 @@ Write everything (including hashtags where natural) in ${AI_LANGUAGE_NAMES[i.lan
     const item = (i.item.type === 'PRODUCT' ? ctx.products : ctx.services).find((x) => x.id === i.item!.id) ?? null;
     return { business: ctx.business, item, knowledge: ctx.knowledge };
   },
-  validate: (out, _ctx, i) => checkContent(out, { format: i.format, platform: FORMAT_RULES[i.format].platform, language: i.language }),
+  validate: (out, ctx, i) => [
+    ...checkContent(out, { format: i.format, platform: FORMAT_RULES[i.format].platform, language: i.language }),
+    // Facts about the item must stay as recorded (right item's price, availability not contradicted).
+    ...checkFactPreservation(out, ctx, i.item),
+  ],
 };

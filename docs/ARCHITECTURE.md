@@ -67,6 +67,9 @@ Locales live in `packages/shared/src/i18n.ts`. The web app loads message catalog
 | `GET/POST /businesses/:businessId/invitations`, `POST …/:id/resend`, `DELETE …/:id` | `members.manage` |
 | `POST /invitations/lookup` (public), `POST /invitations/accept` (authenticated, same email) | token in the body only |
 | `GET/POST /business-knowledge`, `GET /business-knowledge/summary`, `GET /business-knowledge/context`, `GET/PATCH/DELETE …/:id`, `POST …/:id/verify|unverify` | `knowledge.read` / `knowledge.write` / `knowledge.verify` + `X-Business-Id` |
+| `POST /ai/business-analysis|product-analysis|marketing-strategy|content`, `POST /ai/generations/:id/regenerate` | `ai.use`: **202**, queued for the AI worker |
+| `GET /ai/generations/:id/status`, `GET /ai/generations[/:id]`, `GET /ai/usage`, `GET /ai/usage/monthly` | `content.read` |
+| `POST /ai/generations/:id/draft|submit-review`, `POST …/approve|reject` | `content.write` / `content.approve` |
 | `GET /health`, `/health/ready` | public |
 
 ## Frontend structure
@@ -106,6 +109,9 @@ Browser ◄── signed URL /api/v1/media/:id/content?exp&sig ◄── API str
 
 ## AI knowledge boundary
 `KnowledgeService.buildAgentContext(tenant)` is the only way Phase 3 agents will get business facts. It takes a verified `TenantContext`, returns only VERIFIED knowledge plus ACTIVE products and services of that business, keeps unknowns explicit (`price: null`, `stock: "not tracked"`), and lists `missingInformation` so agents answer "I don't know" instead of inventing. `GET /business-knowledge/context` shows the business exactly what the AI will see.
+
+## AI generation (background)
+`POST /ai/*` reserves monthly quota atomically, stores a `QUEUED` generation and enqueues a BullMQ job (`touma.ai`, job id = generation id); a worker process (`node dist/ai-worker.js`, or inline with `AI_WORKER_INLINE=true`) runs the pipeline, retries transient failures with backoff, and settles the reservation. Clients poll `GET /ai/generations/:id/status`. Details: `docs/AI.md`.
 
 ## AI engine
 `packages/ai-engine` is provider-neutral and framework-free: agents (prompt + schema + validation), the runner (retries, repairs, accounting), the OpenAI provider and a test-only fake provider. `apps/api/src/ai` hosts the orchestrator, usage limits and reports, history and drafts. The full design is in `docs/AI.md`.

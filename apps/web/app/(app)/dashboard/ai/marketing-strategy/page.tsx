@@ -33,6 +33,7 @@ export default function StrategyPage() {
         instructions={instructions}
         onInstructions={setInstructions}
         pending={gen.pending}
+        job={gen.job}
         configured={status.data?.configured ?? false}
         canGenerate={platforms.length > 0}
         onGenerate={() => gen.run('/ai/marketing-strategy', { language, platforms, goal: goal || undefined, instructions: instructions || undefined })}

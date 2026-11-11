@@ -80,6 +80,9 @@ importers:
       argon2:
         specifier: ^0.41.1
         version: 0.41.1
+      bullmq:
+        specifier: ^5.81.5
+        version: 5.81.5
       busboy:
         specifier: ^1.6.0
         version: 1.6.0

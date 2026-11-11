@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsIn, IsInt, IsObject, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsIn, IsInt, IsObject, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { AI_CONTENT_PURPOSES, AI_FORMATS, AI_LANGUAGES, AI_PLATFORMS, AI_TASKS, AI_TONES } from '@touma/shared';
 import { PageQueryDto } from '../common/pagination';
 import { ID_REGEX } from '../common/validators';
@@ -107,4 +107,23 @@ export class UsageQueryDto {
   @Min(1)
   @Max(366)
   days: number = 30;
+}
+
+export class RejectDto {
+  @ApiProperty({ minLength: 3, maxLength: 500 })
+  @Transform(trimOrUndefined)
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  reason: string;
+}
+
+export class MonthlyUsageQueryDto {
+  @ApiPropertyOptional({ minimum: 1, maximum: 24, default: 6 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(24)
+  months: number = 6;
 }

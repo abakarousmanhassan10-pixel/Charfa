@@ -26,6 +26,10 @@ const testEnv = {
   // TEST-ONLY deterministic AI provider (the API refuses it unless APP_ENV=test).
   AI_PROVIDER: 'fake',
   AI_RATE_LIMIT_PER_MINUTE: '1000',
+  // Generation runs in a BullMQ worker; the E2E API hosts it inline (production runs `node dist/ai-worker.js`).
+  AI_WORKER_INLINE: 'true',
+  AI_JOB_BACKOFF_MS: '100',
+  AI_MODEL_PRICING: JSON.stringify({ 'gpt-4o-mini': { inputPerMillion: 0.15, outputPerMillion: 0.6 } }),
   // Real SMTP delivery to a local capture server started by account.e2e.ts (no email provider mock in the API).
   EMAIL_TRANSPORT: 'smtp',
   SMTP_HOST: '127.0.0.1',

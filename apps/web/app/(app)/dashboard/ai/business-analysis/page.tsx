@@ -29,6 +29,7 @@ export default function BusinessAnalysisPage() {
         instructions={instructions}
         onInstructions={setInstructions}
         pending={gen.pending}
+        job={gen.job}
         configured={status.data?.configured ?? false}
         onGenerate={() => gen.run('/ai/business-analysis', { language, instructions: instructions || undefined })}
         onRegenerate={current ? () => gen.regenerate(current.id, instructions || undefined) : undefined}

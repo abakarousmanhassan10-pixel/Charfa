@@ -101,3 +101,16 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...valid, EMAIL_TRANSPORT: 'smtp' })).toThrow(/SMTP_HOST/);
   });
 });
+
+describe('AI settings', () => {
+  it('parses per-model pricing and the job settings with defaults', () => {
+    const env = loadEnv({ ...valid, AI_MODEL_PRICING: '{"gpt-4o-mini":{"inputPerMillion":0.15,"outputPerMillion":0.6}}' });
+    expect(env.AI_MODEL_PRICING['gpt-4o-mini']).toEqual({ inputPerMillion: 0.15, outputPerMillion: 0.6 });
+    expect(env).toMatchObject({ AI_JOB_ATTEMPTS: 3, AI_WORKER_INLINE: false, AI_TOKENS_RESERVED_PER_GENERATION: 12000 });
+    expect(loadEnv(valid).AI_MODEL_PRICING).toEqual({});
+  });
+  it('rejects malformed pricing instead of silently reporting wrong costs', () => {
+    expect(() => loadEnv({ ...valid, AI_MODEL_PRICING: 'not json' })).toThrow(/valid JSON/);
+    expect(() => loadEnv({ ...valid, AI_MODEL_PRICING: '{"m":{"inputPerMillion":-1,"outputPerMillion":1}}' })).toThrow(/numeric/);
+  });
+});

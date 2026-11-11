@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parsePricingTable } from './ai-pricing';
 
 /**
  * Centralised, validated environment configuration.
@@ -70,6 +71,33 @@ export const appEnvSchema = z.object({
   /** USD per 1M tokens, from the provider's pricing page. 0 = unknown (cost reported as not configured). */
   AI_INPUT_COST_PER_1M_TOKENS: z.coerce.number().min(0).default(0),
   AI_OUTPUT_COST_PER_1M_TOKENS: z.coerce.number().min(0).default(0),
+  /** Per-model prices as JSON: {"gpt-4o-mini":{"inputPerMillion":0.15,"outputPerMillion":0.6}}. Overrides the flat prices above. */
+  AI_MODEL_PRICING: z
+    .string()
+    .optional()
+    .transform((v, ctx) => {
+      try {
+        return parsePricingTable(v);
+      } catch (e) {
+        ctx.addIssue({ code: 'custom', message: (e as Error).message });
+        return z.NEVER;
+      }
+    }),
+  /** Tokens held per reserved generation unit (input + output estimate) until the real usage is known. */
+  AI_TOKENS_RESERVED_PER_GENERATION: z.coerce.number().int().min(100).default(12_000),
+  /** BullMQ attempts for transient failures (provider rate limit, timeout, outage) and backoff between them. */
+  AI_JOB_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  AI_JOB_BACKOFF_MS: z.coerce.number().int().min(10).default(5_000),
+  AI_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(4),
+  /** Run the AI queue worker inside the API process (development, tests). Production runs `node dist/ai-worker.js`. */
+  AI_WORKER_INLINE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  /** Health endpoint of the standalone AI worker (node dist/ai-worker.js). */
+  AI_WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(4002),
+  /** Reservations of jobs that never finished are released after this many minutes by the reconciler. */
+  AI_RESERVATION_STALE_MINUTES: z.coerce.number().int().min(1).default(120),
   S3_ENDPOINT: z.string().optional(),
   S3_REGION: z.string().optional(),
   S3_BUCKET: z.string().optional(),

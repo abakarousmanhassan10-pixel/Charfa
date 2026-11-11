@@ -36,6 +36,7 @@ export default function ProductAnalysisPage() {
         instructions={instructions}
         onInstructions={setInstructions}
         pending={gen.pending}
+        job={gen.job}
         configured={status.data?.configured ?? false}
         canGenerate={Boolean(item)}
         onGenerate={() => gen.run('/ai/product-analysis', { language, ...parseItem(item), instructions: instructions || undefined })}

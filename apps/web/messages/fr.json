@@ -524,7 +524,9 @@
     "statuses": {
       "SUCCEEDED": "Réussi",
       "FAILED": "Échoué",
-      "BLOCKED": "Bloqué"
+      "BLOCKED": "Bloqué",
+      "QUEUED": "En attente",
+      "RUNNING": "En cours"
     },
     "steps": {
       "context": "Données entreprise",
@@ -571,7 +573,16 @@
       "INSUFFICIENT_PERMISSION": "Votre rôle ne permet pas d'utiliser TOUMA AI.",
       "TOO_MANY_REQUESTS": "Trop de requêtes. Patientez une minute.",
       "VALIDATION": "Vérifiez vos modifications : certaines limites de la plateforme sont dépassées.",
-      "NETWORK": "Erreur réseau. Réessayez."
+      "NETWORK": "Erreur réseau. Réessayez.",
+      "AI_FORBIDDEN": "Vous n’êtes plus autorisé à utiliser TOUMA AI pour cette entreprise.",
+      "AI_QUEUE_UNAVAILABLE": "La file d’attente IA est indisponible. Rien n’a été consommé ; réessayez bientôt.",
+      "AI_JOB_STALLED": "La génération ne s’est pas terminée et a été annulée. Rien n’est perdu ; réessayez.",
+      "AI_JOB_FAILED": "La génération s’est arrêtée de façon inattendue. Veuillez réessayer.",
+      "APPROVAL_BLOCKED": "Ce texte ne peut pas encore être approuvé.",
+      "APPROVAL_REQUIRED": "Ce contenu doit être approuvé avant d’être publié.",
+      "INVALID_STATE": "Cette action n’est pas disponible dans l’état de relecture actuel.",
+      "NO_DRAFT": "Enregistrez d’abord le brouillon.",
+      "GENERATION_IN_PROGRESS": "Cette génération est encore en cours."
     },
     "notConfiguredTitle": "TOUMA AI n'est pas configuré",
     "notConfiguredText": "Un administrateur doit ajouter les identifiants du fournisseur d'IA (OPENAI_API_KEY) sur le serveur. Rien n'est généré ni simulé d'ici là.",
@@ -697,7 +708,8 @@
       "businessAnalysis": "Comprenez votre positionnement, vos audiences et votre ton.",
       "productAnalysis": "Trouvez les bénéfices, angles et objections d'un produit.",
       "strategy": "Planifiez piliers, campagnes et contenus de la semaine.",
-      "content": "Rédigez posts, scripts et publicités prêts pour chaque plateforme."
+      "content": "Rédigez posts, scripts et publicités prêts pour chaque plateforme.",
+      "inProgress": "en cours"
     },
     "history": {
       "subtitle": "Chaque génération, avec ses paramètres, son résultat et sa consommation de tokens.",
@@ -724,7 +736,51 @@
       "perDay": "Tokens par jour",
       "agent": "Agent",
       "input": "Entrée",
-      "output": "Sortie"
+      "output": "Sortie",
+      "m": {
+        "title": "Consommation mensuelle",
+        "hint": "Générations ayant consommé des jetons, jetons mesurés auprès du fournisseur et coût estimé par mois.",
+        "month": "Mois",
+        "completed": "Terminées",
+        "failed": "Échouées",
+        "reserved": "En cours",
+        "planLimit": "Limite du mois (selon votre offre) : {gen} générations · {tokens} jetons",
+        "defaultLimit": "Limite du mois : {gen} générations · {tokens} jetons",
+        "pricing": "Prix (USD par million de jetons, entrée / sortie) : {prices}",
+        "flatPricing": "Prix (USD par million de jetons) : ${input} entrée / ${output} sortie"
+      }
+    },
+    "job": {
+      "queued": "En file d’attente…",
+      "running": "Génération en cours…",
+      "retrying": "Le fournisseur d’IA est occupé. Nouvelle tentative ({attempt} sur {max})…",
+      "leaveHint": "Vous pouvez quitter cette page : la génération continue en arrière-plan et apparaît dans l’historique."
+    },
+    "quality": {
+      "passed": "Contrôle d’exactitude réussi : rien qui ne soit absent de vos données vérifiées ({count} faits confirmés).",
+      "failed": "Contrôle d’exactitude : {count} problème(s) détecté(s)"
+    },
+    "review": {
+      "title": "Relecture et approbation",
+      "hint": "Un contenu rédigé par l’IA doit être approuvé par une personne avant publication. Modifier le texte retire l’approbation.",
+      "status": {
+        "DRAFT": "Brouillon",
+        "IN_REVIEW": "En relecture",
+        "APPROVED": "Approuvé",
+        "REJECTED": "Rejeté"
+      },
+      "saveFirst": "Enregistrez le brouillon pour lancer la relecture.",
+      "submit": "Envoyer en relecture",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "reasonLabel": "Motif du rejet",
+      "reasonPh": "Que faut-il changer ?",
+      "confirmReject": "Rejeter le brouillon",
+      "approvedOn": "Approuvé le {date}",
+      "rejectedWith": "Rejeté : {reason}",
+      "waiting": "En attente de l’approbation d’un administrateur ou du propriétaire.",
+      "blockedTitle": "Ce texte ne peut pas encore être approuvé",
+      "blockedHint": "Il contient des informations absentes de vos données vérifiées. Corrigez le texte ou ajoutez le fait à vos connaissances vérifiées, puis renvoyez-le."
     }
   },
   "account": {

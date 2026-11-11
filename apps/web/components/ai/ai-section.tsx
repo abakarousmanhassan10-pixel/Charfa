@@ -66,11 +66,11 @@ export function AiSection({ title, description, children }: { title: string; des
   );
 }
 
-export function Steps({ steps }: { steps?: Array<{ step: string; status: string; detail?: string }> }) {
+export function Steps({ steps, testId = 'ai-steps' }: { steps?: Array<{ step: string; status: string; detail?: string }>; testId?: string }) {
   const { t } = useI18n();
   if (!steps?.length) return null;
   return (
-    <ol className="flex flex-wrap gap-2 text-xs" aria-label={t('ai.pipeline')} data-testid="ai-steps">
+    <ol className="flex flex-wrap gap-2 text-xs" aria-label={t('ai.pipeline')} data-testid={testId}>
       {steps.map((s, i) => (
         <li key={i} title={s.detail} className={cn('rounded-full border px-2.5 py-1', s.status === 'reused' && 'border-emerald-500/40 bg-emerald-500/10', s.status === 'skipped' && 'text-muted-foreground')}>
           {t(`ai.steps.${s.step}`)} · {t(`ai.stepStatus.${s.status}`)}

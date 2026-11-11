@@ -26,7 +26,7 @@ import { InvitationsModule } from './invitations/invitations.module';
 
 @Global()
 @Module({})
-class EnvModule {
+export class EnvModule {
   static forRoot(env: AppEnv): DynamicModule {
     return { module: EnvModule, providers: [{ provide: APP_ENV, useValue: env }], exports: [APP_ENV] };
   }

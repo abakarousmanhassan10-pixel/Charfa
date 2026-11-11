@@ -5,7 +5,7 @@ import { OutputValidationError, ProviderError, ProviderNotConfiguredError } from
 import type { TextModelProvider } from './provider';
 import { buildUserMessage, GUARDRAILS } from './safety';
 import { toStrictJsonSchema } from './strict-schema';
-import { checkGrounding } from './validation';
+import { checkGrounding } from './grounding';
 
 export interface EngineConfig {
   model: string;

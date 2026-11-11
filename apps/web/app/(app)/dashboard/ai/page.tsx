@@ -33,7 +33,7 @@ export default function AiOverviewPage() {
             <p className="flex items-center justify-between">{t('ai.overview.provider')} <span className="font-medium">{status.data?.provider}</span></p>
             <p className="flex items-center justify-between">{t('ai.overview.model')} <span className="font-mono text-xs">{status.data?.model}</span></p>
             {status.data && (
-              <p className="flex items-center justify-between">{t('ai.overview.thisMonth')} <span className="tabular-nums">{status.data.usage.generations} / {status.data.usage.generationLimit}</span></p>
+              <p className="flex items-center justify-between">{t('ai.overview.thisMonth')} <span className="tabular-nums" data-testid="ai-month-usage">{status.data.usage.generations} / {status.data.usage.generationLimit}{status.data.usage.reservedGenerations > 0 && ` (+${status.data.usage.reservedGenerations} ${t('ai.overview.inProgress')})`}</span></p>
             )}
           </CardContent>
         </Card>
@@ -58,7 +58,7 @@ export default function AiOverviewPage() {
                   <li key={g.id} className="flex items-center justify-between gap-3 py-2">
                     <span className="flex items-center gap-2"><Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />{g.format ? t(`ai.formats.${g.format}`) : t(`ai.tasks.${g.task}`)}</span>
                     <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant={g.status === 'SUCCEEDED' ? 'success' : 'warning'}>{t(`ai.statuses.${g.status}`)}</Badge>
+                      <Badge variant={g.status === 'SUCCEEDED' ? 'success' : g.status === 'QUEUED' || g.status === 'RUNNING' ? 'muted' : 'warning'}>{t(`ai.statuses.${g.status}`)}</Badge>
                       {new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(g.createdAt))}
                     </span>
                   </li>

@@ -16,8 +16,16 @@ process.env.STORAGE_DRIVER = 'memory';
 process.env.AI_PROVIDER = 'fake';
 process.env.AI_MONTHLY_GENERATIONS_PER_BUSINESS = '40';
 process.env.AI_RATE_LIMIT_PER_MINUTE = '1000';
+// Generation runs in a BullMQ worker; tests host it inside the API process (production runs `node dist/ai-worker.js`).
+process.env.AI_WORKER_INLINE = 'true';
+process.env.AI_JOB_ATTEMPTS = '3';
+process.env.AI_JOB_BACKOFF_MS = '40';
+// One provider call per job attempt, so retries are exercised at the queue level and stay fast.
+process.env.AI_MAX_PROVIDER_RETRIES = '0';
 process.env.AI_INPUT_COST_PER_1M_TOKENS = '0.15';
 process.env.AI_OUTPUT_COST_PER_1M_TOKENS = '0.6';
+// Per-model prices (override the flat defaults above); the fake provider reports models as "fake:<model>".
+process.env.AI_MODEL_PRICING = JSON.stringify({ 'gpt-4o-mini': { inputPerMillion: 1, outputPerMillion: 2 } });
 process.env.MEDIA_MAX_IMAGE_MB = '1';
 process.env.MEDIA_MAX_VIDEO_MB = '2';
 process.env.MEDIA_MAX_IMAGE_PIXELS = '4000000';

@@ -7,6 +7,7 @@
 | Full-stack browser | `pnpm test:web-e2e` | built api + web; PostgreSQL + Redis |
 | Malware scanning (part of `test:e2e`) | `infrastructure/clamav/start-test-clamd.sh` first | `clamav-daemon` installed; fails (not skips) if clamd is down |
 | Real object storage | `pnpm --filter @touma/api storage:check` and `pnpm --filter @touma/api test:real-storage` | a real AWS S3 / R2 / MinIO bucket and `S3_*` variables; skipped and reported as NOT RUN otherwise |
+| AI jobs, usage and quality (part of `test:e2e`) | `ai-jobs`, `ai-quality`, `ai` specs | PostgreSQL + Redis (BullMQ); the worker runs inline (`AI_WORKER_INLINE=true`); the AI provider is the test-only deterministic one |
 | Lint | `pnpm lint` | nothing |
 
 ### Real storage with local MinIO

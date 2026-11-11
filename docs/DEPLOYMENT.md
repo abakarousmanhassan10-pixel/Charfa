@@ -5,6 +5,7 @@
 | Web | Vercel | Root `apps/web`; build `pnpm turbo run build --filter=@touma/web...`; env `API_URL` = public API origin |
 | API | Render / Fly.io / AWS ECS (container) | `infrastructure/docker/api.Dockerfile` target `runtime`; health check `/api/v1/health/ready` |
 | Worker | Same platform as API (background worker) | `infrastructure/docker/worker.Dockerfile`; scale horizontally, since BullMQ handles locking; liveness `GET :4001/health` |
+| AI worker | Same platform as API (background worker), same image | `api.Dockerfile` target `runtime` with command `node dist/ai-worker.js`; consumes the `touma.ai` queue; scale horizontally; health `GET :4002/health`; keep `AI_WORKER_INLINE=false` on the API |
 | Migrations | One-off job before each API release | `api.Dockerfile` target `migrate` (`prisma migrate deploy`) |
 | PostgreSQL | Managed (Neon, RDS, Render, Supabase) | PITR on, TLS required (`?sslmode=require`) |
 | Redis | Managed (Upstash, ElastiCache, Render) | `maxmemory-policy noeviction` (required by BullMQ) |
@@ -15,7 +16,7 @@
 ## Release steps
 1. CI green (unit, integration, Playwright, migration drift check).
 2. Run the migration job (`prisma migrate deploy`). Migrations must be backward compatible with the running API version (expand → migrate → contract).
-3. Deploy the API, then the worker, then the web app.
+3. Deploy the API, then the workers (maintenance worker and AI worker), then the web app. Jobs accepted while no AI worker runs wait in the queue and are processed when one starts.
 4. Seed plans once: `pnpm db:seed` (idempotent; it doesn't overwrite admin-edited prices).
 
 ## Required production env
@@ -41,7 +42,7 @@ Before go-live run `pnpm --filter @touma/api storage:check` with the production 
 
 ### Health checks
 - `GET /api/v1/health`: liveness (container `HEALTHCHECK`).
-- `GET /api/v1/health/ready`: 503 unless PostgreSQL and Redis are up; `dependencies` reports storage, email (SMTP `verify`), malware scanner (`PING`) and worker heartbeat (`touma:worker:heartbeat`, stale after 90 s).
+- `GET /api/v1/health/ready`: 503 unless PostgreSQL and Redis are up; `dependencies` reports storage, email (SMTP `verify`), malware scanner (`PING`) and the heartbeats of the maintenance worker (`touma:worker:heartbeat`) and the AI worker (`touma:ai-worker:heartbeat`), each stale after 90 s.
 - Worker: `GET :WORKER_HEALTH_PORT/health` (Redis connectivity).
 
 ### Docker images

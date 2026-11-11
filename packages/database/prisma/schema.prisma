@@ -295,9 +295,17 @@ enum AITask {
 }
 
 enum AIGenerationStatus {
+  QUEUED // accepted and waiting for (or waiting to retry in) a worker
+  RUNNING // a worker is generating
   SUCCEEDED
   FAILED // provider or validation failure after retries
   BLOCKED // refused before calling the provider (limit reached, not configured)
+}
+
+enum AIReservationStatus {
+  RESERVED // quota held while the job is queued or running
+  COMMITTED // job finished; consumed units and tokens were moved to the usage counters
+  RELEASED // job finished without consuming anything (nothing was billed)
 }
 
 enum MalwareScanStatus {
@@ -436,6 +444,7 @@ model Business {
   categories         Category[]
   aiGenerations      AIGeneration[]
   invitations        Invitation[]
+  aiUsagePeriods     AIUsagePeriod[]
 
   @@index([deletedAt])
   @@index([createdAt])
@@ -650,6 +659,8 @@ model Content {
   createdById     String?
   approvedById    String?
   approvedAt      DateTime?        @db.Timestamptz(3)
+  /// Content.version that a human approved; any later edit invalidates the approval.
+  approvedVersion Int?
   rejectionReason String?
   createdAt       DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime         @updatedAt @db.Timestamptz(3)
@@ -1106,18 +1117,77 @@ model AIGeneration {
   attempts       Int                @default(0)
   parentId       String?
   contentId      String?            @unique
+  /// Job this row belongs to: its own id for the generation the user requested, the requested
+  /// generation's id for the analyses it triggered. Settlement accounts for all rows of one job.
+  rootId         String?
+  /// Pipeline progress (context, analyses, generation, validation, save).
+  steps          Json?
+  /// Grounding report: checks run, facts verified against the business data, issues.
+  quality        Json?
+  /// BullMQ attempts made so far (0 for rows that were not queued).
+  jobAttempts    Int                @default(0)
+  queuedAt       DateTime?          @db.Timestamptz(3)
+  startedAt      DateTime?          @db.Timestamptz(3)
+  completedAt    DateTime?          @db.Timestamptz(3)
   createdAt      DateTime           @default(now()) @db.Timestamptz(3)
 
-  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  user     User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  parent   AIGeneration?  @relation("Regeneration", fields: [parentId], references: [id], onDelete: SetNull)
-  children AIGeneration[] @relation("Regeneration")
-  content  Content?       @relation(fields: [contentId], references: [id], onDelete: SetNull)
-  usages   AIUsage[]
+  business    Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent      AIGeneration?  @relation("Regeneration", fields: [parentId], references: [id], onDelete: SetNull)
+  children    AIGeneration[] @relation("Regeneration")
+  content     Content?       @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  usages      AIUsage[]
+  reservation AIReservation?
 
   @@index([businessId, createdAt])
   @@index([businessId, task, status, createdAt])
   @@index([businessId, task, itemId, contextHash])
+  @@index([rootId])
+  @@index([status, queuedAt])
+}
+
+/// Monthly AI usage counters per business (UTC month). Limits are enforced by an atomic conditional
+/// UPDATE on this row, so concurrent requests cannot overshoot: reserved + completed + failed <= limit.
+model AIUsagePeriod {
+  id                   String   @id @default(cuid())
+  businessId           String
+  periodStart          DateTime @db.Timestamptz(3)
+  /// Units held by queued/running jobs.
+  reservedGenerations  Int      @default(0)
+  completedGenerations Int      @default(0)
+  failedGenerations    Int      @default(0)
+  /// Cumulative reserved units that were released unused (informational).
+  releasedGenerations  Int      @default(0)
+  reservedTokens       Int      @default(0)
+  usedTokens           Int      @default(0)
+  createdAt            DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, periodStart])
+}
+
+/// Quota held for one queued generation job until it is settled (committed or released).
+model AIReservation {
+  id             String              @id @default(cuid())
+  businessId     String
+  generationId   String              @unique
+  periodStart    DateTime            @db.Timestamptz(3)
+  units          Int
+  tokens         Int
+  status         AIReservationStatus @default(RESERVED)
+  consumedUnits  Int                 @default(0)
+  consumedTokens Int                 @default(0)
+  /// succeeded | failed | released | reconciled
+  outcome        String?
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+  settledAt      DateTime?           @db.Timestamptz(3)
+
+  generation AIGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([businessId, periodStart])
 }
 
 /// Single-use, expiring tokens for email verification and password reset. Only a SHA-256 hash is stored.

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
+import { JobProgress } from './review';
+import type { JobStatus } from './types';
 
 /** Common form footer: instructions, generate and regenerate buttons, permission notice. */
 export function GeneratePanel({
@@ -13,6 +15,7 @@ export function GeneratePanel({
   instructions,
   onInstructions,
   pending,
+  job = null,
   canGenerate = true,
   onGenerate,
   onRegenerate,
@@ -22,6 +25,8 @@ export function GeneratePanel({
   instructions: string;
   onInstructions: (v: string) => void;
   pending: boolean;
+  /** Status of the background job being followed, when there is one. */
+  job?: JobStatus | null;
   canGenerate?: boolean;
   onGenerate: () => void;
   onRegenerate?: () => void;
@@ -50,7 +55,8 @@ export function GeneratePanel({
             </Button>
           )}
         </div>
-        {pending && <p className="text-xs text-muted-foreground" aria-live="polite">{t('ai.generatingHint')}</p>}
+        {pending && !job && <p className="text-xs text-muted-foreground" aria-live="polite">{t('ai.generatingHint')}</p>}
+        <JobProgress job={job} />
       </CardContent>
     </Card>
   );

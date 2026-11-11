@@ -524,7 +524,9 @@
     "statuses": {
       "SUCCEEDED": "Succeeded",
       "FAILED": "Failed",
-      "BLOCKED": "Blocked"
+      "BLOCKED": "Blocked",
+      "QUEUED": "Queued",
+      "RUNNING": "Running"
     },
     "steps": {
       "context": "Business data",
@@ -571,7 +573,16 @@
       "INSUFFICIENT_PERMISSION": "Your role does not allow using TOUMA AI.",
       "TOO_MANY_REQUESTS": "Too many requests. Please wait a minute.",
       "VALIDATION": "Please check your edits: some platform limits are exceeded.",
-      "NETWORK": "Network error. Please retry."
+      "NETWORK": "Network error. Please retry.",
+      "AI_FORBIDDEN": "You are no longer allowed to use TOUMA AI for this business.",
+      "AI_QUEUE_UNAVAILABLE": "The AI queue is unavailable. Nothing was used; try again shortly.",
+      "AI_JOB_STALLED": "The generation did not finish and was cancelled. Nothing was lost; try again.",
+      "AI_JOB_FAILED": "The generation stopped unexpectedly. Please try again.",
+      "APPROVAL_BLOCKED": "This text cannot be approved yet.",
+      "APPROVAL_REQUIRED": "This content must be approved before it can be published.",
+      "INVALID_STATE": "This action is not available in the current review state.",
+      "NO_DRAFT": "Save the draft first.",
+      "GENERATION_IN_PROGRESS": "This generation is still running."
     },
     "notConfiguredTitle": "TOUMA AI is not configured",
     "notConfiguredText": "An administrator must add the AI provider credentials (OPENAI_API_KEY) on the server. Nothing is generated or simulated until then.",
@@ -697,7 +708,8 @@
       "businessAnalysis": "Understand your positioning, audiences and tone.",
       "productAnalysis": "Find benefits, angles and objections for a product.",
       "strategy": "Plan pillars, campaigns and weekly content.",
-      "content": "Write platform-ready posts, scripts and ads."
+      "content": "Write platform-ready posts, scripts and ads.",
+      "inProgress": "in progress"
     },
     "history": {
       "subtitle": "Every generation, with its parameters, result and token usage.",
@@ -724,7 +736,51 @@
       "perDay": "Tokens per day",
       "agent": "Agent",
       "input": "Input",
-      "output": "Output"
+      "output": "Output",
+      "m": {
+        "title": "Monthly usage",
+        "hint": "Generations that used tokens, tokens measured from the provider, and the estimated cost per month.",
+        "month": "Month",
+        "completed": "Completed",
+        "failed": "Failed",
+        "reserved": "In progress",
+        "planLimit": "Limit this month (from your plan): {gen} generations · {tokens} tokens",
+        "defaultLimit": "Limit this month: {gen} generations · {tokens} tokens",
+        "pricing": "Prices (USD per 1M tokens, input / output): {prices}",
+        "flatPricing": "Price (USD per 1M tokens): ${input} input / ${output} output"
+      }
+    },
+    "job": {
+      "queued": "Queued: waiting for a worker…",
+      "running": "Generating…",
+      "retrying": "The AI provider is busy. Retrying (attempt {attempt} of {max})…",
+      "leaveHint": "You can leave this page: the generation continues in the background and appears in History."
+    },
+    "quality": {
+      "passed": "Accuracy check passed: nothing unsupported by your verified data ({count} facts matched).",
+      "failed": "Accuracy check: {count} issue(s) found"
+    },
+    "review": {
+      "title": "Review and approval",
+      "hint": "AI-written content must be approved by a person before it can be published. Editing the text withdraws the approval.",
+      "status": {
+        "DRAFT": "Draft",
+        "IN_REVIEW": "In review",
+        "APPROVED": "Approved",
+        "REJECTED": "Rejected"
+      },
+      "saveFirst": "Save the draft to start the review.",
+      "submit": "Submit for review",
+      "approve": "Approve",
+      "reject": "Reject",
+      "reasonLabel": "Reason for rejection",
+      "reasonPh": "What should change?",
+      "confirmReject": "Reject draft",
+      "approvedOn": "Approved on {date}",
+      "rejectedWith": "Rejected: {reason}",
+      "waiting": "Waiting for an admin or owner to approve.",
+      "blockedTitle": "This text cannot be approved yet",
+      "blockedHint": "It contains information that is not in your verified business data. Correct the text, or add the fact to your verified knowledge, then submit it again."
     }
   },
   "account": {

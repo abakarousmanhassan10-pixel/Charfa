@@ -49,12 +49,16 @@ WebhookEvent (global, unique per provider + externalEventId)
 | Conversation / Message / Comment | Unified inbox (Phase 8) | external ids unique per account/thread |
 | Plan / Subscription / Payment | Billing (Phase 10) | one subscription per business; provider ids unique; no card data |
 | AnalyticsSnapshot | Metrics per period | `source` MEASURED vs ESTIMATED; unique per account/publication/period |
-| AIGeneration | One AI request: task, params, user instructions, validated output, human-edited output, error, provider/model/prompt version, context hash, injection flags, tokens, cost, latency, attempts, regeneration parent, saved draft (`contentId`) | per-tenant indexes; reuse lookup `(businessId, task, itemId, contextHash)` |
-| AIUsage | One row per provider call (initial / provider-retry / repair) with tokens, cost, latency, success | linked to `AIGeneration` |
+| AIGeneration | One AI request and its background job: status `QUEUED` / `RUNNING` / `SUCCEEDED` / `FAILED` / `BLOCKED`, `jobAttempts`, `queuedAt` / `startedAt` / `completedAt`, pipeline `steps`, grounding `quality` report, `rootId` (the job an analysis belongs to). Also: task, params, user instructions, validated output, human-edited output, error, provider/model/prompt version, context hash, injection flags, tokens, cost, latency, attempts, regeneration parent, saved draft (`contentId`) | per-tenant indexes; reuse lookup `(businessId, task, itemId, contextHash)` |
+| AIUsage | One row per provider call (initial / provider-retry / repair) with input/output tokens, the model that served it, cost (from that model's price), latency, success | linked to `AIGeneration` |
+| AIUsagePeriod | Monthly (UTC) AI counters per business: `reservedGenerations`, `completedGenerations`, `failedGenerations`, `releasedGenerations` (cumulative), `reservedTokens`, `usedTokens`. The limit is enforced by a conditional `UPDATE` on this row | `@@unique([businessId, periodStart])`; backfilled from history by the migration |
+| AIReservation | Quota held for one generation job: `units`, `tokens`, status `RESERVED` → `COMMITTED` / `RELEASED`, `consumedUnits`, `consumedTokens`, `outcome` | `generationId` unique; settled exactly once |
 | Notification, AuditLog, WebhookEvent | Platform | audit is append-only; webhooks idempotent |
 | AuthToken | Email-verification (24 h) and password-reset (30 min) tokens: SHA-256 hash only, single use (`usedAt`), bound to the email at issue time | `tokenHash` unique; older unused tokens of the same type are invalidated on re-issue; purged by the worker |
 | Invitation | Email invitation to a business with a role: hashed token, 7-day expiry, `acceptedAt/acceptedById`, `revokedAt`, resend counters | `tokenHash` unique; accepted only by a signed-in user with the same email |
 | StorageDeletion | Durable queue of object deletions (`storageKey`, attempts, `lastError`, `nextAttemptAt`, `completedAt`) | retried by the worker with exponential backoff (1 min doubling, max 6 h, 20 attempts) |
+
+`Content.approvedVersion` records the version a person approved (AI content is publishable only when it equals `version`).
 
 `MediaAsset` also stores `thumbnailKey`/`thumbnailSizeBytes`, `originalSizeBytes` (before re-encoding) and the malware scan result (`scanStatus`, `scanEngine`, `scannedAt`). `Business.storageQuotaBytes` overrides the default `MEDIA_STORAGE_QUOTA_MB`.
 

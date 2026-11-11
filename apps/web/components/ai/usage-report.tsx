@@ -15,8 +15,94 @@ interface Report {
   monthToDate: { generations: number; generationLimit: number; tokens: number; tokenLimit: number };
 }
 
+interface Monthly {
+  costConfigured: boolean;
+  pricing: { default: { inputPerMillion: number; outputPerMillion: number }; models: Array<{ model: string; inputPerMillion: number; outputPerMillion: number }> };
+  months: Array<{
+    month: string;
+    generations: { reserved: number; completed: number; failed: number; released: number };
+    tokens: { input: number; output: number; reserved: number; settled: number };
+    providerCalls: number;
+    costUsd: number;
+    limits?: { generations: number; tokens: number; source: 'plan' | 'default' };
+  }>;
+}
+
 /** Token consumption report: measured provider usage; cost = tokens × configured price. */
 export function UsageReport() {
+  return (
+    <>
+      <PeriodReport />
+      <MonthlyReport />
+    </>
+  );
+}
+
+/** Monthly usage per business: generations reserved / completed / failed, measured tokens and estimated cost. */
+function MonthlyReport() {
+  const { t, locale } = useI18n();
+  const { active } = useBusiness();
+  const r = useResource<Monthly>('/ai/usage/monthly?months=6', active?.id);
+  const n = (v: number) => new Intl.NumberFormat(locale).format(v);
+  return (
+    <Card className="mt-6" data-testid="usage-monthly">
+      <CardHeader>
+        <CardTitle>{t('ai.usage.m.title')}</CardTitle>
+        <CardDescription>{t('ai.usage.m.hint')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!r.data ? (
+          <LoadingRows rows={2} label={t('common.loading')} />
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr>
+                    <th className="py-1 text-start">{t('ai.usage.m.month')}</th>
+                    <th className="text-end">{t('ai.usage.m.completed')}</th>
+                    <th className="text-end">{t('ai.usage.m.failed')}</th>
+                    <th className="text-end">{t('ai.usage.m.reserved')}</th>
+                    <th className="text-end">{t('ai.usage.input')}</th>
+                    <th className="text-end">{t('ai.usage.output')}</th>
+                    <th className="text-end">{t('ai.usage.cost')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.data.months.map((m) => (
+                    <tr key={m.month} className="border-t" data-testid={`usage-month-${m.month}`}>
+                      <td className="py-1.5">{m.month}</td>
+                      <td className="text-end tabular-nums">{n(m.generations.completed)}</td>
+                      <td className="text-end tabular-nums">{n(m.generations.failed)}</td>
+                      <td className="text-end tabular-nums">{n(m.generations.reserved)}</td>
+                      <td className="text-end tabular-nums">{n(m.tokens.input)}</td>
+                      <td className="text-end tabular-nums">{n(m.tokens.output)}</td>
+                      <td className="text-end tabular-nums">{r.data!.costConfigured ? `$${m.costUsd.toFixed(4)}` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {r.data.months[0]?.limits && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {t(r.data.months[0].limits.source === 'plan' ? 'ai.usage.m.planLimit' : 'ai.usage.m.defaultLimit', { gen: n(r.data.months[0].limits.generations), tokens: n(r.data.months[0].limits.tokens) })}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {r.data.pricing.models.length > 0
+                ? t('ai.usage.m.pricing', { prices: r.data.pricing.models.map((p) => `${p.model}: $${p.inputPerMillion} / $${p.outputPerMillion}`).join(' · ') })
+                : r.data.costConfigured
+                  ? t('ai.usage.m.flatPricing', { input: r.data.pricing.default.inputPerMillion, output: r.data.pricing.default.outputPerMillion })
+                  : t('ai.usage.costNotConfigured')}
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PeriodReport() {
   const { t, locale } = useI18n();
   const { active } = useBusiness();
   const [days, setDays] = useState(30);

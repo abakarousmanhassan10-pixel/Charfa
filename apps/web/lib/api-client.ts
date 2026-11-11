@@ -9,6 +9,8 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string | string[],
+    /** Extra detail sent by the API, e.g. the list of issues that blocked an approval. */
+    public readonly details?: string[],
   ) {
     super(Array.isArray(message) ? message.join(', ') : message);
   }
@@ -34,7 +36,7 @@ async function parse<T>(res: Response): Promise<T> {
   }
   if (!res.ok) {
     const code = body.code ?? (res.status === 429 ? 'TOO_MANY_REQUESTS' : res.status === 400 ? 'VALIDATION' : 'UNKNOWN');
-    throw new ApiError(res.status, code, body.message ?? res.statusText);
+    throw new ApiError(res.status, code, body.message ?? res.statusText, Array.isArray(body.issues) ? body.issues.map(String) : undefined);
   }
   return body as T;
 }

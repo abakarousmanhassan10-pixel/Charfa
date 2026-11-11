@@ -38,7 +38,7 @@ export default function HistoryPage() {
             </Select>
             <Select aria-label={t('ai.history.status')} value={status} onChange={(e) => setStatus(e.target.value)} className="sm:w-44">
               <option value="">{t('ai.history.allStatuses')}</option>
-              {['SUCCEEDED', 'FAILED'].map((x) => <option key={x} value={x}>{t(`ai.statuses.${x}`)}</option>)}
+              {['QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED'].map((x) => <option key={x} value={x}>{t(`ai.statuses.${x}`)}</option>)}
             </Select>
           </div>
           {list.error ? (
@@ -61,9 +61,9 @@ export default function HistoryPage() {
                         </span>
                       </span>
                       <span className="flex flex-wrap items-center gap-2 text-xs">
-                        {g.contentId && <Badge>{t('ai.history.draft')}</Badge>}
+                        {g.content && <Badge>{t(`ai.review.status.${g.content.status}`)}</Badge>}
                         {g.injectionFlags.length > 0 && <Badge variant="warning">{t('ai.history.flagged')}</Badge>}
-                        <Badge variant={g.status === 'SUCCEEDED' ? 'success' : 'warning'}>{t(`ai.statuses.${g.status}`)}</Badge>
+                        <Badge variant={g.status === 'SUCCEEDED' ? 'success' : g.status === 'QUEUED' || g.status === 'RUNNING' ? 'muted' : 'warning'}>{t(`ai.statuses.${g.status}`)}</Badge>
                         <span className="tabular-nums text-muted-foreground">{g.usage.inputTokens + g.usage.outputTokens} tok</span>
                       </span>
                     </button>
@@ -79,7 +79,8 @@ export default function HistoryPage() {
         {open && (
           <div className="grid max-h-[70vh] gap-3 overflow-y-auto">
             <UsageLine usage={open.usage} model={open.model} />
-            {open.status !== 'SUCCEEDED' && <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{open.errorCode}: {open.errorMessage}</p>}
+            {(open.status === 'QUEUED' || open.status === 'RUNNING') && <p role="status" className="rounded-md bg-muted px-3 py-2 text-sm">{t('ai.job.leaveHint')}</p>}
+            {(open.status === 'FAILED' || open.status === 'BLOCKED') && <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{open.errorCode}: {open.errorMessage}</p>}
             {open.output && open.task === 'BUSINESS_ANALYSIS' && <BusinessAnalysisView data={open.output} />}
             {open.output && open.task === 'PRODUCT_ANALYSIS' && <ProductAnalysisView data={open.output} />}
             {open.output && open.task === 'MARKETING_STRATEGY' && <StrategyView data={open.output} />}

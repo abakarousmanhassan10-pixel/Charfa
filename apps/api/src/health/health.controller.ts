@@ -1,3 +1,4 @@
+import { AI_WORKER_HEARTBEAT_KEY } from '../ai/ai-queue';
 import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
 import { StorageHealthService } from '../storage/storage.module';
 import { EmailService } from '../email/email.service';
@@ -69,11 +70,13 @@ export class HealthController {
       smtp = this.smtpCache.ok ? 'verified' : 'failing';
     }
     const scanner = this.scanner.enabled ? ((await this.scanner.ping()) ? 'up' : 'down') : 'disabled';
-    let worker: { state: 'up' | 'stale' | 'unknown'; lastHeartbeat: string | null } = { state: 'unknown', lastHeartbeat: null };
-    if (redisUp) {
-      const beat = await this.redis.get('touma:worker:heartbeat').catch(() => null);
-      if (beat) worker = { state: Date.now() - Number(beat) < 90_000 ? 'up' : 'stale', lastHeartbeat: new Date(Number(beat)).toISOString() };
-    }
-    return { storage, email: smtp, malwareScanner: scanner, worker };
+    type Beat = { state: 'up' | 'stale' | 'unknown'; lastHeartbeat: string | null };
+    const read = async (key: string): Promise<Beat> => {
+      const beat = redisUp ? await this.redis.get(key).catch(() => null) : null;
+      return beat ? { state: Date.now() - Number(beat) < 90_000 ? 'up' : 'stale', lastHeartbeat: new Date(Number(beat)).toISOString() } : { state: 'unknown', lastHeartbeat: null };
+    };
+    // The AI worker consumes generation jobs; without it accepted jobs wait in the queue.
+    const [worker, aiWorker] = await Promise.all([read('touma:worker:heartbeat'), read(AI_WORKER_HEARTBEAT_KEY)]);
+    return { storage, email: smtp, malwareScanner: scanner, worker, aiWorker };
   }
 }
