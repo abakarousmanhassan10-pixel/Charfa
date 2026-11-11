@@ -23,6 +23,7 @@ const HREF: Record<string, string> = {
   'sales.handoff': '/dashboard/sales?needs=1',
   'sales.draft_ready': '/dashboard/sales',
   'sales.customer_message': '/dashboard/sales',
+  'sales.ai_degraded': '/dashboard/sales/monitoring',
 };
 
 /** In-app notifications of the signed-in person for the active business: approvals, upcoming publications, failures, conflicts. */

@@ -81,13 +81,29 @@ Public: `GET /public/chat/:slug`, `POST /public/chat/:slug/messages` (no token =
 
 See `docs/phase-reports/PHASE-7-AI-SALES-AGENT.md` for the results. Coverage: language detection, escalation rules and fixed messages (unit); the sales agent against tampered/invented/unsafe model answers, repair, injection, retrieval (unit); 50 API integration tests (tenant isolation, context, recommendations and comparisons, 4 languages, verified-only data, handoff, human control, review mode, authorization, AI failures, privacy, API security); browser tests on desktop and a 390×844 phone, in English and French.
 
-## 9. Limitations and remaining work
+## 9. Production readiness (Phase 8)
+
+**Real AI.** The server-side `OpenAIProvider` (strict structured outputs, abort timeout, error mapping that never contains the key or the prompt) is the production provider; the key comes only from `OPENAI_API_KEY` on the server. `AI_PROVIDER=fake` is refused outside tests. The customer chat has its own settings: `SALES_AGENT_MODEL` (defaults to `AI_MODEL`), `SALES_AGENT_TIMEOUT_MS` (30 s), `SALES_AGENT_TEMPERATURE` (`none` omits it for models that reject it). Transient errors (timeout, rate limit, 5xx, network) are retried with backoff (`AI_MAX_PROVIDER_RETRIES`), bad credentials are not, invalid output is repaired once. **No real call has been verified** — run the credential-gated tool: `OPENAI_API_KEY=… LIVE_AI_CONFIRM=yes pnpm --filter @touma/ai-engine live-verify-ai` (11 fixed questions in 4 languages against a fixture catalog; reports pass/fail per safety rule, tokens, cost, p50/p95; skips with the reason without a key or confirmation).
+
+**Catalog.** Products and services come from the merchant's records (`buildAgentContext`). Verified knowledge is selected by relevance (max 10 entries, policies as fallback). Stock is given to the model as a status (in stock, limited stock, out of stock, pre-order, made to order), never as a quantity. Missing information produces a handoff, never a guess.
+
+**Confidence-based handoff.** LOW confidence always goes to a person. In AUTO mode the AI answers by itself only at or above `autoMinConfidence` (HIGH by default, or MEDIUM); below it the reply becomes a draft (`heldForReview`) and the team is notified. REVIEW mode (drafts only) remains the default.
+
+**Privacy and retention.** The chat shows TOUMA's short notice in each enabled language (what is stored, retention period, how to delete) and the merchant's `privacyNoticeUrl`. `retentionDays` (30–1825, default 365): after that long without activity, message texts, AI details, notes and secret tokens are erased and the customer is anonymized (statistics stay); dashboard test chats are deleted after 7 days. The purge runs every `SALES_RETENTION_INTERVAL_MS` (6 h; 0 disables it, in which case retention is **not** enforced) and is idempotent. The customer and the merchant can erase on request.
+
+**Bot protection.** Per-IP throttling; honeypot field (a filled trap is answered normally and discarded without touching the database or the model); flood cap on new conversations per business per hour (`SALES_NEW_CONVERSATIONS_PER_HOUR`); at most 10 customer messages a minute per conversation; optional Cloudflare Turnstile (`CHAT_CAPTCHA_PROVIDER=turnstile` + `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET`) checked server-side when a conversation starts, failing closed on provider outage. The Turnstile widget and verification have **not** been exercised against the real service.
+
+**Logging.** One structured line per model call (`event: ai_call`, business id, model, success, latency, token counts, error kind). No log line, audit record or usage row contains message texts, names, emails or card numbers (asserted by a test).
+
+**Monitoring.** `GET /sales/monitoring?days=` (any member): health (not configured / idle / working / degraded / failing), calls, failures by cause, retries and repairs, latency p50/p95, tokens, cost (null, never zero, when no price is configured for the model), handoffs by reason and rate, draft approval rate, confidence distribution, held-for-review count, daily series. Dashboard tab "Monitoring" and a banner when the AI is failing; when the last three calls of a business fail, people with `business.update` are notified once an hour. Platform support: `GET /admin/sales-ai` (per-business counts only; platform roles).
+
+## 10. Limitations and remaining work
 
 - **No real model has been tested.** Behavior was verified with a deterministic test model plus scripted bad answers. Real-model quality (tone, comparisons, multilingual fluency, how often it hands over) must be evaluated with real credentials and real catalogs before launch.
 - **Web chat only.** Instagram DMs, Messenger, WhatsApp and email are not connected: that needs each platform's messaging API approval (see `docs/SOCIAL-PLATFORM-APPROVALS.md`) and webhooks.
 - **No order, payment or delivery data**: order and delivery-status questions are always handed to a person; conversion to sales is not measured.
 - Chat turns are cost-capped (per conversation/day) and recorded in `AIUsage`, but they do **not** consume the monthly generation quota of the plan.
-- Public throttling is configured but not covered by an automated test; there is no CAPTCHA or bot detection.
+- The per-IP throttle decorator is configured but not covered by an automated test; Turnstile is optional and unverified against the real service.
 - The chat polls every 5 seconds (no push/websocket); no typing indicator; no attachments or voice.
 - Language detection is rule-based and can be wrong on very short or mixed messages (it then falls back to the previous or default language). Turkish and Arabic fixed messages were written by hand and should be reviewed by native speakers.
 - Retrieval is keyword-based; very large catalogs may need embeddings. Product images are not shown in the chat.

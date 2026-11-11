@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../common/decorators/current-user.decorator';
@@ -26,8 +27,8 @@ export class SalesPublicController {
   @HttpCode(200)
   @Throttle(publicThrottle())
   @ApiOperation({ summary: 'Send a customer message. Without a token a new conversation starts and its secret token is returned once' })
-  send(@Param('slug') s: string, @Body() dto: PublicMessageDto) {
-    return this.chat.send(slug(s), dto);
+  send(@Param('slug') s: string, @Body() dto: PublicMessageDto, @Req() req: Request) {
+    return this.chat.send(slug(s), dto, req.ip);
   }
 
   @Get(':slug/messages')

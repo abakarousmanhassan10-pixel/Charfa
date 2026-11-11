@@ -7,6 +7,7 @@ import { AnalyticsQueryDto, ApproveDraftDto, ConversationsQueryDto, CustomersQue
 import { SalesConversationsService } from './sales-conversations.service';
 import { SalesCustomersService } from './sales-customers.service';
 import { SalesInsightsService } from './sales-insights.service';
+import { SalesMonitoringService } from './sales-monitoring.service';
 
 const aiThrottle = () => ({ default: { limit: 30, ttl: 60_000 } });
 
@@ -18,6 +19,7 @@ export class SalesController {
     private readonly conversations: SalesConversationsService,
     private readonly customers: SalesCustomersService,
     private readonly insights: SalesInsightsService,
+    private readonly monitoring: SalesMonitoringService,
   ) {}
 
   // ─── Agent configuration ────────────────────────────────────────────────
@@ -224,6 +226,13 @@ export class SalesController {
   @RequireTenantPermission('knowledge.write')
   faqDraft(@Tenant() t: TenantContext, @Body() dto: FaqDraftDto) {
     return this.insights.createFaqDraft(t, dto);
+  }
+
+  @Get('monitoring')
+  @ApiOperation({ summary: 'AI health, calls, failures, latency, tokens, cost, handoffs and draft approval of this business. Never includes message content' })
+  @RequireTenantPermission('analytics.read')
+  monitor(@Tenant() t: TenantContext, @Query() q: AnalyticsQueryDto) {
+    return this.monitoring.monitoring(t, q.days);
   }
 
   @Get('analytics')

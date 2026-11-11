@@ -31,6 +31,15 @@ export class UpdateAgentDto {
 
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Max(200)
   maxAiRepliesPerConversation?: number;
+
+  @ApiPropertyOptional({ description: 'AUTO mode: the AI answers by itself only at this confidence or higher; below it the reply is a draft for a person' }) @IsOptional() @IsIn(['HIGH', 'MEDIUM'])
+  autoMinConfidence?: 'HIGH' | 'MEDIUM';
+
+  @ApiPropertyOptional({ description: 'https link to your privacy policy, shown in the customer chat' }) @IsOptional() @TrimToNull() @IsString() @MaxLength(500) @Matches(/^https:\/\/\S+$/i)
+  privacyNoticeUrl?: string | null;
+
+  @ApiPropertyOptional({ description: 'Days without activity after which a conversation and its personal data are erased' }) @IsOptional() @IsInt() @Min(30) @Max(1825)
+  retentionDays?: number;
 }
 
 export class ConversationsQueryDto {
@@ -163,6 +172,12 @@ export class PublicMessageDto {
 
   @ApiPropertyOptional({ description: 'The customer agreed to be contacted at the details given' }) @IsOptional() @IsBoolean()
   consent?: boolean;
+
+  @ApiPropertyOptional({ description: 'Honeypot: a hidden field real visitors never fill. Anything here marks the request as a bot' }) @IsOptional() @IsString() @MaxLength(200)
+  website?: string;
+
+  @ApiPropertyOptional({ description: 'Bot-protection token, required to start a conversation when the server enables it' }) @IsOptional() @IsString() @MaxLength(4096)
+  captchaToken?: string;
 }
 
 export class PublicPollDto {

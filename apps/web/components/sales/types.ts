@@ -14,6 +14,9 @@ export interface AgentConfig {
   replyMode: 'REVIEW' | 'AUTO';
   autoReplyAuthorizedAt: string | null;
   maxAiRepliesPerConversation: number;
+  autoMinConfidence: 'HIGH' | 'MEDIUM';
+  privacyNoticeUrl: string | null;
+  retentionDays: number;
 }
 
 export interface ConversationRow {

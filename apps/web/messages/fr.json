@@ -1489,7 +1489,8 @@
       "sales": {
         "handoff": "Un client a besoin d’une personne",
         "draft_ready": "Une réponse IA attend votre relecture",
-        "customer_message": "Nouveau message client"
+        "customer_message": "Nouveau message client",
+        "ai_degraded": "L’agent IA n’arrive plus à répondre"
       }
     }
   },
@@ -1856,7 +1857,8 @@
       "opportunities": "Opportunités",
       "faq": "FAQ",
       "analytics": "Statistiques",
-      "agent": "Agent"
+      "agent": "Agent",
+      "monitoring": "Suivi IA"
     },
     "conversations": {
       "title": "Conversations IA",
@@ -1999,7 +2001,16 @@
       "autoTitle": "Autoriser les réponses automatiques ?",
       "autoText": "Vous autorisez l’agent de TOUMA à répondre aux clients en votre nom.",
       "autoDetails": "Il répondra aux conversations lancées par les clients en utilisant uniquement vos produits, services et politiques vérifiés. Il ne peut ni passer de commande, ni encaisser, ni rien promettre. Vous pouvez revenir au mode relecture à tout moment. Cette autorisation est enregistrée.",
-      "autoConfirm": "J’autorise les réponses automatiques"
+      "autoConfirm": "J’autorise les réponses automatiques",
+      "minConfidence": "Répondre automatiquement seulement si la confiance est",
+      "minConfidenceHigh": "Élevée (recommandé)",
+      "minConfidenceMedium": "Moyenne ou élevée",
+      "minConfidenceHint": "En dessous, la réponse devient un brouillon pour une personne. Une confiance faible passe toujours à une personne.",
+      "privacy": "Confidentialité",
+      "privacyUrl": "Lien vers votre politique de confidentialité",
+      "privacyUrlHint": "Affiché dans le chat client à côté de la courte notice de TOUMA. Doit commencer par https://.",
+      "retention": "Effacer les conversations après (jours)",
+      "retentionHint": "Les conversations et données personnelles sont effacées après ce nombre de jours sans activité (30 à 1825). Les statistiques anonymes sont conservées."
     },
     "playground": {
       "title": "Chat de test",
@@ -2143,7 +2154,62 @@
       "error": "Votre message n’a pas pu être envoyé. Veuillez réessayer.",
       "tooMany": "Trop de messages. Veuillez contacter directement le commerce.",
       "unavailableTitle": "Chat indisponible",
-      "unavailableText": "Ce chat n’est pas disponible pour le moment."
+      "unavailableText": "Ce chat n’est pas disponible pour le moment.",
+      "privacyTitle": "Comment vos données sont utilisées",
+      "privacyLink": "Lire la politique de confidentialité"
+    },
+    "monitoring": {
+      "title": "Suivi de l’IA",
+      "subtitle": "L’IA répond-elle ? Combien d’appels, d’échecs, de jetons et de passages à une personne. Aucun contenu de message n’est affiché ici.",
+      "status": "État de l’IA",
+      "lastError": "Dernier problème : {kind}",
+      "notConfigured": "Aucun modèle d’IA n’est configuré sur ce serveur : toutes les questions des clients sont passées à votre équipe. Demandez à votre administrateur d’ajouter les identifiants du fournisseur d’IA.",
+      "bannerDown": "L’agent IA n’arrive plus à répondre : les clients sont passés à votre équipe.",
+      "bannerDegraded": "L’agent IA rencontre des difficultés : beaucoup de réponses récentes ont échoué.",
+      "openMonitoring": "Ouvrir le suivi",
+      "failuresByKind": "Échecs par cause",
+      "confidence": "Confiance des réponses",
+      "drafts": "Brouillons et relecture",
+      "models": "Modèles utilisés",
+      "costUnknown": "inconnu",
+      "costHint": "Le coût est inconnu car aucun prix n’est configuré pour ce modèle (AI_MODEL_PRICING). Il n’est jamais affiché comme nul.",
+      "note": "Comptés à partir des appels d’IA et des conversations enregistrés. Le taux d’approbation n’a de sens qu’une fois assez de brouillons relus.",
+      "health": {
+        "NOT_CONFIGURED": "Non configurée",
+        "IDLE": "Aucun appel récent",
+        "OK": "Fonctionne",
+        "DEGRADED": "Dégradée",
+        "DOWN": "En échec"
+      },
+      "tiles": {
+        "calls": "Appels d’IA",
+        "failures": "Appels échoués",
+        "failureRate": "Taux d’échec",
+        "p50": "Latence p50",
+        "p95": "Latence p95",
+        "tokens": "Jetons",
+        "cost": "Coût",
+        "handoffRate": "Taux de passage"
+      },
+      "errorKinds": {
+        "timeout": "délai dépassé",
+        "rate_limit": "limite de débit",
+        "auth": "identifiants",
+        "server": "erreur du fournisseur",
+        "network": "réseau",
+        "refusal": "refus",
+        "truncated": "réponse tronquée",
+        "validation": "réponse rejetée par les contrôles de sécurité",
+        "other": "autre"
+      },
+      "draftStats": {
+        "total": "Brouillons",
+        "approved": "Approuvés",
+        "rejected": "Rejetés",
+        "pending": "En attente",
+        "heldBecauseOfConfidence": "Retenus pour faible confiance",
+        "approvalRate": "Taux d’approbation"
+      }
     }
   }
 }

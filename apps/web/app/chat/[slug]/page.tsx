@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-interface Info { businessName: string; agentName: string; languages: string[]; defaultLanguage: string; greeting: string; disclosure: Record<string, string>; replyMode: 'REVIEW' | 'AUTO' }
+interface Info { businessName: string; agentName: string; languages: string[]; defaultLanguage: string; greeting: string; disclosure: Record<string, string>; replyMode: 'REVIEW' | 'AUTO'; privacy: { retentionDays: number; url: string | null; notice: Record<string, string> }; captcha: { provider: 'turnstile'; siteKey: string } | null }
+declare global { interface Window { turnstile?: { render: (el: HTMLElement, o: { sitekey: string; callback: (token: string) => void; 'expired-callback'?: () => void }) => string; reset: (id?: string) => void } } }
 interface PublicMessage { id: string; role: 'customer' | 'assistant' | 'team' | 'system'; text: string; at: string; cards: Array<{ name?: string; price?: string | null; discountPrice?: string | null; currency?: string | null; availability?: string | null; url?: string | null }> }
 interface ChatState { messages: PublicMessage[]; aiMode: 'AI' | 'TEAM' | 'WAITING_FOR_TEAM'; token?: string | null }
 
@@ -24,12 +25,27 @@ export default function ChatPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contact, setContact] = useState({ name: '', email: '', phone: '', consent: false });
+  const [trap, setTrap] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaBox = useRef<HTMLDivElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try { setToken(localStorage.getItem(key)); } catch { /* storage unavailable: the chat still works for this visit */ }
     void fetch(`/api/v1/public/chat/${slug}`).then(async (r) => { if (!r.ok) setMissing(true); else setInfo(await r.json()); }).catch(() => setMissing(true));
   }, [slug, key]);
+
+  // Bot protection (only when the server enables it): the challenge is shown until the conversation has started.
+  useEffect(() => {
+    if (!info?.captcha || token || !captchaBox.current) return;
+    const render = () => { if (window.turnstile && captchaBox.current && !captchaBox.current.hasChildNodes()) window.turnstile.render(captchaBox.current, { sitekey: info.captcha!.siteKey, callback: setCaptchaToken, 'expired-callback': () => setCaptchaToken(null) }); };
+    if (window.turnstile) return render();
+    const el = document.createElement('script');
+    el.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    el.async = true;
+    el.onload = render;
+    document.head.appendChild(el);
+  }, [info, token]);
 
   const poll = useCallback(async () => {
     if (!token) return;
@@ -49,9 +65,11 @@ export default function ChatPage() {
       const body: Record<string, unknown> = { message, ...(token ? { token } : {}) };
       if (contact.consent) Object.assign(body, { consent: true, ...(contact.email ? { email: contact.email } : {}), ...(contact.phone ? { phone: contact.phone } : {}) });
       if (contact.name) body.name = contact.name;
+      if (trap) body.website = trap; // honeypot: filled only by bots
+      if (!token && captchaToken) body.captchaToken = captchaToken;
       const r = await fetch(`/api/v1/public/chat/${slug}/messages`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const json = await r.json().catch(() => ({}));
-      if (!r.ok) { setError(r.status === 429 ? (json.message ?? t('sales.chat.tooMany')) : t('sales.chat.error')); return; }
+      if (!r.ok) { setError(r.status === 429 || json.code === 'CAPTCHA_REQUIRED' ? (json.message ?? t('sales.chat.tooMany')) : t('sales.chat.error')); return; }
       if (json.token) { try { localStorage.setItem(key, json.token); } catch { /* ignore */ } setToken(json.token); }
       setState(json);
       setText('');
@@ -72,12 +90,14 @@ export default function ChatPage() {
   if (missing) return <main className="grid min-h-screen place-items-center p-6 text-center" data-testid="chat-unavailable"><div><h1 className="text-xl font-semibold">{t('sales.chat.unavailableTitle')}</h1><p className="mt-2 text-muted-foreground">{t('sales.chat.unavailableText')}</p></div></main>;
   if (!info) return <main className="grid min-h-screen place-items-center" aria-busy="true"><Loader2 className="h-6 w-6 animate-spin" aria-label={t('common.loading')} /></main>;
   const disclosure = info.disclosure[locale] ?? info.disclosure[info.defaultLanguage] ?? Object.values(info.disclosure)[0];
+  const privacy = info.privacy.notice[locale] ?? info.privacy.notice[info.defaultLanguage] ?? Object.values(info.privacy.notice)[0];
   const money = (v: string | null | undefined, c: string | null | undefined) => (v ? new Intl.NumberFormat(locale, { style: 'currency', currency: c ?? 'USD' }).format(Number(v)) : null);
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col" data-testid="chat-page">
       <header className="border-b px-4 py-3">
         <h1 className="flex items-center gap-2 text-lg font-semibold"><Bot className="h-5 w-5 text-primary" aria-hidden />{info.businessName}</h1>
         <p className="mt-1 flex items-start gap-1.5 text-xs text-muted-foreground" data-testid="chat-disclosure"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />{disclosure}</p>
+        <details className="mt-1 text-xs text-muted-foreground" data-testid="chat-privacy"><summary className="cursor-pointer">{t('sales.chat.privacyTitle')}</summary><p className="mt-1" dir="auto">{privacy}</p>{info.privacy.url && <a className="mt-1 inline-block text-primary underline" href={info.privacy.url} target="_blank" rel="noopener noreferrer" data-testid="chat-privacy-link">{t('sales.chat.privacyLink')}</a>}</details>
       </header>
       <ol className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite" aria-label={t('sales.thread')} data-testid="chat-thread">
         <li className="flex justify-start"><div className="max-w-[85%] rounded-2xl border bg-background px-3 py-2 text-sm" data-testid="chat-greeting"><p className="mb-1 text-[11px] font-medium text-muted-foreground">{info.agentName}</p><p dir="auto">{info.greeting}</p></div></li>
@@ -99,9 +119,11 @@ export default function ChatPage() {
           <div className="mt-2 grid gap-2 sm:grid-cols-3"><Input value={contact.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} placeholder={t('sales.chat.name')} aria-label={t('sales.chat.name')} maxLength={120} data-testid="chat-name" /><Input type="email" value={contact.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} placeholder={t('sales.fields.email')} aria-label={t('sales.fields.email')} data-testid="chat-email" /><Input type="tel" value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} placeholder={t('sales.fields.phone')} aria-label={t('sales.fields.phone')} data-testid="chat-phone" /></div>
           <label className="mt-2 flex items-start gap-2 text-xs"><input type="checkbox" className="mt-0.5" checked={contact.consent} onChange={(e) => setContact({ ...contact, consent: e.target.checked })} data-testid="chat-consent" />{t('sales.chat.consent')}</label>
         </details>
+        {info.captcha && !token && <div ref={captchaBox} className="mb-2" data-testid="chat-captcha" />}
         <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void send(); }}>
+          <input type="text" name="website" value={trap} onChange={(e) => setTrap(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -start-[9999px] h-0 w-0 opacity-0" data-testid="chat-trap" />
           <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder={t('sales.chat.placeholder')} aria-label={t('sales.chat.placeholder')} data-testid="chat-input" autoComplete="off" />
-          <Button type="submit" disabled={busy || !text.trim()} data-testid="chat-send">{busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}<span className="sr-only">{t('sales.reply.send')}</span></Button>
+          <Button type="submit" disabled={busy || !text.trim() || Boolean(info.captcha && !token && !captchaToken)} data-testid="chat-send">{busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}<span className="sr-only">{t('sales.reply.send')}</span></Button>
         </form>
         {token && <button type="button" className="mt-2 text-xs text-muted-foreground underline" onClick={() => void erase()} data-testid="chat-erase">{t('sales.chat.erase')}</button>}
       </footer>

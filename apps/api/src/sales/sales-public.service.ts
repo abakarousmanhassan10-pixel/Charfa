@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'crypto';
 import { ConflictException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import type { Conversation, Message } from '@touma/database';
 import { agentMessage, resolveReplyLanguage, AGENT_LANGUAGES, type AgentLanguage } from '@touma/shared';
+import { SalesCaptchaService } from './sales-captcha.service';
 import { AppEnv, InjectEnv } from '../config';
 import { PrismaService } from '../prisma/prisma.service';
 import type { PublicMessageDto } from './sales.dto';
@@ -21,6 +22,7 @@ export class SalesPublicService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly agent: SalesAgentService,
+    private readonly captcha: SalesCaptchaService,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
 
@@ -40,6 +42,9 @@ export class SalesPublicService {
       greeting: cfg.greeting ?? agentMessage('greeting', def, { business: b.name }),
       disclosure: Object.fromEntries((AGENT_LANGUAGES as readonly AgentLanguage[]).filter((l) => cfg.languages.includes(l)).map((l) => [l, agentMessage('disclosure', l)])),
       replyMode: cfg.replyMode,
+      // What is stored, for how long, and where the merchant's own privacy policy is (the customer sees this before writing).
+      privacy: { retentionDays: cfg.retentionDays, url: cfg.privacyNoticeUrl, notice: Object.fromEntries((AGENT_LANGUAGES as readonly AgentLanguage[]).filter((l) => cfg.languages.includes(l)).map((l) => [l, agentMessage('privacy', l, { days: String(cfg.retentionDays) })])) },
+      captcha: this.captcha.publicConfig(),
     };
   }
 
@@ -67,8 +72,10 @@ export class SalesPublicService {
     return { aiMode: c.aiMode === 'AI_ACTIVE' ? 'AI' : c.aiMode === 'HUMAN' ? 'TEAM' : 'WAITING_FOR_TEAM', status: c.status };
   }
 
-  async send(slug: string, dto: PublicMessageDto) {
+  async send(slug: string, dto: PublicMessageDto, ip?: string) {
     const { b, cfg } = await this.business(slug);
+    // Honeypot: a real visitor never sees this field. The bot gets a normal-looking answer and nothing is stored or sent to the model.
+    if (dto.website) return { token: null, messages: [], aiMode: 'AI' as const, status: 'OPEN' as const, outcome: 'SKIPPED' as const };
     let conv: Conversation;
     let token: string | null = null;
     const contact = dto.consent === true ? { email: dto.email ?? null, phone: dto.phone ?? null } : { email: null, phone: null };
@@ -76,8 +83,15 @@ export class SalesPublicService {
       conv = await this.conversationByToken(b.id, dto.token);
       const n = await this.prisma.message.count({ where: { conversationId: conv.id, authorType: 'CUSTOMER' } });
       if (n >= this.env.SALES_MAX_CUSTOMER_MESSAGES_PER_CONVERSATION) throw new HttpException({ code: 'CONVERSATION_LIMIT', message: 'This conversation reached its message limit. Please contact the business directly.' }, HttpStatus.TOO_MANY_REQUESTS);
+      // Burst control inside one conversation: a person does not send ten messages a minute.
+      const burst = await this.prisma.message.count({ where: { conversationId: conv.id, authorType: 'CUSTOMER', createdAt: { gte: new Date(Date.now() - 60_000) } } });
+      if (burst >= 10) throw new HttpException({ code: 'TOO_FAST', message: 'You are sending messages too quickly. Please wait a moment.' }, HttpStatus.TOO_MANY_REQUESTS);
       if (conv.customerId && (contact.email || contact.phone || dto.name)) await this.updateCustomer(conv.customerId, dto, contact);
     } else {
+      if (!(await this.captcha.verify(dto.captchaToken, ip))) throw new HttpException({ code: 'CAPTCHA_REQUIRED', message: 'Please complete the verification and try again.' }, HttpStatus.FORBIDDEN);
+      // Flood control: a business only receives so many new conversations per hour, whatever the senders' addresses.
+      const recent = await this.prisma.conversation.count({ where: { businessId: b.id, channel: 'WEB_CHAT', isTest: false, createdAt: { gte: new Date(Date.now() - 3_600_000) } } });
+      if (recent >= this.env.SALES_NEW_CONVERSATIONS_PER_HOUR) throw new HttpException({ code: 'CHAT_BUSY', message: 'The chat is very busy right now. Please try again in a few minutes or contact the business directly.' }, HttpStatus.TOO_MANY_REQUESTS);
       token = randomBytes(32).toString('base64url');
       const lang = resolveReplyLanguage(null, cfg.languages, cfg.defaultLanguage as AgentLanguage).language;
       const customer = await this.prisma.customer.create({ data: { businessId: b.id, name: dto.name ?? null, email: contact.email, phone: contact.phone, language: lang, source: 'WEB_CHAT', consentAt: dto.consent === true && (contact.email || contact.phone) ? new Date() : null } });

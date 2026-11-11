@@ -162,9 +162,21 @@ export const appEnvSchema = z.object({
   /** An in-flight publication that the platform has not finished after this many minutes is failed (its outcome stays unknown if it may exist). */
   SOCIAL_PROCESSING_TIMEOUT_MINUTES: z.coerce.number().int().min(1).max(240).default(30),
   SOCIAL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
+  /** Customer chat model (defaults to AI_MODEL). Chat needs fast answers: its own timeout, and a temperature that can be switched off ("none") for models that reject it. */
+  SALES_AGENT_MODEL: z.string().min(1).optional(),
+  SALES_AGENT_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(120_000).default(30_000),
+  SALES_AGENT_TEMPERATURE: z.string().regex(/^(none|[01](\.\d+)?|2(\.0+)?)$/, 'SALES_AGENT_TEMPERATURE must be "none" or a number from 0 to 2').default('0.2'),
   /** Sales agent: AI replies/drafts one business may generate per day (cost control), and public chat limits per IP per minute. */
   SALES_AGENT_DAILY_REPLY_CAP: z.coerce.number().int().positive().default(500),
   SALES_PUBLIC_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
+  /** Public chat anti-flood: new conversations one business may receive per hour. */
+  SALES_NEW_CONVERSATIONS_PER_HOUR: z.coerce.number().int().positive().default(120),
+  /** How often the retention purge runs (ms). 0 switches the automatic purge off (the merchant's retention setting is then not enforced). */
+  SALES_RETENTION_INTERVAL_MS: z.coerce.number().int().min(0).default(21_600_000),
+  /** Optional bot protection for starting a customer chat: Cloudflare Turnstile. Off by default; needs both keys when on. */
+  CHAT_CAPTCHA_PROVIDER: z.enum(['none', 'turnstile']).default('none'),
+  TURNSTILE_SITE_KEY: z.string().optional(),
+  TURNSTILE_SECRET: z.string().optional(),
   SALES_MAX_CUSTOMER_MESSAGES_PER_CONVERSATION: z.coerce.number().int().positive().default(60),
   /** Per-model prices (JSON, USD): {"gpt-image-1":{"perImageUsd":0.04},"sora-2":{"perSecondUsd":0.1}}. Unset = cost reported as unknown. */
   CREATIVE_MODEL_PRICING: z
@@ -265,6 +277,9 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
   }
   if (env.AI_PROVIDER === 'fake' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['AI_PROVIDER=fake is only allowed when APP_ENV=test']);
+  }
+  if (env.CHAT_CAPTCHA_PROVIDER === 'turnstile' && (!env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET)) {
+    throw new EnvValidationError(['CHAT_CAPTCHA_PROVIDER=turnstile requires TURNSTILE_SITE_KEY and TURNSTILE_SECRET']);
   }
   if (env.LINKEDIN_ORG_ENABLED && !env.LINKEDIN_ORG_APPROVAL_REF?.trim()) {
     throw new EnvValidationError(['LINKEDIN_ORG_ENABLED=true requires LINKEDIN_ORG_APPROVAL_REF: record what LinkedIn approved (product, date, reference) before enabling organization publishing']);

@@ -1,7 +1,11 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { fakeDefaultAnswer, fakeErrors, FakeTextProvider } from '@touma/ai-engine';
+import { Logger } from '@nestjs/common';
 import { TEXT_PROVIDER } from '../src/ai/ai-provider';
+import { APP_ENV, type AppEnv } from '../src/config';
+import { SalesCaptchaService } from '../src/sales/sales-captcha.service';
+import { SalesRetentionService } from '../src/sales/sales-retention.service';
 import { aiHelpers, as, type Ctx } from './ai-helpers';
 import { prisma, resetDb, startApp } from './helpers';
 
@@ -651,6 +655,234 @@ describe('Sales agent (e2e)', () => {
       await prisma.message.createMany({ data: Array.from({ length: 60 }, () => ({ businessId: s.owner.businessId, conversationId: conv.id, direction: 'INBOUND' as const, authorType: 'CUSTOMER' as const, body: 'spam', sentAt: new Date() })) });
       const r = await chat(s.slug).send('one more', { token: a.body.token }).expect(429);
       expect(r.body.code).toBe('CONVERSATION_LIMIT');
+    });
+  });
+
+  describe('production readiness (Phase 8)', () => {
+    const scripted = (shop_: Shop, o: Record<string, unknown> = {}) => JSON.stringify({ language: 'en', intent: 'PRICE_INQUIRY', reply: 'Bissap juice costs 1500 XAF.', confidence: 'HIGH', answerable: true, handoff: { needed: false, reason: 'NONE' }, purchaseIntent: 'MEDIUM', nextStep: 'NONE', recommended: [{ type: 'PRODUCT', id: shop_.bissap.id, reason: 'Refreshing' }], sources: [`product:${shop_.bissap.id}`], missingInformation: [], ...o });
+    const env = () => app.get<AppEnv>(APP_ENV);
+
+    it('confidence-based handoff: in AUTO mode only answers at or above the merchant threshold go out by themselves; the rest wait for a person', async () => {
+      const s = await shop();
+      await enable(s); // AUTO, threshold HIGH by default
+      expect((await api(s.viewer, 'get', '/agent').expect(200)).body.autoMinConfidence).toBe('HIGH');
+      fake.enqueue(scripted(s, { confidence: 'MEDIUM' }));
+      const a = await chat(s.slug).send('How much is the Bissap juice?').expect(200);
+      expect(a.body.outcome).toBe('DRAFTED');
+      expect(JSON.stringify(a.body.messages)).not.toContain('1500'); // the customer sees only the fixed "a team member will reply" note
+      const conv = await conversationOf(s, a.body.token);
+      const draft = await prisma.message.findFirstOrThrow({ where: { conversationId: conv.id, authorType: 'AI_SUGGESTION' } });
+      expect(draft.approvalStatus).toBe('PENDING');
+      expect((draft.aiMetadata as { heldForReview?: boolean }).heldForReview).toBe(true);
+      expect((await api(s.viewer, 'get', '/monitoring?days=7').expect(200)).body.drafts.heldBecauseOfConfidence).toBe(1);
+      // The merchant accepts MEDIUM: the same answer now goes out by itself.
+      await api(s.admin, 'put', '/agent', { autoMinConfidence: 'MEDIUM' }).expect(200);
+      fake.enqueue(scripted(s, { confidence: 'MEDIUM' }));
+      const b = await chat(s.slug).send('And again the Bissap juice price?', { token: a.body.token }).expect(200);
+      expect(b.body.outcome).toBe('ANSWERED');
+      // LOW is never sent, whatever the setting.
+      fake.enqueue(scripted(s, { confidence: 'LOW' }));
+      expect((await chat(s.slug).send('Bissap juice?', { token: a.body.token }).expect(200)).body.outcome).toBe('HANDOFF');
+    });
+
+    it('validates the new settings', async () => {
+      const s = await shop();
+      await api(s.admin, 'put', '/agent', { retentionDays: 10 }).expect(400);
+      await api(s.admin, 'put', '/agent', { retentionDays: 5000 }).expect(400);
+      await api(s.admin, 'put', '/agent', { privacyNoticeUrl: 'http://insecure.example/privacy' }).expect(400);
+      await api(s.admin, 'put', '/agent', { privacyNoticeUrl: 'javascript:alert(1)' }).expect(400);
+      await api(s.admin, 'put', '/agent', { autoMinConfidence: 'LOW' }).expect(400);
+      const ok = (await api(s.admin, 'put', '/agent', { retentionDays: 90, privacyNoticeUrl: 'https://shop.example/privacy', autoMinConfidence: 'MEDIUM' }).expect(200)).body;
+      expect(ok).toMatchObject({ retentionDays: 90, privacyNoticeUrl: 'https://shop.example/privacy', autoMinConfidence: 'MEDIUM' });
+      await api(s.editor, 'put', '/agent', { retentionDays: 60 }).expect(403);
+    });
+
+    it('gives the model a stock status, never a quantity, and keeps an exact count out of the prompt', async () => {
+      const s = await shop();
+      await enable(s);
+      await request(h.http).post('/api/v1/products').set(as(s.owner)).send({ name: 'Hibiscus tea', price: '900', status: 'ACTIVE', stockQuantity: 3 }).expect(201);
+      await request(h.http).post('/api/v1/products').set(as(s.owner)).send({ name: 'Mint tea', price: '800', status: 'ACTIVE', stockQuantity: 250 }).expect(201);
+      await chat(s.slug).send('How much is the Hibiscus tea and the Mint tea?').expect(200);
+      const user = fake.requests.at(-1)!.user;
+      expect(user).toContain('limited stock');
+      expect(user).toContain('"stock": "in stock"');
+      expect(user).not.toMatch(/"stock": ?(3|250)\b/);
+    });
+
+    it('bot protection: a filled honeypot stores nothing and never reaches the model; floods are capped per business and per conversation', async () => {
+      const s = await shop();
+      await enable(s);
+      const calls = fake.requests.length;
+      const bot = await chat(s.slug).send('Buy cheap watches', { website: 'http://spam.example' }).expect(200);
+      expect(bot.body).toMatchObject({ token: null, messages: [], outcome: 'SKIPPED' });
+      expect(fake.requests.length).toBe(calls);
+      expect(await prisma.conversation.count({ where: { businessId: s.owner.businessId } })).toBe(0);
+      // New conversations per hour are capped.
+      const e = env();
+      const old = e.SALES_NEW_CONVERSATIONS_PER_HOUR;
+      e.SALES_NEW_CONVERSATIONS_PER_HOUR = 2;
+      try {
+        await chat(s.slug).send('Hello').expect(200);
+        await chat(s.slug).send('Hello').expect(200);
+        expect((await chat(s.slug).send('Hello').expect(429)).body.code).toBe('CHAT_BUSY');
+      } finally {
+        e.SALES_NEW_CONVERSATIONS_PER_HOUR = old;
+      }
+      // Ten messages a minute in one conversation is not a person.
+      const s2 = await shop();
+      await enable(s2);
+      const a = await chat(s2.slug).send('Hello').expect(200);
+      const conv = await conversationOf(s2, a.body.token);
+      await prisma.message.createMany({ data: Array.from({ length: 9 }, () => ({ businessId: s2.owner.businessId, conversationId: conv.id, direction: 'INBOUND' as const, authorType: 'CUSTOMER' as const, body: 'hi', sentAt: new Date() })) });
+      expect((await chat(s2.slug).send('again', { token: a.body.token }).expect(429)).body.code).toBe('TOO_FAST');
+    });
+
+    it('optional CAPTCHA (Turnstile): a conversation cannot start without a valid token, follow-ups do not need one, and a provider outage fails closed', async () => {
+      const s = await shop();
+      await enable(s);
+      const captcha = app.get(SalesCaptchaService);
+      const e = env();
+      e.CHAT_CAPTCHA_PROVIDER = 'turnstile';
+      e.TURNSTILE_SITE_KEY = 'site-key-public';
+      e.TURNSTILE_SECRET = 'server-secret';
+      const spy = jest.spyOn(captcha, 'verify');
+      try {
+        const info = (await chat(s.slug).info().expect(200)).body;
+        expect(info.captcha).toEqual({ provider: 'turnstile', siteKey: 'site-key-public' });
+        expect(JSON.stringify(info)).not.toContain('server-secret');
+        spy.mockResolvedValueOnce(false);
+        expect((await chat(s.slug).send('Hello').expect(403)).body.code).toBe('CAPTCHA_REQUIRED');
+        expect(await prisma.conversation.count({ where: { businessId: s.owner.businessId } })).toBe(0);
+        spy.mockResolvedValueOnce(true);
+        const a = await chat(s.slug).send('Hello', { captchaToken: 'good' }).expect(200);
+        expect(spy).toHaveBeenLastCalledWith('good', expect.anything());
+        spy.mockClear();
+        await chat(s.slug).send('How much is the Bissap juice?', { token: a.body.token }).expect(200);
+        expect(spy).not.toHaveBeenCalled();
+        // The real verifier: success, refusal, and an unreachable provider (fail closed).
+        spy.mockRestore();
+        const realFetch = globalThis.fetch;
+        try {
+          globalThis.fetch = (async () => new Response(JSON.stringify({ success: true }), { status: 200 })) as typeof fetch;
+          expect(await captcha.verify('t')).toBe(true);
+          globalThis.fetch = (async () => new Response(JSON.stringify({ success: false }), { status: 200 })) as typeof fetch;
+          expect(await captcha.verify('t')).toBe(false);
+          globalThis.fetch = (async () => { throw new Error('network down'); }) as typeof fetch;
+          expect(await captcha.verify('t')).toBe(false);
+          expect(await captcha.verify(undefined)).toBe(false);
+        } finally {
+          globalThis.fetch = realFetch;
+        }
+      } finally {
+        spy.mockRestore();
+        e.CHAT_CAPTCHA_PROVIDER = 'none';
+        e.TURNSTILE_SITE_KEY = undefined;
+        e.TURNSTILE_SECRET = undefined;
+      }
+      expect((await chat(s.slug).info().expect(200)).body.captcha).toBeNull();
+    });
+
+    it('shows a privacy notice (in every enabled language) with the retention period and the merchant\'s policy link before the customer writes', async () => {
+      const s = await shop();
+      await enable(s, { retentionDays: 90, privacyNoticeUrl: 'https://shop.example/privacy' });
+      const info = (await chat(s.slug).info().expect(200)).body;
+      expect(info.privacy).toMatchObject({ retentionDays: 90, url: 'https://shop.example/privacy' });
+      expect(Object.keys(info.privacy.notice).sort()).toEqual(['ar', 'en', 'fr', 'tr']);
+      expect(info.privacy.notice.en).toMatch(/erased after 90 days/);
+      expect(info.privacy.notice.fr).toMatch(/90 jours/);
+    });
+
+    it('retention: inactive conversations lose their texts, customers are anonymized, notes and tokens are removed; recent ones and statistics stay; old test chats are deleted; the purge is repeatable', async () => {
+      const s = await shop();
+      await enable(s, { retentionDays: 30 });
+      const old = await chat(s.slug).send('I want the Bissap juice, my email is awa@example.com', { name: 'Awa', email: 'awa@example.com', consent: true }).expect(200);
+      const fresh = await chat(s.slug).send('How much is the Ginger juice?', { name: 'Fresh' }).expect(200);
+      const convOld = await conversationOf(s, old.body.token);
+      await api(s.editor, 'post', `/customers/${convOld.customerId}/notes`, { body: 'Prefers calls' }).expect(200);
+      const longAgo = new Date(Date.now() - 40 * 86_400_000);
+      await prisma.conversation.update({ where: { id: convOld.id }, data: { lastMessageAt: longAgo } });
+      await prisma.customer.update({ where: { id: convOld.customerId! }, data: { lastSeenAt: longAgo } });
+      const testConv = await prisma.conversation.create({ data: { businessId: s.owner.businessId, channel: 'WEB_CHAT', isTest: true, createdAt: new Date(Date.now() - 10 * 86_400_000) } });
+      const retention = app.get(SalesRetentionService);
+      const first = await retention.purge();
+      expect(first).toMatchObject({ conversationsErased: 1, customersAnonymized: 1, testConversationsDeleted: 1 });
+      expect((await prisma.message.findMany({ where: { conversationId: convOld.id } })).every((m) => m.body === '[erased]')).toBe(true);
+      expect(await prisma.customer.findUniqueOrThrow({ where: { id: convOld.customerId! } })).toMatchObject({ name: null, email: null, phone: null, interests: [] });
+      expect(await prisma.customerNote.count({ where: { customerId: convOld.customerId! } })).toBe(0);
+      await chat(s.slug).poll(old.body.token).expect(404); // the secret was removed
+      expect(await prisma.conversation.findUnique({ where: { id: testConv.id } })).toBeNull();
+      expect((await chat(s.slug).poll(fresh.body.token).expect(200)).body.messages.length).toBeGreaterThan(0); // recent conversation untouched
+      expect(await prisma.conversation.count({ where: { id: convOld.id } })).toBe(1); // the row stays for anonymous statistics
+      const audit = await prisma.auditLog.findFirstOrThrow({ where: { businessId: s.owner.businessId, action: 'sales.retention_purged' } });
+      expect(JSON.stringify(audit.metadata)).not.toMatch(/awa@example.com|Bissap|Prefers/);
+      expect(await retention.purge()).toMatchObject({ conversationsErased: 0, customersAnonymized: 0, testConversationsDeleted: 0 });
+    });
+
+    it('sensitive data is never logged or audited: message texts, emails and card numbers appear in no log line and no audit record', async () => {
+      const s = await shop();
+      await enable(s);
+      const lines: string[] = [];
+      const spies = (['log', 'warn', 'error', 'debug', 'verbose'] as const).map((m) => jest.spyOn(Logger.prototype, m).mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(' '))));
+      const secret = 'my email is secret.person@example.com and my card is 4111 1111 1111 1111';
+      try {
+        await chat(s.slug).send(`How much is the Bissap juice? ${secret}`, { name: 'Secret Person', email: 'secret.person@example.com', consent: true }).expect(200);
+        fake.enqueue(fakeErrors.server());
+        await chat(s.slug).send(`And the Ginger juice? ${secret}`).expect(200); // a failing AI call
+        await chat(s.slug).send(`I want a refund ${secret}`).expect(200); // an escalation
+      } finally {
+        spies.forEach((x) => x.mockRestore());
+      }
+      const joined = lines.join('\n');
+      for (const sensitive of ['secret.person@example.com', '4111', 'Secret Person', 'Bissap juice?', 'refund']) expect(joined).not.toContain(sensitive);
+      const aiCalls = lines.filter((l) => l.includes('"event":"ai_call"')).map((l) => JSON.parse(l.slice(l.indexOf('{'))));
+      expect(aiCalls.length).toBeGreaterThanOrEqual(2);
+      expect(aiCalls[0]).toMatchObject({ event: 'ai_call', businessId: s.owner.businessId, provider: 'fake', success: expect.any(Boolean), tokensIn: expect.any(Number) });
+      expect(aiCalls.some((c) => c.success === false && c.errorKind === 'server')).toBe(true);
+      const audit = JSON.stringify((await prisma.auditLog.findMany({ where: { businessId: s.owner.businessId } })).map((a) => a.metadata));
+      for (const sensitive of ['secret.person@example.com', '4111', 'Secret Person']) expect(audit).not.toContain(sensitive);
+      const usage = JSON.stringify(await prisma.aIUsage.findMany({ where: { businessId: s.owner.businessId } }));
+      expect(usage).not.toMatch(/secret\.person|4111/);
+    });
+
+    it('monitoring: calls, failures by kind, latency, tokens, cost honesty, handoffs, draft approval and AI health; the AI going down alerts the team once', async () => {
+      const s = await shop();
+      await enable(s);
+      expect((await api(s.viewer, 'get', '/monitoring?days=7').expect(200)).body.health.status).toBe('IDLE');
+      await chat(s.slug).send('How much is the Bissap juice?').expect(200);
+      await chat(s.slug).send('Where is my order?').expect(200); // rules: no model call
+      const m1 = (await api(s.viewer, 'get', '/monitoring?days=7').expect(200)).body;
+      expect(m1.health.status).toBe('OK');
+      expect(m1.ai).toMatchObject({ calls: 1, failures: 0, failureRate: 0, tokens: { input: expect.any(Number), output: expect.any(Number) } });
+      expect(m1.ai.tokens.input).toBeGreaterThan(0);
+      expect(m1.ai.latencyMs.p50).toEqual(expect.any(Number));
+      expect(m1.ai.costConfigured ? typeof m1.ai.costUsd : m1.ai.costUsd).toBe(m1.ai.costConfigured ? 'number' : null); // unknown cost is null, never zero
+      expect(m1.handoffs).toMatchObject({ total: 1, byReason: { ORDER_STATUS: 1 } });
+      expect(m1.confidence).toMatchObject({ HIGH: 1 });
+      expect(JSON.stringify(m1)).not.toMatch(/Bissap|order\?/); // no message content
+      // The provider goes down.
+      for (let i = 0; i < 3; i++) {
+        fake.enqueue(fakeErrors.server());
+        await chat(s.slug).send(`How much is the Ginger juice? ${i}`).expect(200);
+      }
+      const m2 = (await api(s.viewer, 'get', '/monitoring?days=7').expect(200)).body;
+      expect(m2.health).toMatchObject({ status: 'DOWN', lastErrorKind: 'server' });
+      expect(m2.ai).toMatchObject({ calls: 4, failures: 3, failuresByKind: { server: 3 } });
+      expect(m2.handoffs.aiUnavailable).toBe(3);
+      const alerts = await prisma.notification.findMany({ where: { businessId: s.owner.businessId, type: 'sales.ai_degraded', userId: s.admin.userId } });
+      expect(alerts).toHaveLength(1); // once per hour, not per failure
+      expect((await prisma.notification.findMany({ where: { businessId: s.owner.businessId, type: 'sales.ai_degraded', userId: s.viewer.userId } }))).toHaveLength(0); // only people who can act
+      fake.configured = false;
+      expect((await api(s.viewer, 'get', '/monitoring?days=7').expect(200)).body.health.status).toBe('NOT_CONFIGURED');
+      await api(s.viewer, 'get', '/monitoring?days=0').expect(400);
+      // Another business sees none of it.
+      const other = await shop();
+      expect((await api(other.viewer, 'get', '/monitoring?days=7').expect(200)).body.ai.calls).toBe(0);
+    });
+
+    it('platform view for support: per-business counts only, restricted to platform roles', async () => {
+      const s = await shop();
+      await request(h.http).get('/api/v1/admin/sales-ai').set(as(s.owner)).expect(403);
+      await request(h.http).get('/api/v1/admin/sales-ai').expect(401);
     });
   });
 });

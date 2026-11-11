@@ -91,7 +91,7 @@ export function detectEscalation(text: string): EscalationMatch | null {
 
 // ─── Fixed messages (written by TOUMA, reviewed by humans, never generated) ───
 
-type Key = 'handoff' | 'orderStatus' | 'refund' | 'legal' | 'reviewPending' | 'paused' | 'human' | 'aiUnavailable' | 'limit' | 'greeting' | 'disclosure' | 'unsupported' | 'unverified';
+type Key = 'privacy' | 'handoff' | 'orderStatus' | 'refund' | 'legal' | 'reviewPending' | 'paused' | 'human' | 'aiUnavailable' | 'limit' | 'greeting' | 'disclosure' | 'unsupported' | 'unverified';
 const T: Record<Key, Record<AgentLanguage, string>> = {
   handoff: {
     en: 'I want to be sure you get a correct answer, so I have passed your question to our team. They will reply here as soon as possible.',
@@ -164,6 +164,12 @@ const T: Record<Key, Record<AgentLanguage, string>> = {
     fr: 'Je réponds dans les langues activées par le commerce ; je continue dans la langue configurée pour cette boutique.',
     tr: 'İşletmenin etkinleştirdiği dillerde yanıt veriyorum; bu mağaza için ayarlanan dilde devam ediyorum.',
     ar: 'أجيب باللغات التي فعّلها المتجر؛ سأتابع باللغة المُعدّة لهذا المتجر.',
+  },
+  privacy: {
+    en: 'Your messages are stored by this business to answer you and follow up. Contact details are kept only if you choose to share them and agree to be contacted. Conversations are erased after {days} days without activity, and you can delete yours at any time below.',
+    fr: 'Vos messages sont conservés par ce commerce pour vous répondre et assurer le suivi. Vos coordonnées ne sont conservées que si vous choisissez de les partager et acceptez d’être contacté. Les conversations sont effacées après {days} jours sans activité, et vous pouvez supprimer la vôtre à tout moment ci-dessous.',
+    tr: 'Mesajlarınız size yanıt vermek ve takip etmek için bu işletme tarafından saklanır. İletişim bilgileriniz yalnızca paylaşmayı seçerseniz ve iletişime geçilmesini kabul ederseniz saklanır. Konuşmalar {days} gün işlem görmezse silinir ve kendinizinkini istediğiniz zaman aşağıdan silebilirsiniz.',
+    ar: 'يحتفظ هذا النشاط التجاري برسائلك للرد عليك ومتابعة طلبك. لا تُحفظ بيانات الاتصال إلا إذا اخترت مشاركتها ووافقت على التواصل معك. تُحذف المحادثات بعد {days} يومًا من عدم النشاط، ويمكنك حذف محادثتك في أي وقت من الأسفل.',
   },
   unverified: {
     en: 'I do not have verified information about that, so I will not guess. I have passed your question to our team.',

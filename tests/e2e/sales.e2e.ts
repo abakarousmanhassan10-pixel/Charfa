@@ -226,6 +226,46 @@ test('customers, leads, opportunities, FAQ gaps and analytics reflect the real c
   await expect(page.getByTestId('analytics-note')).toContainText('no order data');
 });
 
+test('privacy and protection: the chat shows what is stored and for how long, a hidden trap field, and the merchant controls retention and confidence', async ({ page, context }) => {
+  await setup(page);
+  await page.goto('/dashboard/sales/agent');
+  await expect(page.getByTestId('agent-min-confidence')).toHaveCount(0); // only relevant for automatic answers
+  await page.getByTestId('agent-enabled').check();
+  await page.getByTestId('agent-mode-AUTO').check();
+  await expect(page.getByTestId('agent-min-confidence')).toHaveValue('HIGH');
+  await page.getByTestId('agent-privacy-url').fill('https://maquis-awa.example/privacy');
+  await page.getByTestId('agent-retention').fill('90');
+  await page.getByTestId('agent-save').click();
+  await page.getByTestId('auto-confirm').click();
+  await expect(page.getByTestId('agent-message')).toBeVisible();
+  const path = new URL((await page.getByTestId('agent-link').locator('code').textContent())!.trim()).pathname;
+  const chat = await context.newPage();
+  await chat.goto(path);
+  await chat.getByTestId('chat-privacy').locator('summary').click();
+  await expect(chat.getByTestId('chat-privacy')).toContainText('erased after 90 days');
+  await expect(chat.getByTestId('chat-privacy-link')).toHaveAttribute('href', 'https://maquis-awa.example/privacy');
+  await expect(chat.getByTestId('chat-trap')).toBeHidden(); // real visitors never see or fill the trap field
+  await chat.getByTestId('chat-erase').count(); // appears once a conversation exists
+  await say(chat, 'How much is the Bissap juice?');
+  await expect(chat.getByTestId('chat-erase')).toBeVisible();
+});
+
+test('AI monitoring shows health, calls, tokens and handoffs without any message content', async ({ page, context }) => {
+  await setup(page);
+  const path = await enableAgent(page, 'AUTO');
+  const chat = await context.newPage();
+  await chat.goto(path);
+  await say(chat, 'How much is the Bissap juice?');
+  await say(chat, 'Where is my order?');
+  await page.goto('/dashboard/sales/monitoring');
+  await expect(page.getByTestId('health-badge')).toHaveAttribute('data-health', 'OK');
+  await expect(page.locator('[data-stat="calls"]')).toContainText('1');
+  await expect(page.locator('[data-stat="failures"]')).toContainText('0');
+  await expect(page.locator('[data-stat="handoffRate"]')).toContainText('100%');
+  await expect(page.getByTestId('monitoring')).not.toContainText('Bissap');
+  await expect(page.getByTestId('ai-health-banner')).toHaveCount(0);
+});
+
 test('the test chat in the agent settings works before the agent is on', async ({ page }) => {
   await setup(page);
   await page.goto('/dashboard/sales/agent');
@@ -257,7 +297,7 @@ test.describe('phone (390×844)', () => {
 
   test('every sales page fits the screen without horizontal scrolling', async ({ page }) => {
     await setup(page);
-    for (const p of ['', '/customers', '/leads', '/opportunities', '/faq', '/analytics', '/agent']) {
+    for (const p of ['', '/customers', '/leads', '/opportunities', '/faq', '/analytics', '/monitoring', '/agent']) {
       await page.goto(`/dashboard/sales${p}`);
       await expect(page.getByTestId('sales-tabs')).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

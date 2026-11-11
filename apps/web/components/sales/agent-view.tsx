@@ -38,7 +38,7 @@ function Config() {
     setError(null);
     setMessage(null);
     try {
-      const saved = await api<AgentConfig>('/sales/agent', { method: 'PUT', json: { enabled: next.enabled, name: next.name, languages: next.languages, defaultLanguage: next.defaultLanguage, tone: next.tone ?? null, greeting: next.greeting ?? null, replyMode: next.replyMode, maxAiRepliesPerConversation: next.maxAiRepliesPerConversation }, businessId: active.id });
+      const saved = await api<AgentConfig>('/sales/agent', { method: 'PUT', json: { enabled: next.enabled, name: next.name, languages: next.languages, defaultLanguage: next.defaultLanguage, tone: next.tone ?? null, greeting: next.greeting ?? null, replyMode: next.replyMode, maxAiRepliesPerConversation: next.maxAiRepliesPerConversation, autoMinConfidence: next.autoMinConfidence, privacyNoticeUrl: next.privacyNoticeUrl || null, retentionDays: next.retentionDays }, businessId: active.id });
       setF(saved);
       setMessage(t('sales.agent.saved'));
     } catch (e) {
@@ -74,7 +74,17 @@ function Config() {
             ))}
             {f.autoReplyAuthorizedAt && f.replyMode === 'AUTO' && <p className="text-xs text-muted-foreground" data-testid="agent-authorized">{t('sales.agent.authorizedAt', { when: new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(f.autoReplyAuthorizedAt)) })}</p>}
           </fieldset>
+          {f.replyMode === 'AUTO' && (
+            <label className="grid gap-1 text-sm sm:max-w-md">{t('sales.agent.minConfidence')}
+              <Select value={f.autoMinConfidence} disabled={!edit} onChange={(e) => setF({ ...f, autoMinConfidence: e.target.value as 'HIGH' | 'MEDIUM' })} data-testid="agent-min-confidence"><option value="HIGH">{t('sales.agent.minConfidenceHigh')}</option><option value="MEDIUM">{t('sales.agent.minConfidenceMedium')}</option></Select>
+              <span className="text-xs text-muted-foreground">{t('sales.agent.minConfidenceHint')}</span>
+            </label>
+          )}
           <label className="grid gap-1 text-sm sm:max-w-xs">{t('sales.agent.maxReplies')}<Input type="number" min={1} max={200} value={f.maxAiRepliesPerConversation} disabled={!edit} onChange={(e) => setF({ ...f, maxAiRepliesPerConversation: Number(e.target.value) })} data-testid="agent-max-replies" /><span className="text-xs text-muted-foreground">{t('sales.agent.maxRepliesHint')}</span></label>
+          <fieldset className="grid gap-3 rounded-lg border p-3"><legend className="px-1 text-sm font-medium">{t('sales.agent.privacy')}</legend>
+            <label className="grid gap-1 text-sm">{t('sales.agent.privacyUrl')}<Input type="url" value={f.privacyNoticeUrl ?? ''} disabled={!edit} maxLength={500} onChange={(e) => setF({ ...f, privacyNoticeUrl: e.target.value })} placeholder="https://" data-testid="agent-privacy-url" /><span className="text-xs text-muted-foreground">{t('sales.agent.privacyUrlHint')}</span></label>
+            <label className="grid gap-1 text-sm sm:max-w-xs">{t('sales.agent.retention')}<Input type="number" min={30} max={1825} value={f.retentionDays} disabled={!edit} onChange={(e) => setF({ ...f, retentionDays: Number(e.target.value) })} data-testid="agent-retention" /><span className="text-xs text-muted-foreground">{t('sales.agent.retentionHint')}</span></label>
+          </fieldset>
           <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">{t('sales.agent.safetyNote')}</p>
           {edit ? <div><Button type="submit" disabled={busy || f.languages.length === 0} data-testid="agent-save">{busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{t('sales.agent.save')}</Button></div> : <p className="text-sm text-muted-foreground">{t('sales.agent.readOnly')}</p>}
         </form>

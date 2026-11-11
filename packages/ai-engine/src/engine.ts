@@ -9,7 +9,8 @@ import { checkGrounding } from './grounding';
 
 export interface EngineConfig {
   model: string;
-  temperature?: number;
+  /** null = do not send a temperature (some models reject it). */
+  temperature?: number | null;
   maxOutputTokens: number;
   timeoutMs: number;
   /** Retries for transient provider errors (rate limit, timeout, 5xx, network). */
@@ -90,7 +91,7 @@ export async function runAgent<I, S extends ZodTypeAny>(
           schemaName: agent.schemaName,
           jsonSchema,
           model: config.model,
-          temperature: config.temperature ?? agent.defaultTemperature,
+          temperature: config.temperature === null ? undefined : (config.temperature ?? agent.defaultTemperature),
           maxOutputTokens: config.maxOutputTokens,
           timeoutMs: config.timeoutMs,
         });

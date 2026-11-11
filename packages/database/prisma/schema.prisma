@@ -1250,6 +1250,12 @@ model SalesAgentConfig {
   autoReplyAuthorizedById     String?
   autoReplyAuthorizedAt       DateTime?      @db.Timestamptz(3)
   maxAiRepliesPerConversation Int            @default(30)
+  /// In AUTO mode the AI answers by itself only at or above this confidence (HIGH, or MEDIUM); below it the reply is a draft for a person.
+  autoMinConfidence           String         @default("HIGH")
+  /// Link to the merchant's privacy policy, shown in the customer chat next to TOUMA's short notice.
+  privacyNoticeUrl            String?
+  /// Customer conversations and personal data are erased after this many days without activity.
+  retentionDays               Int            @default(365)
   updatedById                 String?
   createdAt                   DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt                   DateTime       @updatedAt @db.Timestamptz(3)

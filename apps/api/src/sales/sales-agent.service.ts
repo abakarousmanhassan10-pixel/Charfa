@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma, type Conversation, type Customer, type EscalationReason, type LeadStatus, type PurchaseIntent, type SalesAgentConfig } from '@touma/database';
 import {
-  AgentRunError, estimateCostUsd, runAgent, salesAgent, selectRelevantItems, detectInjection, type BusinessContext, type EngineConfig, type SalesReply, type TextModelProvider,
+  AgentRunError, estimateCostUsd, runAgent, salesAgent, selectRelevantItems, selectRelevantKnowledge, detectInjection, type BusinessContext, type EngineConfig, type SalesReply, type TextModelProvider,
 } from '@touma/ai-engine';
 import {
   agentMessage, detectEscalation, detectLanguage, escalationMessage, resolveReplyLanguage, SALES_LIMITS, type AgentLanguage, type HandoffReason, type PurchaseIntentId,
@@ -9,6 +9,7 @@ import {
 import { AppEnv, InjectEnv } from '../config';
 import { TEXT_PROVIDER } from '../ai/ai-provider';
 import { AiUsageService } from '../ai/ai-usage.service';
+import { errorKind } from './sales-monitoring.service';
 import { AuditService } from '../audit/audit.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -67,7 +68,8 @@ export class SalesAgentService {
   ) {}
 
   get engineConfig(): EngineConfig {
-    return { model: this.env.AI_MODEL, temperature: 0.2, maxOutputTokens: Math.min(this.env.AI_MAX_OUTPUT_TOKENS, 1200), timeoutMs: this.env.AI_TIMEOUT_MS, maxProviderRetries: this.env.AI_MAX_PROVIDER_RETRIES, maxRepairAttempts: this.env.AI_MAX_REPAIR_ATTEMPTS };
+    const t = this.env.SALES_AGENT_TEMPERATURE;
+    return { model: this.env.SALES_AGENT_MODEL ?? this.env.AI_MODEL, temperature: t === 'none' ? null : Number(t), maxOutputTokens: Math.min(this.env.AI_MAX_OUTPUT_TOKENS, 1200), timeoutMs: this.env.SALES_AGENT_TIMEOUT_MS, maxProviderRetries: this.env.AI_MAX_PROVIDER_RETRIES, maxRepairAttempts: this.env.AI_MAX_REPAIR_ATTEMPTS };
   }
 
   async config(businessId: string): Promise<SalesAgentConfig> {
@@ -121,7 +123,7 @@ export class SalesAgentService {
       return done({ outcome: 'HANDOFF', messageIds: [id] });
     }
     // 4-5. The model.
-    const mode = args.forceAuto || conv.isTest ? 'AUTO' : cfg.replyMode;
+    let mode: 'AUTO' | 'REVIEW' = args.forceAuto || conv.isTest ? 'AUTO' : cfg.replyMode;
     const gen = await this.generate(conv, cfg, reply.language);
     if (!gen.ok) {
       const id = await this.handoff(conv, 'AI_UNAVAILABLE', reply.language, escalationMessage('AI_UNAVAILABLE', reply.language), null, gen.error);
@@ -135,8 +137,11 @@ export class SalesAgentService {
       await this.afterTurn(conv, { customerMessages: count, intent: out.intent, purchaseIntent: out.purchaseIntent, interests: [] });
       return done({ outcome: 'HANDOFF', messageIds: [id] });
     }
+    // Automatic answers need enough confidence; anything below the merchant's threshold becomes a draft for a person.
+    const lowerThanThreshold = mode === 'AUTO' && !args.forceAuto && !conv.isTest && cfg.autoMinConfidence === 'HIGH' && out.confidence !== 'HIGH';
+    if (lowerThanThreshold) mode = 'REVIEW';
     const interests = out.recommended.map((r) => `${r.type === 'PRODUCT' ? 'product' : 'service'}:${r.id}`);
-    const meta = { kind: 'ai_reply', intent: out.intent, confidence: out.confidence, sources: out.sources, nextStep: out.nextStep, purchaseIntent: out.purchaseIntent, cards: gen.cards, model: gen.model, promptVersion: salesAgent.promptVersion, injectionFlags: injection.length ? injection : undefined, answerable: true };
+    const meta = { kind: 'ai_reply', intent: out.intent, confidence: out.confidence, sources: out.sources, nextStep: out.nextStep, purchaseIntent: out.purchaseIntent, cards: gen.cards, model: gen.model, promptVersion: salesAgent.promptVersion, heldForReview: lowerThanThreshold || undefined, injectionFlags: injection.length ? injection : undefined, answerable: true };
     const ids: string[] = [];
     // In REVIEW mode the customer first sees the fixed "a team member will reply" note; the draft itself stays invisible until approved.
     if (mode === 'REVIEW') ids.push(await this.systemMessage(conv, agentMessage('reviewPending', reply.language), 'review_pending'));
@@ -187,7 +192,7 @@ export class SalesAgentService {
     const focus = recent.flatMap((m) => ((m.aiMetadata as { cards?: Array<{ id: string }> } | null)?.cards ?? []).map((c) => c.id));
     const itemIds = selectRelevantItems(ctx, history.filter((h) => h.from === 'customer').map((h) => h.text), { focusIds: focus });
     try {
-      const res = await runAgent(salesAgent, { provider: this.provider, context: ctx, input: { replyLanguage: language, itemIds, conversation: history, agentName: cfg.name, tone: cfg.tone }, config: this.engineConfig });
+      const res = await runAgent(salesAgent, { provider: this.provider, context: ctx, input: { replyLanguage: language, itemIds, knowledgeIds: selectRelevantKnowledge(ctx, history.filter((h) => h.from === 'customer').map((h) => h.text)), conversation: history, agentName: cfg.name, tone: cfg.tone }, config: this.engineConfig });
       await this.recordUsage(businessId, userId, res.attempts);
       const cards = res.output.recommended.map((r) => {
         const row = (r.type === 'PRODUCT' ? ctx.products : ctx.services).find((x) => x.id === r.id) as Record<string, unknown> | undefined;
@@ -210,10 +215,23 @@ export class SalesAgentService {
         const price = this.usage.priceFor(a.model);
         return {
           businessId, userId: userId || null, agent: 'CUSTOMER_SUPPORT' as const, provider: this.provider.name, model: a.model, operation: 'sales_reply', inputTokens: a.inputTokens, outputTokens: a.outputTokens,
-          costUsd: estimateCostUsd(a.inputTokens, a.outputTokens, price.pricing), success: a.success, error: a.error?.slice(0, 300) ?? null, latencyMs: a.latencyMs, attemptKind: a.kind,
+          costUsd: estimateCostUsd(a.inputTokens, a.outputTokens, price.pricing), success: a.success,
+          // Generic, credential-free text only. A validation failure records how many rules failed, never the model's or the customer's words.
+          error: a.error?.slice(0, 300) ?? (a.issues?.length ? `validation: ${a.issues.length} rule(s) failed` : null), latencyMs: a.latencyMs, attemptKind: a.kind,
         };
       }),
     });
+    // One structured line per model call for log aggregation: identifiers, sizes and timings only, never content.
+    for (const a of attempts) this.logger.log(JSON.stringify({ event: 'ai_call', businessId, provider: this.provider.name, model: a.model, kind: a.kind, success: a.success, ms: a.latencyMs, tokensIn: a.inputTokens, tokensOut: a.outputTokens, errorKind: a.success ? undefined : errorKind(a.error ?? 'validation') }));
+    if (attempts.every((a) => !a.success)) await this.alertIfDown(businessId);
+  }
+
+  /** When the last three model calls of a business all failed, tell the people who can act (once per hour). */
+  private async alertIfDown(businessId: string) {
+    const last = await this.prisma.aIUsage.findMany({ where: { businessId, agent: 'CUSTOMER_SUPPORT' }, orderBy: { createdAt: 'desc' }, take: 3, select: { success: true } });
+    if (last.length === 3 && last.every((l) => !l.success)) {
+      await this.notifications.notify({ businessId, permission: 'business.update', type: 'sales.ai_degraded', title: 'The AI agent is failing to answer', body: 'Customers are being handed to your team. Check the monitoring page.', data: {}, dedupeKey: `sales:ai-down:${businessId}:${Math.floor(Date.now() / 3_600_000)}` });
+    }
   }
 
   // ─── Handoff and bookkeeping ──────────────────────────────────────────────

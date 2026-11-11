@@ -27,7 +27,7 @@ export class SalesConversationsService {
   private configDto(c: Awaited<ReturnType<SalesAgentService['config']>>) {
     return {
       enabled: c.enabled, name: c.name, languages: c.languages, defaultLanguage: c.defaultLanguage, tone: c.tone, greeting: c.greeting, replyMode: c.replyMode,
-      autoReplyAuthorizedAt: c.autoReplyAuthorizedAt?.toISOString() ?? null, autoReplyAuthorizedById: c.autoReplyAuthorizedById, maxAiRepliesPerConversation: c.maxAiRepliesPerConversation, updatedAt: c.updatedAt.toISOString(),
+      autoReplyAuthorizedAt: c.autoReplyAuthorizedAt?.toISOString() ?? null, autoReplyAuthorizedById: c.autoReplyAuthorizedById, maxAiRepliesPerConversation: c.maxAiRepliesPerConversation, autoMinConfidence: c.autoMinConfidence, privacyNoticeUrl: c.privacyNoticeUrl, retentionDays: c.retentionDays, updatedAt: c.updatedAt.toISOString(),
     };
   }
 
@@ -41,6 +41,7 @@ export class SalesConversationsService {
       ...(dto.enabled !== undefined ? { enabled: dto.enabled } : {}), ...(dto.name !== undefined ? { name: dto.name } : {}), languages, defaultLanguage: def,
       ...(dto.tone !== undefined ? { tone: dto.tone } : {}), ...(dto.greeting !== undefined ? { greeting: dto.greeting } : {}),
       ...(dto.maxAiRepliesPerConversation !== undefined ? { maxAiRepliesPerConversation: dto.maxAiRepliesPerConversation } : {}),
+      ...(dto.autoMinConfidence ? { autoMinConfidence: dto.autoMinConfidence } : {}), ...(dto.privacyNoticeUrl !== undefined ? { privacyNoticeUrl: dto.privacyNoticeUrl } : {}), ...(dto.retentionDays !== undefined ? { retentionDays: dto.retentionDays } : {}),
       ...(dto.replyMode ? { replyMode: dto.replyMode } : {}), ...(authorizing ? { autoReplyAuthorizedById: tenant.userId, autoReplyAuthorizedAt: new Date() } : dto.replyMode === 'REVIEW' ? { autoReplyAuthorizedById: null, autoReplyAuthorizedAt: null } : {}),
       updatedById: tenant.userId,
     };

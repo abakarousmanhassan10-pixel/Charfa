@@ -8,6 +8,8 @@ export interface SalesTurnInput {
   replyLanguage: AgentLanguage;
   /** Items to give the model (already selected by relevance); the full context is still used to validate. */
   itemIds: string[];
+  /** Verified knowledge entries to give the model (selected by relevance); absent = all. */
+  knowledgeIds?: string[];
   /** Recent messages, oldest first. Customer text is untrusted data. */
   conversation: Array<{ from: 'customer' | 'assistant' | 'staff'; text: string }>;
   /** Merchant's choices for the agent (name and tone only; they cannot loosen the safety rules). */
@@ -20,6 +22,15 @@ const COMMITMENT_RE = /\b(i (guarantee|promise|confirm your order|have placed|ha
 const UNAVAILABLE = new Set(['OUT_OF_STOCK', 'DISCONTINUED', 'UNAVAILABLE']);
 
 type Row = Record<string, unknown> & { id: string; name: string };
+
+/** The model sees what a customer may be told about stock, never a raw quantity it could turn into "only 3 left". */
+export function stockStatus(row: Row): string {
+  const availability = String(row.availability ?? '');
+  if (availability === 'OUT_OF_STOCK' || availability === 'DISCONTINUED' || availability === 'UNAVAILABLE') return 'out of stock';
+  const stock = row.stock;
+  if (typeof stock === 'number') return stock <= 0 ? 'out of stock' : stock <= 5 ? 'limited stock' : 'in stock';
+  return availability === 'PREORDER' ? 'pre-order' : availability === 'MADE_TO_ORDER' ? 'made to order' : 'availability as recorded, quantity not shared';
+}
 
 const num = (v: unknown): number | null => {
   if (v === null || v === undefined || v === '') return null;
@@ -63,7 +74,7 @@ export const salesAgent: AgentDefinition<SalesTurnInput, typeof salesReplySchema
 Write the reply in ${AI_LANGUAGE_NAMES[i.replyLanguage]} (language code "${i.replyLanguage}"). Be warm, brief (at most 120 words) and concrete. ${i.tone ? `Preferred tone: ${i.tone}.` : ''}
 You help customers discover products and services, explain their benefits, compare them, and decide what to do next.
 STRICT RULES:
-- Prices, discounts, stock, availability, delivery, returns, opening hours, contacts and specifications may ONLY come from <business_data>. If a price is null say it is available on request. If stock is "not tracked" do not state a quantity. Never calculate totals, discounts or delivery costs. Never invent anything.
+- Prices, discounts, stock, availability, delivery, returns, opening hours, contacts and specifications may ONLY come from <business_data>. If a price is null say it is available on request. The stock field is a status (in stock, limited stock, out of stock, pre-order, made to order): never state a quantity or say "only N left". Never calculate totals, discounts or delivery costs. Never invent anything.
 - Never recommend, offer or promise an item whose availability is OUT_OF_STOCK, DISCONTINUED or UNAVAILABLE; you may say it is currently unavailable.
 - You have NO access to orders, payments, shipments or customer accounts. For order, delivery-tracking, payment, refund, complaint, legal or any sensitive question set handoff.needed=true with the right reason and write a short, honest reply saying a team member will follow up. Never confirm, place, book or pay for anything, never promise a result, delay or discount.
 - If the answer is not in <business_data>, set answerable=false, handoff.needed=true, handoff.reason="UNVERIFIED_INFO" and say you do not have verified information. Do not guess.
@@ -73,11 +84,12 @@ STRICT RULES:
   taskParams: (i) => ({ task: 'CUSTOMER_CHAT', replyLanguage: i.replyLanguage }),
   scopeContext: (ctx, input) => {
     const ids = new Set(input.itemIds);
+    const kn = input.knowledgeIds ? new Set(input.knowledgeIds) : null;
     return {
       business: ctx.business,
-      products: ctx.products.filter((p) => ids.has(p.id)),
+      products: ctx.products.filter((p) => ids.has(p.id)).map((p) => ({ ...p, stock: stockStatus(p) })),
       services: ctx.services.filter((s) => ids.has(s.id)),
-      knowledge: ctx.knowledge,
+      knowledge: kn ? ctx.knowledge.filter((k) => kn.has(k.id)) : ctx.knowledge,
       conversation: input.conversation,
     };
   },

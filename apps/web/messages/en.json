@@ -1489,7 +1489,8 @@
       "sales": {
         "handoff": "A customer needs a person",
         "draft_ready": "An AI reply is waiting for your review",
-        "customer_message": "New customer message"
+        "customer_message": "New customer message",
+        "ai_degraded": "The AI agent is failing to answer"
       }
     }
   },
@@ -1856,7 +1857,8 @@
       "opportunities": "Opportunities",
       "faq": "FAQ",
       "analytics": "Analytics",
-      "agent": "Agent"
+      "agent": "Agent",
+      "monitoring": "Monitoring"
     },
     "conversations": {
       "title": "AI conversations",
@@ -1999,7 +2001,16 @@
       "autoTitle": "Allow automatic answers?",
       "autoText": "You are authorizing TOUMA's agent to answer customers on your behalf.",
       "autoDetails": "It will answer customer-initiated chats using only your verified products, services and policies. It cannot place orders, take payments or promise anything. You can switch back to review mode at any time. This authorization is recorded.",
-      "autoConfirm": "I authorize automatic answers"
+      "autoConfirm": "I authorize automatic answers",
+      "minConfidence": "Answer automatically only when confidence is",
+      "minConfidenceHigh": "High (recommended)",
+      "minConfidenceMedium": "Medium or high",
+      "minConfidenceHint": "Below this level the reply becomes a draft for a person. Low confidence always goes to a person.",
+      "privacy": "Privacy",
+      "privacyUrl": "Link to your privacy policy",
+      "privacyUrlHint": "Shown in the customer chat next to TOUMA's short notice. Must start with https://.",
+      "retention": "Erase conversations after (days)",
+      "retentionHint": "Conversations and personal data are erased after this many days without activity (30 to 1825). Anonymous statistics are kept."
     },
     "playground": {
       "title": "Test chat",
@@ -2143,7 +2154,62 @@
       "error": "Your message could not be sent. Please try again.",
       "tooMany": "Too many messages. Please contact the business directly.",
       "unavailableTitle": "Chat not available",
-      "unavailableText": "This chat is not available right now."
+      "unavailableText": "This chat is not available right now.",
+      "privacyTitle": "How your data is used",
+      "privacyLink": "Read the privacy policy"
+    },
+    "monitoring": {
+      "title": "AI monitoring",
+      "subtitle": "Is the AI answering? How many calls, failures, tokens and handoffs. No message content is ever shown here.",
+      "status": "AI status",
+      "lastError": "Last problem: {kind}",
+      "notConfigured": "No AI model is configured on this server, so every customer question is handed to your team. Ask your administrator to add the AI provider credentials.",
+      "bannerDown": "The AI agent is failing to answer: customers are being handed to your team.",
+      "bannerDegraded": "The AI agent is having trouble: many recent answers failed.",
+      "openMonitoring": "Open monitoring",
+      "failuresByKind": "Failures by cause",
+      "confidence": "Answer confidence",
+      "drafts": "Drafts and review",
+      "models": "Models used",
+      "costUnknown": "unknown",
+      "costHint": "Cost is unknown because no price is configured for this model (AI_MODEL_PRICING). It is never shown as zero.",
+      "note": "Counted from recorded AI calls and conversations. Draft approval rate is only meaningful once enough drafts were reviewed.",
+      "health": {
+        "NOT_CONFIGURED": "Not configured",
+        "IDLE": "No recent calls",
+        "OK": "Working",
+        "DEGRADED": "Degraded",
+        "DOWN": "Failing"
+      },
+      "tiles": {
+        "calls": "AI calls",
+        "failures": "Failed calls",
+        "failureRate": "Failure rate",
+        "p50": "Latency p50",
+        "p95": "Latency p95",
+        "tokens": "Tokens",
+        "cost": "Cost",
+        "handoffRate": "Handoff rate"
+      },
+      "errorKinds": {
+        "timeout": "timeout",
+        "rate_limit": "rate limit",
+        "auth": "credentials",
+        "server": "provider error",
+        "network": "network",
+        "refusal": "refusal",
+        "truncated": "answer cut off",
+        "validation": "answer rejected by safety checks",
+        "other": "other"
+      },
+      "draftStats": {
+        "total": "Drafts",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "pending": "Waiting",
+        "heldBecauseOfConfidence": "Held for low confidence",
+        "approvalRate": "Approval rate"
+      }
     }
   }
 }

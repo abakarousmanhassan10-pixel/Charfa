@@ -140,4 +140,12 @@ describe('Creative Studio settings', () => {
     expect(() => loadEnv({ ...valid, LINKEDIN_ORG_ENABLED: 'true', LINKEDIN_ORG_APPROVAL_REF: '   ' })).toThrow(/LINKEDIN_ORG_APPROVAL_REF/);
     expect(loadEnv({ ...valid, LINKEDIN_ORG_ENABLED: 'true', LINKEDIN_ORG_APPROVAL_REF: 'Community Management API approved 2027-01-15, ref CM-123' }).LINKEDIN_ORG_ENABLED).toBe(true);
   });
+  it('chat model settings: own timeout, temperature can be switched off, bad values are rejected', () => {
+    const env = loadEnv(valid);
+    expect(env).toMatchObject({ SALES_AGENT_TIMEOUT_MS: 30_000, SALES_AGENT_TEMPERATURE: '0.2' });
+    expect(env.SALES_AGENT_MODEL).toBeUndefined();
+    expect(loadEnv({ ...valid, SALES_AGENT_TEMPERATURE: 'none', SALES_AGENT_MODEL: 'gpt-5-mini' })).toMatchObject({ SALES_AGENT_TEMPERATURE: 'none', SALES_AGENT_MODEL: 'gpt-5-mini' });
+    expect(() => loadEnv({ ...valid, SALES_AGENT_TEMPERATURE: 'hot' })).toThrow(/SALES_AGENT_TEMPERATURE/);
+    expect(() => loadEnv({ ...valid, SALES_AGENT_TIMEOUT_MS: '100' })).toThrow();
+  });
 });

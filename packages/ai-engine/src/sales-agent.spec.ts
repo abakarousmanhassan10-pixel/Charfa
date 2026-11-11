@@ -1,6 +1,6 @@
 import { AgentRunError, runAgent, type EngineConfig } from './engine';
 import { salesAgent, type SalesTurnInput } from './agents/sales-agent';
-import { selectRelevantItems } from './retrieval';
+import { selectRelevantItems, selectRelevantKnowledge } from './retrieval';
 import { FakeTextProvider } from './testing/fake-provider';
 import { OutputValidationError } from './errors';
 import { detectInjection } from './safety';
@@ -140,5 +140,52 @@ describe('product retrieval', () => {
   });
   it('never returns ids that are not in the given context', () => {
     expect(selectRelevantItems(business(), ['juice'])).toEqual(expect.not.arrayContaining(['other-tenant-product']));
+  });
+});
+
+describe('model settings', () => {
+  it('sends the configured temperature, and none at all when it is switched off (models that reject it)', async () => {
+    const a = new FakeTextProvider();
+    await runAgent(salesAgent, { provider: a, context: business(), input: turn('How much is the Bissap juice?'), config: { ...config, temperature: 0.4 }, sleep });
+    expect(a.requests[0]!.temperature).toBe(0.4);
+    const b = new FakeTextProvider();
+    await runAgent(salesAgent, { provider: b, context: business(), input: turn('How much is the Bissap juice?'), config: { ...config, temperature: null }, sleep });
+    expect(b.requests[0]!.temperature).toBeUndefined();
+    const c = new FakeTextProvider();
+    await runAgent(salesAgent, { provider: c, context: business(), input: turn('How much is the Bissap juice?'), config, sleep });
+    expect(c.requests[0]!.temperature).toBe(0.2); // the agent default
+  });
+});
+
+describe('catalog facts given to the model', () => {
+  it('shares stock as a status, never as a quantity', async () => {
+    const p = new FakeTextProvider();
+    await run(p, turn('How much is the Ginger juice?'));
+    const user = p.requests[0]!.user;
+    expect(user).toContain('limited stock'); // Ginger juice: 4 left
+    expect(user).toContain('out of stock'); // Baobab juice
+    expect(user).not.toMatch(/"stock": ?4/);
+    expect(p.requests[0]!.system).toMatch(/never state a quantity/);
+  });
+
+  it('selects verified knowledge by relevance, falls back to policies, and stays bounded', () => {
+    const c = ctx({ knowledge: [
+      { id: 'k1', category: 'DELIVERY_POLICY', title: 'Delivery', body: 'We deliver in 24 hours.' },
+      { id: 'k2', category: 'RETURN_POLICY', title: 'Returns', body: 'Returns accepted within 30 days.' },
+      { id: 'k3', category: 'FAQ', title: 'Halal', body: 'All our juices are halal certified.' },
+      ...Array.from({ length: 40 }, (_, i) => ({ id: `x${i}`, category: 'OTHER', title: `Note ${i}`, body: `Internal note number ${i}` })),
+    ] });
+    expect(selectRelevantKnowledge(c, ['Is it halal?'])[0]).toBe('k3');
+    expect(selectRelevantKnowledge(c, ['hello there']).slice(0, 2)).toEqual(['k1', 'k2']); // nothing matched: policies
+    expect(selectRelevantKnowledge(c, ['returns policy?'], 3)).toEqual(['k2', 'k1']); // the match first, then the remaining policy
+    expect(selectRelevantKnowledge(c, ['whatever']).length).toBeLessThanOrEqual(10);
+  });
+
+  it('gives the model only the selected knowledge entries', async () => {
+    const p = new FakeTextProvider();
+    const c = ctx({ knowledge: [{ id: 'k1', category: 'DELIVERY_POLICY', title: 'Delivery', body: 'Delivery in 24 hours.' }, { id: 'k9', category: 'OTHER', title: 'Secret', body: 'Unrelated note' }] });
+    await runAgent(salesAgent, { provider: p, context: c, input: { ...turn('delivery?'), knowledgeIds: ['k1'] }, config, sleep });
+    expect(p.requests[0]!.user).toContain('Delivery in 24 hours');
+    expect(p.requests[0]!.user).not.toContain('Unrelated note');
   });
 });

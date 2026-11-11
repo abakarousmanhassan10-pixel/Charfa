@@ -37,3 +37,27 @@ export function selectRelevantItems(ctx: BusinessContext, customerTexts: string[
   if (matched.length) return matched;
   return all.slice(0, max).map((i) => i.id);
 }
+
+/** Policy-like categories the agent should see when the question matches nothing specific (delivery, returns, pricing rules). */
+const POLICY = new Set(['DELIVERY_POLICY', 'RETURN_POLICY', 'PRICING', 'CUSTOMER_SUPPORT']);
+
+/**
+ * Picks the verified knowledge entries worth giving the model: entries whose title or text matches the customer's words, and the
+ * policy entries when nothing matches. Bounded, so a business with hundreds of entries does not blow up every prompt.
+ */
+export function selectRelevantKnowledge(ctx: BusinessContext, customerTexts: string[], max = 10): string[] {
+  const q = new Set(customerTexts.slice(-3).flatMap(tokens));
+  const scored = ctx.knowledge.map((k, idx) => {
+    const title = new Set(tokens(k.title));
+    const body = new Set(tokens(k.body));
+    let s = 0;
+    for (const t of q) {
+      if (title.has(t)) s += 3;
+      if (body.has(t)) s += 1;
+    }
+    return { id: k.id, s, idx, policy: POLICY.has(k.category) };
+  });
+  const matched = scored.filter((x) => x.s > 0).sort((a, b) => b.s - a.s || a.idx - b.idx).slice(0, max).map((x) => x.id);
+  const policies = scored.filter((x) => x.policy && !matched.includes(x.id)).slice(0, Math.max(0, max - matched.length)).map((x) => x.id);
+  return [...matched, ...policies];
+}
