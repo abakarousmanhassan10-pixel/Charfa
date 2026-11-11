@@ -53,3 +53,6 @@ In-app (`GET /notifications`, bell in the header, per person and business): cont
 
 ## Web pages
 `/dashboard/calendar` (overview), `/month`, `/week`, `/day` (drag and drop, platform filter, status colors), `/planner` (30-day planner and recurring schedules), `/approvals`. English and French; phones get a compact month with a day agenda.
+
+## Publishing (Phase 6)
+The publishing interface described above is now implemented by the social publishing engine: see [SOCIAL-PUBLISHING.md](SOCIAL-PUBLISHING.md). The default gateway is `SocialPublishingGateway`; `UnavailablePublishingGateway` remains for reference.

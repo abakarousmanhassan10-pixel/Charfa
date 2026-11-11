@@ -4,7 +4,9 @@
 
 TOUMA AI is the AI-powered marketing automation SaaS by **TOUMA**. It helps e-commerce stores, restaurants, retail shops, brands, agencies, freelancers and service providers run their marketing: product analysis, AI content and visuals, a 30-day content calendar, approval workflows, scheduled publishing through **official** social APIs, a unified inbox, analytics and subscriptions.
 
-> **Status: Phase 5 (smart content calendar, approvals, AI 30-day planner, scheduler) complete and tested; nothing is published yet (Phase 6).** See [docs/CALENDAR.md](docs/CALENDAR.md) and [docs/phase-reports/PHASE-5-CALENDAR.md](docs/phase-reports/PHASE-5-CALENDAR.md).
+> **Status: Phase 6 (social accounts and automated publishing for Instagram, Facebook, TikTok, YouTube and LinkedIn) implemented and tested against a simulator; real platform publishing is unverified.** See [docs/SOCIAL-INTEGRATIONS.md](docs/SOCIAL-INTEGRATIONS.md), [docs/SOCIAL-PUBLISHING.md](docs/SOCIAL-PUBLISHING.md), [docs/SOCIAL-SECURITY.md](docs/SOCIAL-SECURITY.md) and [docs/phase-reports/PHASE-6-SOCIAL.md](docs/phase-reports/PHASE-6-SOCIAL.md).
+>
+> Phase 5 (smart content calendar, approvals, AI 30-day planner, scheduler) complete and tested; nothing is published yet (Phase 6).** See [docs/CALENDAR.md](docs/CALENDAR.md) and [docs/phase-reports/PHASE-5-CALENDAR.md](docs/phase-reports/PHASE-5-CALENDAR.md).
 >
 > Phase 4 (Creative Studio: AI images, videos, storyboards, brand kit) complete and tested; real provider generation is unverified.** See [docs/CREATIVE.md](docs/CREATIVE.md) and [docs/phase-reports/PHASE-4-CREATIVE-STUDIO.md](docs/phase-reports/PHASE-4-CREATIVE-STUDIO.md).
 >
@@ -28,6 +30,7 @@ TOUMA AI needs `OPENAI_API_KEY` (see `docs/AI.md`); without it the AI pages show
 | `packages/shared` | RBAC matrix, locales, validation schemas shared by web and api. |
 | `packages/config` | Shared tsconfig and validated environment loader. |
 | `packages/ai-engine` | AI orchestration contract (implemented in Phase 3). |
+| `packages/social-connectors` | Platform adapters (Instagram, Facebook, TikTok, YouTube, LinkedIn) and a test-only simulator (Phase 6). |
 | `packages/creative` | Image/video provider contracts, OpenAI adapters, prompt building and image composition (Phase 4). |
 | `packages/social-connectors` | Social connector contract (implemented in Phase 6). |
 | `infrastructure/docker` | Docker Compose (Postgres, Redis, MinIO, full stack) and Dockerfiles. |

@@ -60,3 +60,6 @@ No extra service: the AI worker also runs the creative queue. Set `IMAGE_PROVIDE
 
 ### Calendar scheduler
 No extra service: `node dist/ai-worker.js` also runs the calendar scheduler (queue `touma.calendar`). At least one worker must be running for reminders, blocked-entry notices and (from Phase 6) publication hand-off. Tune with `CALENDAR_*` variables (see [CALENDAR.md](CALENDAR.md)). `/health/ready` reports `calendarWorker`.
+
+### Social publishing
+No extra service: `node dist/ai-worker.js` also runs the social worker (queue `touma.social`). Set `PUBLIC_API_URL` (https) and the credentials of each platform you enable ([SOCIAL-INTEGRATIONS.md](SOCIAL-INTEGRATIONS.md)); keep `SOCIAL_PROVIDER_MODE=live`. The API must be reachable from the internet (OAuth redirects, webhooks and the media URLs platforms download). At least one worker must run for publishing, token refresh and analytics. `/health/ready` reports `socialWorker`.

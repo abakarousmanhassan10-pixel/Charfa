@@ -1,7 +1,8 @@
 import { createAdapters } from './registry';
 import { escapeLinkedIn } from './linkedin';
 import { redact, type FetchLike } from './http';
-import { SocialApiError, type AuthorizedAccount, type MediaItem, type PublishableContent, type PublishContext } from './types';
+import type { SocialApiError } from './types';
+import { type AuthorizedAccount, type MediaItem, type PublishableContent, type PublishContext } from './types';
 
 /** A scripted network: requests are matched by "METHOD url-substring" in order, and recorded. */
 type Reply = { status?: number; json?: unknown; text?: string; headers?: Record<string, string> };

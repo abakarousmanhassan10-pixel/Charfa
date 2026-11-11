@@ -23,7 +23,7 @@ import { useResource, type Paged } from '@/lib/use-resource';
 import { cn } from '@/lib/utils';
 import { addDays, formatDate, weekdayNames } from './date-utils';
 import { PlatformDot } from './status';
-import { PLATFORMS, type Platform, type PlanPreview, type Recurrence } from './types';
+import { AI_PLATFORM_LIST, PLATFORMS, type Platform, type PlanPreview, type Recurrence } from './types';
 import { useCalendarWrite, useErrorText, useOverview } from './use-calendar';
 
 const PILLAR_COLOR: Record<string, string> = {
@@ -128,7 +128,7 @@ export function PlannerView() {
             <fieldset className="grid gap-2">
               <legend className="text-sm font-medium">{t('calendar.planner.platforms')}</legend>
               <div className="flex flex-wrap gap-3">
-                {PLATFORMS.map((p) => (
+                {AI_PLATFORM_LIST.map((p) => (
                   <label key={p} className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={platforms.includes(p)} onChange={(e) => setPlatforms((x) => (e.target.checked ? [...x, p] : x.filter((y) => y !== p)))} />
                     <PlatformDot platform={p} />

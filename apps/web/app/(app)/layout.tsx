@@ -30,7 +30,7 @@ const NAV: NavItem[] = [
   { key: 'ai', href: '/dashboard/ai', icon: Wand2 },
   { key: 'creative', href: '/dashboard/creative', icon: Palette },
   { key: 'calendar', href: '/dashboard/calendar', icon: CalendarDays },
-  { key: 'social', icon: Share2 },
+  { key: 'social', href: '/dashboard/social', icon: Share2 },
   { key: 'inbox', icon: Inbox },
   { key: 'analytics', icon: BarChart3 },
   { key: 'billing', icon: CreditCard },

@@ -121,3 +121,6 @@ Browser ◄── signed URL /api/v1/media/:id/content?exp&sig ◄── API str
 
 ## Calendar (Phase 5)
 `apps/api/src/calendar`: entry/workflow service, scheduling (conflicts, recommendations), plan and recurrence services, the BullMQ scheduler (`touma.calendar`, run by `dist/ai-worker.js`) and the `PUBLISHING_GATEWAY` interface Phase 6 implements. Timezone arithmetic lives in `@touma/shared`. Notifications: `apps/api/src/notifications`. See [CALENDAR.md](CALENDAR.md).
+
+## Social media (Phase 6)
+`packages/social-connectors` (adapters and contracts), `apps/api/src/social` (accounts and OAuth, publishing engine, queue and worker, analytics, webhooks) and the calendar integration through `PUBLISHING_GATEWAY`. See [SOCIAL-PUBLISHING.md](SOCIAL-PUBLISHING.md) and [SOCIAL-INTEGRATIONS.md](SOCIAL-INTEGRATIONS.md).

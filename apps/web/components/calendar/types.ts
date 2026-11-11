@@ -1,7 +1,9 @@
 import type { ContentPillar, EntryStatus, TimeSource } from '@touma/shared';
 
-export type Platform = 'INSTAGRAM' | 'FACEBOOK' | 'TIKTOK' | 'YOUTUBE';
-export const PLATFORMS: Platform[] = ['INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'YOUTUBE'];
+export type Platform = 'INSTAGRAM' | 'FACEBOOK' | 'TIKTOK' | 'YOUTUBE' | 'LINKEDIN';
+export const PLATFORMS: Platform[] = ['INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'YOUTUBE', 'LINKEDIN'];
+/** The platforms TOUMA AI can plan content for (LinkedIn entries are created by hand). */
+export const AI_PLATFORM_LIST: Platform[] = ['INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'YOUTUBE'];
 
 export interface Conflict {
   code: string;
@@ -27,6 +29,7 @@ export interface Entry {
   timeNote: string | null;
   planId: string | null;
   recurrenceId: string | null;
+  socialAccountId: string | null;
   authorizedAt: string | null;
   authorizedById: string | null;
   dispatchState: string;

@@ -58,13 +58,13 @@ async function createEntry(page: Page, p: { title: string; date: string; time: s
 
 const entry = (page: Page, title: string) => page.locator('[data-testid="calendar-entry"]:visible', { hasText: title });
 
-test('overview shows the calendar status, tabs and the honest publishing note', async ({ page }) => {
+test('overview shows the calendar status and tabs', async ({ page }) => {
   await setup(page);
   await page.getByRole('navigation', { name: 'Menu' }).getByRole('link', { name: 'Calendar' }).click();
   await expect(page).toHaveURL(/\/dashboard\/calendar$/);
   await expect(page.getByTestId('calendar-timezone')).toHaveText('Africa/Ndjamena');
   await expect(page.getByTestId('stat-pending')).toHaveText('0');
-  await expect(page.getByTestId('publishing-unavailable')).toContainText('Publishing is not connected yet');
+  await expect(page.getByTestId('publishing-unavailable')).toHaveCount(0); // the platform simulator is configured in this environment
   await expect(page.getByRole('navigation', { name: 'Content calendar' }).getByRole('link')).toHaveCount(6);
   await expect(page.getByTestId('calendar-legend')).toContainText('Pending approval');
 });
@@ -88,7 +88,7 @@ test('plan a post, get it approved and authorized, with its history', async ({ p
   await dialog.getByTestId('authorize-check').check();
   await dialog.getByTestId('act-authorize').click();
   await expect(dialog).toHaveAttribute('data-status', 'SCHEDULED');
-  await expect(dialog.getByTestId('entry-no-publisher')).toBeVisible();
+  await expect(dialog.getByTestId('entry-no-publisher')).toHaveCount(0);
   await expect(dialog.getByTestId('entry-history').locator('li')).toHaveCount(3);
   await expect(dialog.getByTestId('entry-history')).toContainText('Authorized to publish');
   // Editing the text withdraws approval and authorization.

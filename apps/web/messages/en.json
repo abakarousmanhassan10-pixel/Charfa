@@ -87,7 +87,7 @@
       "products": "Products",
       "media": "Media library",
       "calendar": "Calendar",
-      "social": "Social accounts",
+      "social": "Social media",
       "inbox": "Inbox",
       "analytics": "Analytics",
       "billing": "Subscription",
@@ -1260,13 +1260,16 @@
       "MEDIA_NOT_FOUND": "A media item was not found or is not ready.",
       "ITEM_NOT_FOUND": "The product or service was not found.",
       "CALENDAR_QUEUE_UNAVAILABLE": "The scheduling queue is unavailable. Try again shortly.",
-      "AI_INVALID_OUTPUT": "The AI plan did not pass the accuracy checks. Try again."
+      "AI_INVALID_OUTPUT": "The AI plan did not pass the accuracy checks. Try again.",
+      "ACCOUNT_SELECTION_REQUIRED": "Several accounts are connected for this platform. Choose one.",
+      "PUBLISHER_NOT_AVAILABLE": "No social platform is configured for publishing on this server."
     },
     "platforms": {
       "INSTAGRAM": "Instagram",
       "FACEBOOK": "Facebook",
       "TIKTOK": "TikTok",
-      "YOUTUBE": "YouTube"
+      "YOUTUBE": "YouTube",
+      "LINKEDIN": "LinkedIn"
     },
     "pillars": {
       "PROMOTIONAL": "Promotional",
@@ -1475,7 +1478,276 @@
         "failed": "Publication failed: {title}",
         "conflict": "Calendar conflict: {title}",
         "blocked": "Due but not published: {title}"
+      },
+      "social": {
+        "reconnect_needed": "Reconnect needed: {title}",
+        "token_expiring": "Authorization expires soon: {title}",
+        "manual_required": "Publish manually: {title}",
+        "published": "Published: {title}"
       }
+    }
+  },
+  "social": {
+    "title": "Social media",
+    "tabs": {
+      "overview": "Overview",
+      "accounts": "Accounts",
+      "publishing": "Publishing",
+      "queue": "Queue",
+      "history": "History",
+      "settings": "Settings"
+    },
+    "accountStatus": {
+      "CONNECTED": "Connected",
+      "TOKEN_EXPIRED": "Reconnect needed",
+      "PERMISSION_MISSING": "Permissions missing",
+      "DISCONNECTED": "Disconnected",
+      "ERROR": "Error"
+    },
+    "tokenState": {
+      "NON_EXPIRING": "does not expire",
+      "VALID": "valid",
+      "EXPIRING": "expires soon",
+      "EXPIRED": "expired"
+    },
+    "accountType": {
+      "PAGE": "Facebook Page",
+      "INSTAGRAM_BUSINESS": "Instagram professional account",
+      "CHANNEL": "YouTube channel",
+      "PROFILE": "LinkedIn profile",
+      "ORGANIZATION": "Company Page",
+      "CREATOR": "TikTok creator"
+    },
+    "pubStatus": {
+      "PENDING": "Pending",
+      "QUEUED": "Queued",
+      "PUBLISHING": "Publishing",
+      "AWAITING_PROVIDER": "Processing on the platform",
+      "PUBLISHED": "Published",
+      "FAILED": "Failed",
+      "CANCELLED": "Cancelled",
+      "MANUAL_REQUIRED": "Publish manually"
+    },
+    "platformNote": {
+      "INSTAGRAM": "Instagram professional accounts linked to a Facebook Page. Photos, carousels and Reels.",
+      "FACEBOOK": "Facebook Pages you manage. Text, photos, multi-photo posts and videos.",
+      "TIKTOK": "TikTok creator accounts. Videos and photo posts.",
+      "YOUTUBE": "YouTube channels. Videos and Shorts.",
+      "LINKEDIN": "LinkedIn profiles and Company Pages (Pages need LinkedIn approval). Text, images, videos."
+    },
+    "restrictions": {
+      "INSTAGRAM": "Needs a professional Instagram account linked to a Facebook Page, and a Meta app with Advanced Access (app review and business verification) for other people’s accounts. No text-only posts: they go to manual publishing. Media must be a public https address; images must be JPEG.",
+      "FACEBOOK": "Needs a Meta app with Advanced Access (app review) to publish to Pages of other people. The person must have the CREATE_CONTENT task on the Page. Reels on Facebook are not published through the API (manual).",
+      "TIKTOK": "Until TikTok audits the app, every post is private to the creator. Videos are fetched from a verified domain. No text-only posts (manual).",
+      "YOUTUBE": "Uploads cost API quota (1,600 units each, 10,000 per day by default). Videos uploaded by a Google project that has not passed Google’s audit are locked to private. Videos only.",
+      "LINKEDIN": "Posting as a person needs the “Share on LinkedIn” product; posting as a Company Page needs the Community Management API, approved by LinkedIn. Tokens last 60 days and can be renewed automatically only for approved partners."
+    },
+    "publishErrors": {
+      "ACCOUNT_NOT_CONNECTED": "Account not connected.",
+      "ACCOUNT_NOT_AUTHORIZED": "Not authorized.",
+      "TOKEN_EXPIRED": "Authorization expired.",
+      "PERMISSION_MISSING": "Permission missing.",
+      "FORMAT_UNSUPPORTED": "Format not supported by the API.",
+      "CONTENT_INVALID": "Content not valid.",
+      "MEDIA_INVALID": "Media not valid.",
+      "MEDIA_URL_NOT_PUBLIC": "Media address is not public.",
+      "RATE_LIMITED": "Rate limited by the platform.",
+      "PLATFORM_ERROR": "Platform error.",
+      "PLATFORM_REJECTED": "Rejected by the platform.",
+      "OUTCOME_UNKNOWN": "Outcome unknown.",
+      "NOT_CONFIGURED": "Platform not configured.",
+      "PROCESSING_TIMEOUT": "Processing timed out.",
+      "DUPLICATE_PUBLICATION": "Already published."
+    },
+    "errors": {
+      "PLATFORM_NOT_CONFIGURED": "This platform is not configured on the server.",
+      "PUBLIC_API_URL_MISSING": "The server does not know its public address, so the platform cannot redirect back.",
+      "CONNECTION_NOT_FOUND": "This connection was not found.",
+      "CONNECTION_NOT_READY": "This connection is not waiting for a selection (it may have expired).",
+      "ACCOUNT_NOT_OFFERED": "One of the accounts was not offered by the platform.",
+      "RECONNECT_ACCOUNT_MISMATCH": "Reconnecting must use the same account. Choose the account you are renewing.",
+      "ACCOUNT_NOT_FOUND": "Account not found.",
+      "PUBLICATION_NOT_FOUND": "Publication not found.",
+      "OUTCOME_UNKNOWN": "This post may already be on the platform. Check it, then confirm.",
+      "APPROVAL_REQUIRED": "The content changed or its authorization was withdrawn. Approve and schedule it again from the calendar.",
+      "INVALID_STATE": "This action is not possible in the current state.",
+      "CONFIRMATION_REQUIRED": "Confirm that the post was published.",
+      "PUBLISHER_NOT_AVAILABLE": "No social platform is configured for publishing on this server.",
+      "ACCOUNT_SELECTION_REQUIRED": "Several accounts are connected for this platform. Choose one.",
+      "SOCIAL_QUEUE_UNAVAILABLE": "The publishing queue is unavailable. Try again shortly.",
+      "PERMISSION_DENIED": "You do not have permission to do this."
+    },
+    "oauthErrors": {
+      "STATE_INVALID": "The connection link is invalid, expired or was already used. Start again.",
+      "ACCESS_DENIED": "The connection was cancelled on the platform. Nothing was connected.",
+      "PROVIDER_ERROR": "The platform reported an error. Nothing was connected.",
+      "CODE_MISSING": "The platform did not return an authorization. Nothing was connected.",
+      "EXCHANGE_FAILED": "The platform refused the authorization. Nothing was connected.",
+      "PERMISSION_DENIED": "The platform says a required permission was not granted. Nothing was connected.",
+      "NO_ACCOUNTS": "No account that can publish was found for this login.",
+      "UNKNOWN": "The connection did not complete. Nothing was connected."
+    },
+    "overview": {
+      "title": "Social media",
+      "subtitle": "Connected accounts, publications and what needs your attention.",
+      "filter": "Platform filter",
+      "connected": "Connected accounts",
+      "upcoming": "Scheduled publications",
+      "published": "Published",
+      "failed": "Failed",
+      "attention": "Needs your attention",
+      "upcomingTitle": "Coming up",
+      "noUpcoming": "Nothing scheduled.",
+      "recent": "Recent publications",
+      "seeAll": "See all",
+      "failedHint": "Some recent publications failed: open the history to see why and retry."
+    },
+    "accounts": {
+      "title": "Accounts",
+      "subtitle": "Connect your social accounts through each platform’s official sign-in.",
+      "noPasswords": "TOUMA never asks for or stores your social media passwords. You sign in on the platform itself and approve the permissions; TOUMA keeps only an encrypted access token.",
+      "connectTitle": "Connect a platform",
+      "connect": "Connect",
+      "addAnother": "Connect another",
+      "connectedCount": "{count} connected",
+      "notConfigured": "Not configured on this server yet. An administrator must add the platform’s developer application.",
+      "needsManager": "Only administrators can connect accounts.",
+      "listTitle": "Connected accounts",
+      "emptyTitle": "No account connected yet",
+      "emptyHint": "Connect a platform above to start publishing.",
+      "token": "Authorization",
+      "missingPermissions": "Missing permissions",
+      "missingOptional": "Optional permissions not granted (analytics)",
+      "reconnect": "Reconnect",
+      "refresh": "Renew token",
+      "disconnect": "Disconnect",
+      "disconnectTitle": "Disconnect this account?",
+      "disconnectText": "Access is revoked at the platform where possible and the stored token is erased. Publications to {name} will fail until you reconnect."
+    },
+    "select": {
+      "title": "Choose the accounts to connect",
+      "text": "The platform returned these accounts. Only the ones you select are connected.",
+      "alreadyConnected": "already connected",
+      "missing": "Missing permissions: {list}",
+      "confirm": "Connect {count}"
+    },
+    "publishing": {
+      "title": "Publishing",
+      "subtitle": "Write a post, get it approved, then publish now or schedule it.",
+      "unavailable": "No social platform is configured for publishing on this server yet, so nothing can be published. Drafts and approvals still work.",
+      "composeTitle": "New post",
+      "noAccountsTitle": "Connect an account first",
+      "noAccountsHint": "You can publish once at least one social account is connected.",
+      "account": "Account",
+      "chooseAccount": "Choose an account",
+      "accountRequired": "Required when several accounts are connected.",
+      "manualWarning": "{platform} cannot publish {kind} posts through its official API. You will publish it yourself: TOUMA prepares the text and files.",
+      "captionHint": "{count} / {max} characters on this platform",
+      "media": "Media",
+      "chooseMedia": "Choose media",
+      "removeMedia": "Remove {name}",
+      "mediaRules": "Accepted images: {images}. Carousel: {carousel} items.",
+      "estimateNote": "Leave the time empty to use a recommended time (an estimate, not audience data).",
+      "saveDraft": "Save as draft",
+      "saved": "Saved as a draft in the calendar. Submit it for approval below.",
+      "pipelineTitle": "From draft to published",
+      "pipelineHint": "Nothing is published until it is approved and someone with permission explicitly authorizes it.",
+      "pipelineEmpty": "No posts in progress.",
+      "publishNow": "Publish now",
+      "openInCalendar": "Open in calendar",
+      "handedOver": "Handed to the publisher. Follow it in the queue and the history.",
+      "nowTitle": "Publish now",
+      "nowText": "This publishes the approved text immediately.",
+      "authorizeNow": "I authorize TOUMA to publish this approved text now."
+    },
+    "queue": {
+      "title": "Queue",
+      "subtitle": "What is being published or waiting, and what is scheduled next.",
+      "inFlight": "In progress and needing action",
+      "empty": "Nothing in progress.",
+      "scheduled": "Scheduled",
+      "counters": {
+        "waiting": "Waiting",
+        "active": "Running",
+        "delayed": "Delayed",
+        "failed": "Failed jobs"
+      }
+    },
+    "history": {
+      "title": "History",
+      "subtitle": "Every publication, its status, the platform link and any error.",
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "emptyTitle": "No publications yet",
+      "emptyHint": "Publications will appear here.",
+      "untitled": "Untitled",
+      "manual": "Published manually",
+      "attempts": "{count} attempt(s)",
+      "publishedAt": "published {when}",
+      "notConfirmed": "Recorded by a person; not confirmed by the platform.",
+      "outcomeUnknown": "It cannot be known whether this post was published. Check the platform before doing anything.",
+      "openPost": "Open the post",
+      "retry": "Retry",
+      "iPublished": "I published it",
+      "metrics": "Metrics"
+    },
+    "manual": {
+      "title": "Publish manually",
+      "text": "The platform’s official API cannot publish this. Copy the text, download the files and publish it yourself, then confirm here.",
+      "textLabel": "Text to post",
+      "copy": "Copy text",
+      "copied": "Copied",
+      "download": "Download {name}",
+      "url": "Link to the post",
+      "confirm": "I published this post on the platform.",
+      "submit": "Mark as published"
+    },
+    "unknown": {
+      "title": "Retry an unknown outcome?",
+      "text": "The post may already exist. If it is on the platform, mark it as published instead. Retry only if you checked and it is not there.",
+      "retry": "It is not there: retry"
+    },
+    "metrics": {
+      "title": "Post metrics",
+      "unavailable": "Not provided by the platform",
+      "legend": "— means the platform did not provide the figure; 0 means it reported zero.",
+      "fetched": "read {when}",
+      "none": "Metrics have not been collected yet.",
+      "refresh": "Refresh now",
+      "names": {
+        "views": "Views",
+        "reach": "Reach",
+        "impressions": "Impressions",
+        "likes": "Likes",
+        "comments": "Comments",
+        "shares": "Shares",
+        "saves": "Saves",
+        "linkClicks": "Link clicks",
+        "engagement": "Engagement rate"
+      },
+      "not": {
+        "NOT_PUBLISHED": "Metrics exist only for published posts.",
+        "MANUAL_PUBLICATION": "This post was published manually, so TOUMA cannot read its metrics."
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "How each platform is set up, what TOUMA asks for and what the platforms restrict.",
+      "engine": "Publishing engine",
+      "publishing": "Publishing",
+      "available": "Available",
+      "unavailable": "No platform configured",
+      "fakeMode": "This server runs the test-only platform simulator: nothing is published on real platforms.",
+      "monitoring": "Tokens are checked in the background: renewed before they expire where the platform allows it, and you are warned before ones that cannot be renewed expire.",
+      "missing": "Missing server settings",
+      "redirect": "Redirect URI to register in the developer portal",
+      "copy": "Copy",
+      "permissions": "Permissions requested",
+      "formats": "Formats published through the API",
+      "manualOnly": "manual",
+      "token": "Access token",
+      "refreshable": "renewed automatically",
+      "notRefreshable": "cannot be renewed automatically: reconnect when it expires"
     }
   }
 }

@@ -22,3 +22,6 @@ OpenAI `gpt-image-1` (images) and the OpenAI `/videos` API (video) are implement
 
 ## Publishing interface (Phase 5 → Phase 6)
 The calendar hands due, authorized entries to `PUBLISHING_GATEWAY` (idempotent on the dispatch key) and receives results through `recordPublished` / `recordFailed`. No social publisher exists yet; see [CALENDAR.md](CALENDAR.md).
+
+## Social platforms (Phase 6)
+Instagram, Facebook, TikTok, YouTube and LinkedIn through their official APIs: [SOCIAL-INTEGRATIONS.md](SOCIAL-INTEGRATIONS.md). Real platform behavior is unverified until the manual checklist in [SOCIAL-PUBLISHING.md](SOCIAL-PUBLISHING.md#verifying-against-real-platforms) is run.

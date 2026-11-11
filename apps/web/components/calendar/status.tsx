@@ -22,6 +22,7 @@ export const PLATFORM_STYLE: Record<Platform, string> = {
   FACEBOOK: 'bg-blue-600',
   TIKTOK: 'bg-zinc-800 dark:bg-zinc-200',
   YOUTUBE: 'bg-red-600',
+  LINKEDIN: 'bg-sky-700',
 };
 
 export function StatusBadge({ status, className }: { status: EntryStatus; className?: string }) {

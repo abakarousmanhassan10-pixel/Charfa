@@ -1,5 +1,5 @@
 import { Http, FORM_HEADERS, JSON_HEADERS, form, redact, type FetchLike, type HttpResult } from './http';
-import { composeText, validateAgainstLimits } from './validate';
+import { validateAgainstLimits } from './validate';
 import {
   EMPTY_METRICS, SocialApiError, type AdapterConfig, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type PlatformAdapter, type PublishableContent, type PublishContext,
   type PublishOutcome, type StatusOutcome, type TokenSet,

@@ -272,7 +272,6 @@ export class SocialPublisherService {
 
   private async handleError(id: string, err: unknown) {
     const pub = await this.prisma.publication.findUniqueOrThrow({ where: { id } });
-    const max = this.env.SOCIAL_PUBLISH_ATTEMPTS;
     const backoff = this.env.SOCIAL_PUBLISH_BACKOFF_MS * 2 ** Math.max(0, pub.attempts - 1);
     const started = Boolean(pub.submitStartedAt);
     if (err instanceof Final) return this.fail(pub, err.code, err.message, err.unknown);

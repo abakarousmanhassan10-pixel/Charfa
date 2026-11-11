@@ -3,7 +3,6 @@ import { AiCoreModule } from '../ai/ai.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { NotificationsCoreModule } from '../notifications/notifications.module';
 import { CalendarResultsModule } from './calendar-results.module';
-import { CalendarResultsService } from './calendar-results.service';
 import { CalendarController } from './calendar.controller';
 import { CalendarQueueService } from './calendar-queue';
 import { CalendarService } from './calendar.service';

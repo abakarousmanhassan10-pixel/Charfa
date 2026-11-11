@@ -76,3 +76,6 @@ Report vulnerabilities privately to the maintainers. Do not open public issues f
 - **Concurrency:** scheduling decisions are serialised per business and platform with advisory locks; duplicate placements are blocked by a unique key.
 - **Tenant isolation:** every calendar query is scoped by `businessId`; other businesses receive 404; notifications are private to their recipient.
 - **AI honesty:** plans cannot contain occasions the merchant did not supply, invented promotions or unknown products (validated before storage).
+
+## Social media (Phase 6)
+See [SOCIAL-SECURITY.md](SOCIAL-SECURITY.md).

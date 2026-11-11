@@ -113,3 +113,12 @@ Managed PostgreSQL with point-in-time recovery (7–30 days) plus daily snapshot
 | ApprovalRecord | Append-only decisions: SUBMITTED, APPROVED, REJECTED, AUTHORIZED, REVOKED, CANCELLED with version, actor and note |
 | Notification (extended) | `dedupeKey`, unique per user |
 | AITask | adds `CONTENT_PLAN` |
+
+## Social models (Phase 6, migrations `20261112090000_social_publishing`, `20261112090100_calendar_social_account`)
+| Model | Purpose |
+|---|---|
+| SocialAccount (extended) | `accountType`, `parentExternalId`, `connectedAt`, refresh bookkeeping (`tokenRefreshedAt`, `refreshFailures`, `lastRefreshError`, `expiryWarnedFor`), non-secret `metadata` (missing permissions); tokens only as ciphertext; `LINKEDIN` added to `SocialPlatform` |
+| SocialConnectionSession | A pending OAuth connection: hashed single-use state, encrypted PKCE verifier, status, offered accounts with encrypted tokens, expiry |
+| Publication (extended) | `providerRef`/`providerStage` (resume point), `submitStartedAt` and `outcomeUnknown` (duplicate protection), `confirmedByProvider`, `manualCompletedById`, `payload` snapshot, `nextCheckAt`, `errorCode` |
+| CalendarEvent (extended) | `socialAccountId`: the account an entry publishes to |
+| AnalyticsSnapshot | Existing model; metrics are nullable and null means unavailable |

@@ -87,7 +87,7 @@
       "products": "Produits",
       "media": "Médiathèque",
       "calendar": "Calendrier",
-      "social": "Comptes sociaux",
+      "social": "Réseaux sociaux",
       "inbox": "Messagerie",
       "analytics": "Statistiques",
       "billing": "Abonnement",
@@ -1260,13 +1260,16 @@
       "MEDIA_NOT_FOUND": "Un média est introuvable ou pas prêt.",
       "ITEM_NOT_FOUND": "Le produit ou service est introuvable.",
       "CALENDAR_QUEUE_UNAVAILABLE": "La file de planification est indisponible. Réessayez bientôt.",
-      "AI_INVALID_OUTPUT": "Le plan IA n’a pas passé les contrôles d’exactitude. Réessayez."
+      "AI_INVALID_OUTPUT": "Le plan IA n’a pas passé les contrôles d’exactitude. Réessayez.",
+      "ACCOUNT_SELECTION_REQUIRED": "Plusieurs comptes sont connectés pour cette plateforme. Choisissez-en un.",
+      "PUBLISHER_NOT_AVAILABLE": "Aucune plateforme sociale n’est configurée pour publier sur ce serveur."
     },
     "platforms": {
       "INSTAGRAM": "Instagram",
       "FACEBOOK": "Facebook",
       "TIKTOK": "TikTok",
-      "YOUTUBE": "YouTube"
+      "YOUTUBE": "YouTube",
+      "LINKEDIN": "LinkedIn"
     },
     "pillars": {
       "PROMOTIONAL": "Promotionnel",
@@ -1475,7 +1478,276 @@
         "failed": "Échec de publication : {title}",
         "conflict": "Conflit de calendrier : {title}",
         "blocked": "Échéance atteinte mais non publié : {title}"
+      },
+      "social": {
+        "reconnect_needed": "Reconnexion nécessaire : {title}",
+        "token_expiring": "Autorisation bientôt expirée : {title}",
+        "manual_required": "À publier manuellement : {title}",
+        "published": "Publié : {title}"
       }
+    }
+  },
+  "social": {
+    "title": "Réseaux sociaux",
+    "tabs": {
+      "overview": "Aperçu",
+      "accounts": "Comptes",
+      "publishing": "Publication",
+      "queue": "File d’attente",
+      "history": "Historique",
+      "settings": "Réglages"
+    },
+    "accountStatus": {
+      "CONNECTED": "Connecté",
+      "TOKEN_EXPIRED": "Reconnexion nécessaire",
+      "PERMISSION_MISSING": "Permissions manquantes",
+      "DISCONNECTED": "Déconnecté",
+      "ERROR": "Erreur"
+    },
+    "tokenState": {
+      "NON_EXPIRING": "n’expire pas",
+      "VALID": "valide",
+      "EXPIRING": "expire bientôt",
+      "EXPIRED": "expiré"
+    },
+    "accountType": {
+      "PAGE": "Page Facebook",
+      "INSTAGRAM_BUSINESS": "Compte professionnel Instagram",
+      "CHANNEL": "Chaîne YouTube",
+      "PROFILE": "Profil LinkedIn",
+      "ORGANIZATION": "Page entreprise",
+      "CREATOR": "Créateur TikTok"
+    },
+    "pubStatus": {
+      "PENDING": "En attente",
+      "QUEUED": "En file",
+      "PUBLISHING": "Publication en cours",
+      "AWAITING_PROVIDER": "Traitement par la plateforme",
+      "PUBLISHED": "Publié",
+      "FAILED": "Échec",
+      "CANCELLED": "Annulé",
+      "MANUAL_REQUIRED": "À publier manuellement"
+    },
+    "platformNote": {
+      "INSTAGRAM": "Comptes professionnels Instagram liés à une Page Facebook. Photos, carrousels et Reels.",
+      "FACEBOOK": "Pages Facebook que vous gérez. Texte, photos, publications multi-photos et vidéos.",
+      "TIKTOK": "Comptes créateur TikTok. Vidéos et publications photo.",
+      "YOUTUBE": "Chaînes YouTube. Vidéos et Shorts.",
+      "LINKEDIN": "Profils LinkedIn et Pages entreprise (les Pages nécessitent l’approbation de LinkedIn). Texte, images, vidéos."
+    },
+    "restrictions": {
+      "INSTAGRAM": "Nécessite un compte Instagram professionnel lié à une Page Facebook et une application Meta avec accès avancé (revue d’application et vérification d’entreprise) pour les comptes de tiers. Pas de publication texte seul : elles passent en publication manuelle. Les médias doivent être à une adresse https publique ; les images doivent être en JPEG.",
+      "FACEBOOK": "Nécessite une application Meta avec accès avancé (revue d’application) pour publier sur les Pages de tiers. La personne doit avoir la tâche CREATE_CONTENT sur la Page. Les Reels Facebook ne sont pas publiés via l’API (manuel).",
+      "TIKTOK": "Tant que TikTok n’a pas audité l’application, chaque publication reste privée pour le créateur. Les vidéos sont récupérées depuis un domaine vérifié. Pas de publication texte seul (manuel).",
+      "YOUTUBE": "Chaque envoi consomme du quota API (1 600 unités, 10 000 par jour par défaut). Les vidéos envoyées par un projet Google non audité sont verrouillées en privé. Vidéos uniquement.",
+      "LINKEDIN": "Publier en tant que personne nécessite le produit « Share on LinkedIn » ; publier en tant que Page entreprise nécessite la Community Management API, approuvée par LinkedIn. Les jetons durent 60 jours et ne sont renouvelés automatiquement que pour les partenaires approuvés."
+    },
+    "publishErrors": {
+      "ACCOUNT_NOT_CONNECTED": "Compte non connecté.",
+      "ACCOUNT_NOT_AUTHORIZED": "Non autorisé.",
+      "TOKEN_EXPIRED": "Autorisation expirée.",
+      "PERMISSION_MISSING": "Permission manquante.",
+      "FORMAT_UNSUPPORTED": "Format non pris en charge par l’API.",
+      "CONTENT_INVALID": "Contenu invalide.",
+      "MEDIA_INVALID": "Média invalide.",
+      "MEDIA_URL_NOT_PUBLIC": "L’adresse des médias n’est pas publique.",
+      "RATE_LIMITED": "Limite de débit de la plateforme.",
+      "PLATFORM_ERROR": "Erreur de la plateforme.",
+      "PLATFORM_REJECTED": "Refusé par la plateforme.",
+      "OUTCOME_UNKNOWN": "Résultat inconnu.",
+      "NOT_CONFIGURED": "Plateforme non configurée.",
+      "PROCESSING_TIMEOUT": "Délai de traitement dépassé.",
+      "DUPLICATE_PUBLICATION": "Déjà publié."
+    },
+    "errors": {
+      "PLATFORM_NOT_CONFIGURED": "Cette plateforme n’est pas configurée sur le serveur.",
+      "PUBLIC_API_URL_MISSING": "Le serveur ne connaît pas son adresse publique : la plateforme ne peut pas rediriger.",
+      "CONNECTION_NOT_FOUND": "Cette connexion est introuvable.",
+      "CONNECTION_NOT_READY": "Cette connexion n’attend pas de sélection (elle a peut-être expiré).",
+      "ACCOUNT_NOT_OFFERED": "Un des comptes n’a pas été proposé par la plateforme.",
+      "RECONNECT_ACCOUNT_MISMATCH": "Reconnecter doit utiliser le même compte. Choisissez le compte à renouveler.",
+      "ACCOUNT_NOT_FOUND": "Compte introuvable.",
+      "PUBLICATION_NOT_FOUND": "Publication introuvable.",
+      "OUTCOME_UNKNOWN": "Cette publication est peut-être déjà sur la plateforme. Vérifiez, puis confirmez.",
+      "APPROVAL_REQUIRED": "Le contenu a changé ou son autorisation a été retirée. Approuvez et reprogrammez-le depuis le calendrier.",
+      "INVALID_STATE": "Cette action n’est pas possible dans l’état actuel.",
+      "CONFIRMATION_REQUIRED": "Confirmez que la publication a été faite.",
+      "PUBLISHER_NOT_AVAILABLE": "Aucune plateforme sociale n’est configurée pour publier sur ce serveur.",
+      "ACCOUNT_SELECTION_REQUIRED": "Plusieurs comptes sont connectés pour cette plateforme. Choisissez-en un.",
+      "SOCIAL_QUEUE_UNAVAILABLE": "La file de publication est indisponible. Réessayez bientôt.",
+      "PERMISSION_DENIED": "Vous n’avez pas la permission de faire cela."
+    },
+    "oauthErrors": {
+      "STATE_INVALID": "Le lien de connexion est invalide, expiré ou déjà utilisé. Recommencez.",
+      "ACCESS_DENIED": "La connexion a été annulée sur la plateforme. Rien n’a été connecté.",
+      "PROVIDER_ERROR": "La plateforme a signalé une erreur. Rien n’a été connecté.",
+      "CODE_MISSING": "La plateforme n’a pas renvoyé d’autorisation. Rien n’a été connecté.",
+      "EXCHANGE_FAILED": "La plateforme a refusé l’autorisation. Rien n’a été connecté.",
+      "PERMISSION_DENIED": "La plateforme indique qu’une permission requise n’a pas été accordée. Rien n’a été connecté.",
+      "NO_ACCOUNTS": "Aucun compte pouvant publier n’a été trouvé pour cette connexion.",
+      "UNKNOWN": "La connexion n’a pas abouti. Rien n’a été connecté."
+    },
+    "overview": {
+      "title": "Réseaux sociaux",
+      "subtitle": "Comptes connectés, publications et ce qui demande votre attention.",
+      "filter": "Filtre par plateforme",
+      "connected": "Comptes connectés",
+      "upcoming": "Publications programmées",
+      "published": "Publiées",
+      "failed": "En échec",
+      "attention": "À traiter",
+      "upcomingTitle": "À venir",
+      "noUpcoming": "Rien de programmé.",
+      "recent": "Publications récentes",
+      "seeAll": "Tout voir",
+      "failedHint": "Certaines publications récentes ont échoué : ouvrez l’historique pour voir pourquoi et réessayer."
+    },
+    "accounts": {
+      "title": "Comptes",
+      "subtitle": "Connectez vos comptes sociaux via la connexion officielle de chaque plateforme.",
+      "noPasswords": "TOUMA ne demande ni ne stocke jamais vos mots de passe. Vous vous connectez sur la plateforme elle-même et approuvez les permissions ; TOUMA ne garde qu’un jeton d’accès chiffré.",
+      "connectTitle": "Connecter une plateforme",
+      "connect": "Connecter",
+      "addAnother": "Connecter un autre",
+      "connectedCount": "{count} connecté(s)",
+      "notConfigured": "Pas encore configuré sur ce serveur. Un administrateur doit ajouter l’application développeur de la plateforme.",
+      "needsManager": "Seuls les administrateurs peuvent connecter des comptes.",
+      "listTitle": "Comptes connectés",
+      "emptyTitle": "Aucun compte connecté",
+      "emptyHint": "Connectez une plateforme ci-dessus pour commencer à publier.",
+      "token": "Autorisation",
+      "missingPermissions": "Permissions manquantes",
+      "missingOptional": "Permissions optionnelles non accordées (statistiques)",
+      "reconnect": "Reconnecter",
+      "refresh": "Renouveler le jeton",
+      "disconnect": "Déconnecter",
+      "disconnectTitle": "Déconnecter ce compte ?",
+      "disconnectText": "L’accès est révoqué chez la plateforme si possible et le jeton stocké est effacé. Les publications vers {name} échoueront tant que vous ne reconnectez pas."
+    },
+    "select": {
+      "title": "Choisissez les comptes à connecter",
+      "text": "La plateforme a renvoyé ces comptes. Seuls ceux que vous sélectionnez sont connectés.",
+      "alreadyConnected": "déjà connecté",
+      "missing": "Permissions manquantes : {list}",
+      "confirm": "Connecter {count}"
+    },
+    "publishing": {
+      "title": "Publication",
+      "subtitle": "Rédigez une publication, faites-la approuver, puis publiez-la ou programmez-la.",
+      "unavailable": "Aucune plateforme sociale n’est encore configurée pour publier sur ce serveur : rien ne peut être publié. Brouillons et approbations fonctionnent.",
+      "composeTitle": "Nouvelle publication",
+      "noAccountsTitle": "Connectez d’abord un compte",
+      "noAccountsHint": "Vous pourrez publier dès qu’un compte social est connecté.",
+      "account": "Compte",
+      "chooseAccount": "Choisir un compte",
+      "accountRequired": "Obligatoire quand plusieurs comptes sont connectés.",
+      "manualWarning": "{platform} ne permet pas de publier des {kind} via son API officielle. Vous le publierez vous-même : TOUMA prépare le texte et les fichiers.",
+      "captionHint": "{count} / {max} caractères sur cette plateforme",
+      "media": "Médias",
+      "chooseMedia": "Choisir des médias",
+      "removeMedia": "Retirer {name}",
+      "mediaRules": "Images acceptées : {images}. Carrousel : {carousel} éléments.",
+      "estimateNote": "Laissez l’heure vide pour utiliser une heure recommandée (une estimation, pas des données d’audience).",
+      "saveDraft": "Enregistrer en brouillon",
+      "saved": "Enregistré en brouillon dans le calendrier. Soumettez-le pour approbation ci-dessous.",
+      "pipelineTitle": "Du brouillon à la publication",
+      "pipelineHint": "Rien n’est publié tant qu’il n’est pas approuvé et qu’une personne autorisée ne l’autorise pas explicitement.",
+      "pipelineEmpty": "Aucune publication en cours.",
+      "publishNow": "Publier maintenant",
+      "openInCalendar": "Ouvrir dans le calendrier",
+      "handedOver": "Transmis au service de publication. Suivez-le dans la file et l’historique.",
+      "nowTitle": "Publier maintenant",
+      "nowText": "Ceci publie immédiatement le texte approuvé.",
+      "authorizeNow": "J’autorise TOUMA à publier ce texte approuvé maintenant."
+    },
+    "queue": {
+      "title": "File d’attente",
+      "subtitle": "Ce qui est en cours de publication ou en attente, et ce qui est programmé ensuite.",
+      "inFlight": "En cours et à traiter",
+      "empty": "Rien en cours.",
+      "scheduled": "Programmé",
+      "counters": {
+        "waiting": "En attente",
+        "active": "En cours",
+        "delayed": "Différés",
+        "failed": "Tâches en échec"
+      }
+    },
+    "history": {
+      "title": "Historique",
+      "subtitle": "Chaque publication, son statut, le lien de la plateforme et les erreurs éventuelles.",
+      "status": "Statut",
+      "allStatuses": "Tous les statuts",
+      "emptyTitle": "Aucune publication",
+      "emptyHint": "Les publications apparaîtront ici.",
+      "untitled": "Sans titre",
+      "manual": "Publié manuellement",
+      "attempts": "{count} tentative(s)",
+      "publishedAt": "publié le {when}",
+      "notConfirmed": "Enregistré par une personne ; non confirmé par la plateforme.",
+      "outcomeUnknown": "On ne peut pas savoir si cette publication a été faite. Vérifiez la plateforme avant d’agir.",
+      "openPost": "Ouvrir la publication",
+      "retry": "Réessayer",
+      "iPublished": "Je l’ai publié",
+      "metrics": "Statistiques"
+    },
+    "manual": {
+      "title": "Publier manuellement",
+      "text": "L’API officielle de la plateforme ne peut pas publier ceci. Copiez le texte, téléchargez les fichiers et publiez-le vous-même, puis confirmez ici.",
+      "textLabel": "Texte à publier",
+      "copy": "Copier le texte",
+      "copied": "Copié",
+      "download": "Télécharger {name}",
+      "url": "Lien vers la publication",
+      "confirm": "J’ai publié cette publication sur la plateforme.",
+      "submit": "Marquer comme publié"
+    },
+    "unknown": {
+      "title": "Réessayer un résultat inconnu ?",
+      "text": "La publication existe peut-être déjà. Si elle est sur la plateforme, marquez-la comme publiée. Ne réessayez que si vous avez vérifié qu’elle n’y est pas.",
+      "retry": "Elle n’y est pas : réessayer"
+    },
+    "metrics": {
+      "title": "Statistiques de la publication",
+      "unavailable": "Non fourni par la plateforme",
+      "legend": "— signifie que la plateforme n’a pas fourni le chiffre ; 0 signifie qu’elle a indiqué zéro.",
+      "fetched": "lu le {when}",
+      "none": "Les statistiques n’ont pas encore été collectées.",
+      "refresh": "Actualiser",
+      "names": {
+        "views": "Vues",
+        "reach": "Portée",
+        "impressions": "Impressions",
+        "likes": "J’aime",
+        "comments": "Commentaires",
+        "shares": "Partages",
+        "saves": "Enregistrements",
+        "linkClicks": "Clics sur lien",
+        "engagement": "Taux d’engagement"
+      },
+      "not": {
+        "NOT_PUBLISHED": "Les statistiques n’existent que pour les publications publiées.",
+        "MANUAL_PUBLICATION": "Cette publication a été faite manuellement : TOUMA ne peut pas lire ses statistiques."
+      }
+    },
+    "settings": {
+      "title": "Réglages",
+      "subtitle": "Comment chaque plateforme est configurée, ce que TOUMA demande et ce que les plateformes restreignent.",
+      "engine": "Moteur de publication",
+      "publishing": "Publication",
+      "available": "Disponible",
+      "unavailable": "Aucune plateforme configurée",
+      "fakeMode": "Ce serveur utilise le simulateur de plateformes de test : rien n’est publié sur de vraies plateformes.",
+      "monitoring": "Les jetons sont vérifiés en arrière-plan : renouvelés avant expiration quand la plateforme le permet, et vous êtes prévenu avant l’expiration de ceux qui ne le sont pas.",
+      "missing": "Réglages serveur manquants",
+      "redirect": "URI de redirection à enregistrer dans le portail développeur",
+      "copy": "Copier",
+      "permissions": "Permissions demandées",
+      "formats": "Formats publiés via l’API",
+      "manualOnly": "manuel",
+      "token": "Jeton d’accès",
+      "refreshable": "renouvelé automatiquement",
+      "notRefreshable": "non renouvelable automatiquement : reconnectez quand il expire"
     }
   }
 }

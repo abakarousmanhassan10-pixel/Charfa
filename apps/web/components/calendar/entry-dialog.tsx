@@ -11,6 +11,8 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api-client';
+import { Select } from '@/components/ui/select';
+import { useAccounts } from '@/components/social/use-social';
 import { PlatformDot, StatusBadge } from './status';
 import type { Entry, HistoryRecord } from './types';
 import { useCalendarWrite, useErrorText } from './use-calendar';
@@ -46,6 +48,7 @@ export function EntryDialog({
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
   const [history, setHistory] = useState<HistoryRecord[] | null>(null);
+  const socialAccounts = useAccounts();
 
   const sync = useCallback((e: Entry) => {
     setCurrent(e);
@@ -110,6 +113,7 @@ export function EntryDialog({
     run('save', () =>
       send<Entry>(`/entries/${e!.id}`, 'PATCH', { title: form.title.trim(), caption: form.caption.trim() || null, hashtags: hashtagList, callToAction: form.callToAction.trim() || null, brief: form.brief.trim() || null, notes: form.notes.trim() || null }),
     );
+  const platformAccounts = (socialAccounts.data?.items ?? []).filter((a) => a.platform === e?.platform && a.status === 'CONNECTED');
   const action = (name: string, body?: Record<string, unknown>) => run(name, () => send<Entry>(`/entries/${e!.id}/${name}`, 'POST', body));
   const dirty = Boolean(e) && (form.title !== e!.title || form.caption !== (e!.content?.caption ?? '') || form.hashtags !== (e!.content?.hashtags ?? []).join(' ') || form.callToAction !== (e!.content?.callToAction ?? '') || form.brief !== (e!.brief ?? '') || form.notes !== (e!.notes ?? ''));
   const timeChanged = Boolean(e) && (when.date !== e!.local.date || when.time !== e!.local.time);
@@ -231,7 +235,18 @@ export function EntryDialog({
                     <input type="checkbox" className="mt-1" checked={authorize} onChange={(ev) => setAuthorize(ev.target.checked)} data-testid="authorize-check" />
                     <span>{t('calendar.entry.authorizeText', { when: fmt(e.scheduledAt) })}</span>
                   </label>
-                  <div><Button disabled={!authorize || busy !== null} onClick={() => action('authorize', {})} data-testid="act-authorize">{busy === 'authorize' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{t('calendar.actions.authorize')}</Button></div>
+                  {platformAccounts.length > 1 && (
+                    <Field id="en-account" label={t('social.publishing.account')} hint={e.socialAccountId ? undefined : t('social.publishing.accountRequired')}>
+                      <Select id="en-account" value={e.socialAccountId ?? ''} onChange={(ev) => run('account', () => send<Entry>(`/entries/${e.id}/account`, 'PUT', { socialAccountId: ev.target.value }))}>
+                        <option value="">{t('social.publishing.chooseAccount')}</option>
+                        {platformAccounts.map((a) => <option key={a.id} value={a.id}>{a.displayName ?? a.externalAccountId}</option>)}
+                      </Select>
+                    </Field>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <Button disabled={!authorize || busy !== null} onClick={() => action('authorize', {})} data-testid="act-authorize">{busy === 'authorize' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{t('calendar.actions.authorize')}</Button>
+                    <Button variant="outline" disabled={!authorize || busy !== null || !publishingAvailable} onClick={() => action('publish-now', {})} data-testid="act-publish-now">{busy === 'publish-now' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{t('social.publishing.publishNow')}</Button>
+                  </div>
                 </div>
               )}
               {status === 'APPROVED' && !canSchedule && <p className="text-sm text-muted-foreground">{t('calendar.entry.needsScheduler')}</p>}

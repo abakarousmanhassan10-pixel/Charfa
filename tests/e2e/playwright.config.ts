@@ -38,6 +38,13 @@ const testEnv = {
   CREATIVE_RATE_LIMIT_PER_MINUTE: '1000',
   CREATIVE_MODEL_PRICING: JSON.stringify({ 'gpt-image-1': { perImageUsd: 0.04 }, 'sora-2': { perSecondUsd: 0.1 } }),
   CALENDAR_RATE_LIMIT_PER_MINUTE: '1000',
+  // TEST-ONLY platform simulator (the API refuses it unless APP_ENV=test). No real platform is contacted.
+  SOCIAL_PROVIDER_MODE: 'fake',
+  SOCIAL_RATE_LIMIT_PER_MINUTE: '1000',
+  SOCIAL_TICK_MS: '1000',
+  SOCIAL_PUBLISH_BACKOFF_MS: '200',
+  CALENDAR_TICK_MS: '1000',
+  PUBLIC_API_URL: 'https://api.touma.test',
   CALENDAR_DISPATCH_BACKOFF_MS: '100',
   // Real SMTP delivery to a local capture server started by account.e2e.ts (no email provider mock in the API).
   EMAIL_TRANSPORT: 'smtp',
