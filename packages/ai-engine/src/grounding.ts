@@ -349,7 +349,8 @@ export function checkFactPreservation(output: unknown, ctx: BusinessContext, ite
 
 // ─── Source ids ───────────────────────────────────────────────────────────────
 
-const SOURCE_KEYS = new Set(['source', 'relatedSources']);
+/** Echoed request parameters (not claims): sources and the plan's start date. */
+const SOURCE_KEYS = new Set(['source', 'relatedSources', 'startDate']);
 
 function stripSourceFields(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripSourceFields);

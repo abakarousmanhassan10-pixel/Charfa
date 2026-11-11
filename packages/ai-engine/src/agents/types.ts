@@ -2,7 +2,7 @@ import type { ZodTypeAny, z } from 'zod';
 import type { AiTask } from '@touma/shared';
 import type { BusinessContext } from '../context';
 
-export type AgentName = 'BUSINESS_ANALYST' | 'PRODUCT_ANALYST' | 'MARKETING_STRATEGIST' | 'CONTENT_CREATOR' | 'VIDEO_CREATOR';
+export type AgentName = 'BUSINESS_ANALYST' | 'PRODUCT_ANALYST' | 'MARKETING_STRATEGIST' | 'CONTENT_CREATOR' | 'VIDEO_CREATOR' | 'SCHEDULER';
 
 export interface AgentDefinition<I, S extends ZodTypeAny> {
   agent: AgentName;

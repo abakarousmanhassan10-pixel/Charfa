@@ -2,11 +2,11 @@ import { BadRequestException, ConflictException, HttpException, Injectable, Logg
 import { Prisma, type AIGeneration, type AITask } from '@touma/database';
 import {
   AgentRunError, assessGrounding, businessAnalyst, contentCreator, contextHash, detectInjection, collectStrings, marketingStrategist, OutputValidationError,
-  productAnalyst, ProviderError, ProviderNotConfiguredError, runAgent, storyboardCreator,
+  contentPlanner, productAnalyst, ProviderError, ProviderNotConfiguredError, runAgent, storyboardCreator,
   type AgentDefinition, type BusinessAnalysis, type BusinessContext, type ContentInput, type EngineConfig, type MarketingStrategy,
   type ProductAnalysis, type TextModelProvider,
 } from '@touma/ai-engine';
-import { FORMAT_RULES, type VideoFormat, type VideoStyle, type AiContentPurpose, type AiFormat, type AiLanguage, type AiPlatform, type AiTone } from '@touma/shared';
+import { FORMAT_RULES, addDays, type VideoFormat, type VideoStyle, type AiContentPurpose, type AiFormat, type AiLanguage, type AiPlatform, type AiTone } from '@touma/shared';
 import type { ZodTypeAny } from 'zod';
 import { Inject } from '@nestjs/common';
 import { AppEnv, InjectEnv } from '../config';
@@ -42,7 +42,8 @@ export type JobRequest =
   | { task: 'PRODUCT_ANALYSIS'; language: AiLanguage; item: Item; instructions?: string | null }
   | { task: 'MARKETING_STRATEGY'; language: AiLanguage; platforms: AiPlatform[]; goal?: string | null; focusItemIds?: string[]; instructions?: string | null }
   | ({ task: 'CONTENT' } & ContentRequest)
-  | { task: 'STORYBOARD'; language: AiLanguage; format: VideoFormat; seconds: number; style: VideoStyle; tone: AiTone; item: Item | null; instructions?: string | null };
+  | { task: 'STORYBOARD'; language: AiLanguage; format: VideoFormat; seconds: number; style: VideoStyle; tone: AiTone; item: Item | null; instructions?: string | null }
+  | { task: 'CONTENT_PLAN'; language: AiLanguage; startDate: string; days: number; postsPerWeek: number; platforms: AiPlatform[]; tone?: AiTone | null; goal?: string | null; occasions: Array<{ name: string; date: string; day: number }>; instructions?: string | null };
 
 /** A failure of a generation job, classified for retry decisions and stored on the generation. */
 export class AiJobError extends Error {
@@ -64,6 +65,7 @@ const AGENT_FOR: Record<AITask, AgentDefinition<never, ZodTypeAny>> = {
   MARKETING_STRATEGY: marketingStrategist as never,
   CONTENT: contentCreator as never,
   STORYBOARD: storyboardCreator as never,
+  CONTENT_PLAN: contentPlanner as never,
 };
 
 /**
@@ -182,6 +184,15 @@ export class AiOrchestratorService {
           itemId: req.item?.id,
           instructions,
         };
+      case 'CONTENT_PLAN':
+        return {
+          task: req.task,
+          language: req.language,
+          params: { language: req.language, startDate: req.startDate, days: req.days, postsPerWeek: req.postsPerWeek, platforms: req.platforms, tone: req.tone ?? null, goal: req.goal ?? null, occasions: req.occasions } as Prisma.InputJsonObject,
+          platform: req.platforms.join(','),
+          tone: req.tone ?? undefined,
+          instructions,
+        };
     }
   }
 
@@ -193,6 +204,8 @@ export class AiOrchestratorService {
       case 'PRODUCT_ANALYSIS':
         return 1;
       case 'MARKETING_STRATEGY':
+        return 1 + ((await cachedProfile()) ? 0 : 1);
+      case 'CONTENT_PLAN':
         return 1 + ((await cachedProfile()) ? 0 : 1);
       case 'STORYBOARD':
       case 'CONTENT': {
@@ -273,6 +286,8 @@ export class AiOrchestratorService {
         return { task: 'CONTENT', language, format: p.format as AiFormat, purpose: p.purpose as AiContentPurpose, tone: p.tone as AiTone, item: (p.item as Item | null) ?? null, instructions };
       case 'STORYBOARD':
         return { task: 'STORYBOARD', language, format: p.format as VideoFormat, seconds: Number(p.seconds), style: p.style as VideoStyle, tone: p.tone as AiTone, item: (p.item as Item | null) ?? null, instructions };
+      case 'CONTENT_PLAN':
+        return { task: 'CONTENT_PLAN', language, startDate: p.startDate as string, days: Number(p.days), postsPerWeek: Number(p.postsPerWeek), platforms: p.platforms as AiPlatform[], tone: (p.tone as AiTone | null) ?? null, goal: (p.goal as string | null) ?? null, occasions: (p.occasions as Array<{ name: string; date: string; day: number }>) ?? [], instructions };
     }
   }
 
@@ -461,6 +476,10 @@ export class AiOrchestratorService {
         await this.runStoryboard(root, req, ctx, hash, add);
         break;
       }
+      case 'CONTENT_PLAN': {
+        await this.runContentPlan(root, req, ctx, hash, add);
+        break;
+      }
     }
     await add({ step: 'save', status: 'done' });
   }
@@ -490,6 +509,43 @@ export class AiOrchestratorService {
     });
     await add({ step: 'generation', status: 'done', generationId: root.id });
     await add({ step: 'validation', status: 'done', detail: 'Schema, timing and grounding against verified business data' });
+  }
+
+  private async runContentPlan(root: AIGeneration, req: Extract<JobRequest, { task: 'CONTENT_PLAN' }>, ctx: BusinessContext, hash: string, add: (s: StepReport) => Promise<void>) {
+    const profile = await this.ensureBusinessAnalysis(root, ctx, hash, req.language, add);
+    const business = await this.prisma.business.findUnique({ where: { id: root.businessId }, select: { timezone: true, objectives: true } });
+    const accounts = await this.prisma.socialAccount.findMany({ where: { businessId: root.businessId, status: 'CONNECTED', deletedAt: null }, select: { platform: true } });
+    const brand = await this.brandFor(root.businessId);
+    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const calendar = Array.from({ length: req.days }, (_, k) => {
+      const date = addDays(req.startDate, k);
+      const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+      return { day: k + 1, date, weekday: weekdays[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]! };
+    });
+    await add({ step: 'strategy', status: 'skipped', detail: `Plan of ${req.days} days from ${req.startDate}` });
+    await this.runInto(root, root, contentPlanner, {
+      ctx,
+      input: {
+        language: req.language,
+        startDate: req.startDate,
+        days: req.days,
+        timezone: business?.timezone ?? 'UTC',
+        postsPerWeek: req.postsPerWeek,
+        platforms: req.platforms,
+        connectedPlatforms: [...new Set(accounts.map((a) => a.platform))] as AiPlatform[],
+        tone: req.tone ?? null,
+        goal: req.goal ?? null,
+        objectives: business?.objectives ?? null,
+        occasions: req.occasions,
+        calendar,
+        brandVoice: (ctx.business.brandVoice as string | null) ?? profile?.communicationStyle.recommendedTone ?? null,
+        brand: brand ? { preferredTone: brand.preferredTone, visualStyle: brand.visualStyle, guidelines: brand.guidelines, colors: brand.colors } : null,
+      },
+      instructions: req.instructions,
+      hash,
+    });
+    await add({ step: 'generation', status: 'done', generationId: root.id });
+    await add({ step: 'validation', status: 'done', detail: 'Schema, balance, occasions and promotions against verified business data' });
   }
 
   /** The business's brand kit as the text agents see it (null when it has none). */

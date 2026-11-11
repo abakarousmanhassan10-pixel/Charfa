@@ -112,6 +112,15 @@ export const appEnvSchema = z.object({
   CREATIVE_VIDEO_POLL_MS: z.coerce.number().int().min(20).default(10_000),
   CREATIVE_VIDEO_TIMEOUT_MINUTES: z.coerce.number().int().min(1).default(20),
   CREATIVE_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
+  /** How often the calendar worker looks for due entries, in ms. */
+  CALENDAR_TICK_MS: z.coerce.number().int().min(20).default(15_000),
+  CALENDAR_DISPATCH_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  CALENDAR_DISPATCH_BACKOFF_MS: z.coerce.number().int().min(10).default(5_000),
+  /** An entry that is this many minutes from publication triggers an "upcoming" notification. */
+  CALENDAR_REMINDER_MINUTES: z.coerce.number().int().min(1).max(1440).default(60),
+  /** A dispatch claim older than this is considered abandoned (worker crash) and is released. */
+  CALENDAR_LOCK_SECONDS: z.coerce.number().int().min(1).default(120),
+  CALENDAR_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   /** Per-model prices (JSON, USD): {"gpt-image-1":{"perImageUsd":0.04},"sora-2":{"perSecondUsd":0.1}}. Unset = cost reported as unknown. */
   CREATIVE_MODEL_PRICING: z
     .string()

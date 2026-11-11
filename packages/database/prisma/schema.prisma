@@ -149,6 +149,46 @@ enum MediaStatus {
   FAILED
 }
 
+enum ContentPillar {
+  PROMOTIONAL
+  EDUCATIONAL
+  PRODUCT_SHOWCASE
+  ENGAGEMENT
+  BRAND_AWARENESS
+  SEASONAL
+}
+
+/// Where a scheduled time came from. ESTIMATE = general guidance, never audience data.
+enum TimeSource {
+  MANUAL
+  ANALYTICS
+  ESTIMATE
+}
+
+/// Hand-off of a due calendar entry to the (Phase 6) publisher.
+enum DispatchState {
+  NONE
+  QUEUED
+  DISPATCHING
+  DISPATCHED
+  BLOCKED
+  FAILED
+}
+
+enum ApprovalDecision {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  AUTHORIZED
+  REVOKED
+  CANCELLED
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+}
+
 enum CalendarEventStatus {
   PLANNED
   CONFIRMED
@@ -288,6 +328,7 @@ enum AIAgent {
 }
 
 enum AITask {
+  CONTENT_PLAN
   BUSINESS_ANALYSIS
   PRODUCT_ANALYSIS
   MARKETING_STRATEGY
@@ -459,6 +500,9 @@ model Business {
   invitations         Invitation[]
   aiUsagePeriods      AIUsagePeriod[]
   brandKit            BrandKit?
+  contentPlans        ContentPlan[]
+  recurrenceRules     RecurrenceRule[]
+  approvalRecords     ApprovalRecord[]
   creativeGenerations CreativeGeneration[]
 
   @@index([deletedAt])
@@ -760,25 +804,128 @@ model ContentMedia {
 }
 
 model CalendarEvent {
+  id                String              @id @default(cuid())
+  businessId        String
+  contentId         String?
+  title             String
+  notes             String?
+  /// UTC instant.
+  scheduledAt       DateTime            @db.Timestamptz(3)
+  /// IANA timezone the user planned in, retained to render and to recompute across DST.
+  timezone          String
+  status            CalendarEventStatus @default(PLANNED)
+  /// The platform this entry is for (one entry = one platform).
+  platform          SocialPlatform?
+  pillar            ContentPillar?
+  brief             String?
+  /// A merchant-supplied occasion (name + date) a SEASONAL entry refers to.
+  occasion          String?
+  planId            String?
+  recurrenceId      String?
+  /// Local date (YYYY-MM-DD) of a recurrence occurrence; unique per rule so materialising twice is harmless.
+  occurrenceDate    String?
+  timeSource        TimeSource          @default(MANUAL)
+  timeNote          String?
+  /// `${contentId}:${platform}` while the placement is active (null when cancelled/deleted): one content per platform.
+  placementKey      String?             @unique
+  /// Explicit business authorization to publish this exact content version at this time.
+  authorizedById    String?
+  authorizedAt      DateTime?           @db.Timestamptz(3)
+  authorizedVersion Int?
+  dispatchState     DispatchState       @default(NONE)
+  dispatchAttempts  Int                 @default(0)
+  /// Idempotency key of the hand-off: `${id}:${version}:${scheduledAt epoch}`.
+  dispatchKey       String?             @unique
+  lockedUntil       DateTime?           @db.Timestamptz(3)
+  dispatchedAt      DateTime?           @db.Timestamptz(3)
+  lastError         String?
+  reminderSentAt    DateTime?           @db.Timestamptz(3)
+  createdById       String?
+  createdAt         DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime            @updatedAt @db.Timestamptz(3)
+  deletedAt         DateTime?           @db.Timestamptz(3)
+
+  business     Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  content      Content?         @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  plan         ContentPlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  recurrence   RecurrenceRule?  @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+  publications Publication[]
+  approvals    ApprovalRecord[]
+
+  @@unique([recurrenceId, occurrenceDate])
+  @@index([businessId, scheduledAt])
+  @@index([contentId])
+  @@index([dispatchState, scheduledAt])
+  @@index([planId])
+}
+
+/// A reviewed AI 30-day plan that was applied to the calendar.
+model ContentPlan {
+  id           String   @id @default(cuid())
+  businessId   String
+  /// The AI generation this plan came from; unique so applying twice cannot duplicate the plan.
+  generationId String?  @unique
+  name         String
+  startDate    String
+  days         Int
+  timezone     String
+  language     String
+  summary      String?
+  itemCount    Int
+  createdById  String?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  business Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  events   CalendarEvent[]
+
+  @@index([businessId, createdAt])
+}
+
+/// A recurring schedule (for example every Monday 09:00). Occurrences are materialised as calendar entries.
+model RecurrenceRule {
   id          String              @id @default(cuid())
   businessId  String
-  contentId   String?
+  platform    SocialPlatform
   title       String
-  notes       String?
-  /// UTC instant.
-  scheduledAt DateTime            @db.Timestamptz(3)
-  /// IANA timezone the user planned in, retained to render and to recompute across DST.
+  brief       String?
+  pillar      ContentPillar?
+  frequency   RecurrenceFrequency
+  /// 0 = Sunday … 6 = Saturday (WEEKLY only).
+  weekdays    Int[]
+  /// Local wall-clock time, HH:mm in `timezone`.
+  localTime   String
   timezone    String
-  status      CalendarEventStatus @default(PLANNED)
+  startDate   String
+  endDate     String
+  active      Boolean             @default(true)
+  createdById String?
   createdAt   DateTime            @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime            @updatedAt @db.Timestamptz(3)
-  deletedAt   DateTime?           @db.Timestamptz(3)
 
-  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  content      Content?      @relation(fields: [contentId], references: [id], onDelete: SetNull)
-  publications Publication[]
+  business Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  events   CalendarEvent[]
 
-  @@index([businessId, scheduledAt])
+  @@index([businessId, active])
+}
+
+/// Append-only record of every approval-workflow decision (who, what version, when).
+model ApprovalRecord {
+  id              String           @id @default(cuid())
+  businessId      String
+  contentId       String
+  calendarEventId String?
+  /// Content.version the decision applies to.
+  version         Int
+  decision        ApprovalDecision
+  actorId         String?
+  note            String?
+  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
+
+  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  calendarEvent CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([calendarEventId, createdAt])
   @@index([contentId])
 }
 
@@ -1016,12 +1163,15 @@ model Notification {
   title      String
   body       String?
   data       Json?
+  /// Prevents sending the same notification twice (unique per user).
+  dedupeKey  String?
   readAt     DateTime?           @db.Timestamptz(3)
   createdAt  DateTime            @default(now()) @db.Timestamptz(3)
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   business Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, dedupeKey])
   @@index([userId, readAt, createdAt])
 }
 

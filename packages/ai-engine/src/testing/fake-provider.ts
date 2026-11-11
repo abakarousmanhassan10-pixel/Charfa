@@ -101,6 +101,48 @@ function defaultAnswer(req: GenerateRequest): unknown {
   const t = T[lang](bizName, item?.name ?? bizName);
 
   switch (req.schemaName) {
+    case 'content_plan': {
+      const days: number = task.days ?? 30;
+      const platforms: string[] = task.platforms ?? ['INSTAGRAM'];
+      const occasions: Array<{ name: string; day: number }> = task.occasions ?? [];
+      const target = Math.max(1, Math.round(((task.postsPerWeek ?? 5) * days) / 7));
+      const catalog: Array<{ type: 'PRODUCT' | 'SERVICE'; id: string; name: string }> = [
+        ...(data.products ?? []).map((p: { id: string; name: string }) => ({ type: 'PRODUCT' as const, id: p.id, name: p.name })),
+        ...(data.services ?? []).map((x: { id: string; name: string }) => ({ type: 'SERVICE' as const, id: x.id, name: x.name })),
+      ];
+      const pillars = catalog.length ? ['PRODUCT_SHOWCASE', 'EDUCATIONAL', 'ENGAGEMENT', 'PROMOTIONAL', 'BRAND_AWARENESS'] : ['EDUCATIONAL', 'ENGAGEMENT', 'BRAND_AWARENESS'];
+      const perDay = new Map<string, number>();
+      const items: Array<Record<string, unknown>> = [];
+      for (let i = 0; i < target; i++) {
+        const platform = platforms[i % platforms.length]!;
+        let day = Math.min(days, 1 + Math.floor((i * days) / target));
+        while ((perDay.get(`${platform}:${day}`) ?? 0) >= 1 && day < days) day++;
+        perDay.set(`${platform}:${day}`, (perDay.get(`${platform}:${day}`) ?? 0) + 1);
+        const pillar = pillars[i % pillars.length]!;
+        const entry = catalog.length && (pillar === 'PRODUCT_SHOWCASE' || pillar === 'PROMOTIONAL') ? catalog[i % catalog.length]! : null;
+        items.push({ day, platform, pillar, contentType: i % 3 === 0 ? 'IMAGE' : i % 3 === 1 ? 'TEXT' : 'VIDEO', title: `${entry?.name ?? bizName} ${i + 1}`, brief: t.s, itemType: entry?.type ?? null, itemId: entry?.id ?? null, occasion: null });
+      }
+      occasions.forEach((o, k) => {
+        const platform = platforms[k % platforms.length]!;
+        const used = items.filter((x) => x.platform === platform && x.day === o.day).length;
+        if (used >= 1) {
+          // Make room: move the colliding post one day later.
+          const clash = items.find((x) => x.platform === platform && x.day === o.day);
+          if (clash) clash.day = Math.min(days, o.day + 1);
+        }
+        items.push({ day: o.day, platform, pillar: 'SEASONAL', contentType: 'IMAGE', title: o.name, brief: t.s, itemType: null, itemId: null, occasion: o.name });
+      });
+      return {
+        language: lang,
+        startDate: task.startDate,
+        days,
+        summary: t.long,
+        items,
+        claims: catalog[0] ? [{ claim: catalog[0].name, source: `${catalog[0].type === 'SERVICE' ? 'service' : 'product'}:${catalog[0].id}` }] : [],
+        warnings: [],
+        missingInformation: [],
+      };
+    }
     case 'video_storyboard': {
       const seconds = Number(task.seconds ?? 8);
       const per = Math.max(1, Math.floor(seconds / 3));

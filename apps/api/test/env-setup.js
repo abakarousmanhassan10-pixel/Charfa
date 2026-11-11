@@ -43,3 +43,8 @@ process.env.SMTP_HOST = '127.0.0.1';
 process.env.SMTP_PORT = process.env.TEST_SMTP_PORT || '2525';
 process.env.EMAIL_FROM = 'TOUMA Test <no-reply@touma.test>';
 process.env.WEB_URL = 'http://localhost:3000';
+// Calendar: the scheduler tick is driven by the tests (worker.tick()); the interval is made too long to interfere.
+process.env.CALENDAR_TICK_MS = '600000';
+process.env.CALENDAR_DISPATCH_BACKOFF_MS = '40';
+process.env.CALENDAR_DISPATCH_ATTEMPTS = '3';
+process.env.CALENDAR_RATE_LIMIT_PER_MINUTE = '1000';

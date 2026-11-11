@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AI_FORMATS, AI_LANGUAGES, AI_PLATFORMS, ASPECT_RATIOS, VIDEO_FORMAT_KEYS } from '@touma/shared';
+import { AI_FORMATS, AI_LANGUAGES, AI_PLATFORMS, ASPECT_RATIOS, CONTENT_PILLARS, VIDEO_FORMAT_KEYS } from '@touma/shared';
 
 const s = (max: number) => z.string().min(1).max(max);
 const list = <T extends z.ZodTypeAny>(item: T, max: number, min = 0) => z.array(item).min(min).max(max);
@@ -169,3 +169,34 @@ export const storyboardSchema = z.object({
   missingInformation: list(s(300), 10),
 });
 export type Storyboard = z.infer<typeof storyboardSchema>;
+
+/**
+ * A day-by-day marketing plan. The model chooses WHAT to post and WHEN (day number); the exact time of day is chosen
+ * by TOUMA from the audience data it has (or labelled estimates). Seasonal items may only use occasions the merchant supplied.
+ */
+export const contentPlanSchema = z.object({
+  language: z.enum(AI_LANGUAGES),
+  startDate: s(10),
+  days: z.number().int().min(7).max(30),
+  summary: s(600),
+  items: list(
+    z.object({
+      day: z.number().int().min(1).max(30),
+      platform,
+      pillar: z.enum(CONTENT_PILLARS as unknown as [string, ...string[]]),
+      contentType: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'CAROUSEL']),
+      title: s(120),
+      brief: s(400),
+      itemType: z.enum(['PRODUCT', 'SERVICE']).nullable(),
+      itemId: z.string().max(80).nullable(),
+      /** The merchant-supplied occasion this post is about (exact name), or null. */
+      occasion: z.string().max(80).nullable(),
+    }),
+    60,
+    1,
+  ),
+  claims: list(z.object({ claim: s(400), source: s(80) }), 20),
+  warnings: list(s(300), 8),
+  missingInformation: list(s(300), 10),
+});
+export type ContentPlan = z.infer<typeof contentPlanSchema>;

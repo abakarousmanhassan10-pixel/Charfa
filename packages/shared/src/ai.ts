@@ -78,5 +78,5 @@ export const FORMATS_BY_PLATFORM: Record<AiPlatform | 'ANY', AiFormat[]> = {
   ANY: ['PRODUCT_DESCRIPTION', 'AD_COPY', 'PROMOTIONAL_MESSAGE'],
 };
 
-export const AI_TASKS = ['BUSINESS_ANALYSIS', 'PRODUCT_ANALYSIS', 'MARKETING_STRATEGY', 'CONTENT', 'STORYBOARD'] as const;
+export const AI_TASKS = ['BUSINESS_ANALYSIS', 'PRODUCT_ANALYSIS', 'MARKETING_STRATEGY', 'CONTENT', 'STORYBOARD', 'CONTENT_PLAN'] as const;
 export type AiTask = (typeof AI_TASKS)[number];
