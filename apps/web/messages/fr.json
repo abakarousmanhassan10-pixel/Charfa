@@ -96,7 +96,8 @@
       "services": "Services",
       "categories": "Catégories",
       "knowledge": "Base de connaissances",
-      "ai": "TOUMA AI"
+      "ai": "TOUMA AI",
+      "creative": "Studio créatif"
     },
     "analyticsTitle": "Performances",
     "noAnalytics": "Aucune donnée pour l'instant. Les statistiques apparaîtront une fois vos comptes connectés et vos publications en ligne — nous n'affichons jamais d'estimations comme des résultats mesurés.",
@@ -519,7 +520,8 @@
       "BUSINESS_ANALYSIS": "Analyse de l'entreprise",
       "PRODUCT_ANALYSIS": "Analyse produit",
       "MARKETING_STRATEGY": "Stratégie marketing",
-      "CONTENT": "Contenu"
+      "CONTENT": "Contenu",
+      "STORYBOARD": "Storyboard"
     },
     "statuses": {
       "SUCCEEDED": "Réussi",
@@ -830,6 +832,365 @@
       "ROLE_HIERARCHY": "Vous ne pouvez pas attribuer ce rôle.",
       "TOO_SOON": "Veuillez patienter une minute avant de renvoyer.",
       "VALIDATION_ERROR": "Saisissez une adresse e-mail valide."
+    }
+  },
+  "creative": {
+    "title": "Studio créatif",
+    "tabs": {
+      "overview": "Aperçu",
+      "images": "Images",
+      "videos": "Vidéos",
+      "storyboards": "Storyboards",
+      "brandKit": "Kit de marque",
+      "history": "Historique"
+    },
+    "overview": {
+      "title": "Studio créatif",
+      "subtitle": "Images, vidéos et storyboards pour votre entreprise, à votre image.",
+      "hero": "Créez des visuels qui vous ressemblent",
+      "heroText": "Vos vrais produits et votre kit de marque, sans détails inventés.",
+      "quick": {
+        "images": {
+          "title": "Images IA",
+          "text": "Publicités, affiches et scènes lifestyle à partir de votre photo produit."
+        },
+        "videos": {
+          "title": "Vidéos IA",
+          "text": "Courtes vidéos promo, générées uniquement par un vrai fournisseur."
+        },
+        "storyboards": {
+          "title": "Storyboards",
+          "text": "Script, scènes, caméra et voix off pour votre prochaine vidéo."
+        },
+        "brandKit": {
+          "title": "Kit de marque",
+          "text": "Logo, couleurs, polices et ton appliqués partout."
+        }
+      },
+      "providers": "Fournisseurs",
+      "providersHint": "La génération ne s’exécute que sur des fournisseurs réellement configurés.",
+      "image": "Fournisseur d’images",
+      "video": "Fournisseur vidéo",
+      "storyboard": "Storyboards",
+      "storage": "Stockage de fichiers",
+      "usage": "Ce mois-ci",
+      "limitPlan": "Limite du forfait",
+      "limitDefault": "Limite par défaut",
+      "imagesUsed": "Images",
+      "videoSeconds": "Secondes de vidéo",
+      "storageUsed": "Stockage",
+      "recent": "Créations récentes",
+      "seeAll": "Tout voir",
+      "noRecent": "Rien de créé pour l’instant."
+    },
+    "notConfigured": {
+      "image": {
+        "title": "La génération d’images n’est pas configurée",
+        "text": "Un administrateur doit configurer un fournisseur d’images. TOUMA ne simule jamais une image générée."
+      },
+      "video": {
+        "title": "La génération vidéo n’est pas configurée",
+        "text": "Aucun fournisseur vidéo n’est configuré. Vous pouvez quand même écrire scripts et storyboards ; TOUMA ne simule jamais une vidéo générée."
+      }
+    },
+    "images": {
+      "title": "Studio d’images",
+      "subtitle": "Générez publicités, affiches et scènes. Votre photo produit reste intacte.",
+      "sections": {
+        "subject": "Sujet",
+        "look": "Style et ambiance",
+        "format": "Format et plateforme",
+        "text": "Texte et logo"
+      },
+      "photo": "Photo du produit",
+      "choosePhoto": "Choisir une photo",
+      "removePhoto": "Retirer la photo",
+      "photoHint": "Facultatif. Une photo sur fond uni donne le résultat le plus fidèle.",
+      "illustration": "Sans photo, l’image est une illustration, pas votre vrai produit.",
+      "preservation": "Fidélité au produit",
+      "mode": {
+        "EXACT": "Exact",
+        "EXACTHint": "Les pixels de votre vrai produit sont placés sur une scène générée. L’IA ne voit ni ne redessine le produit.",
+        "GUIDED": "Guidé",
+        "GUIDEDHint": "L’IA retouche votre photo avec la consigne de garder le produit inchangé. Au mieux : vérifiez le résultat."
+      },
+      "type": "Type",
+      "style": "Style",
+      "styleHint": "Remplace le style de votre marque.",
+      "styleDefault": "Utiliser le style de ma marque",
+      "background": "Arrière-plan",
+      "backgroundNote": "Décrivez l’arrière-plan",
+      "theme": "Thème saisonnier",
+      "themeNote": "Décrivez le thème",
+      "platform": "Plateforme cible",
+      "aspect": "Format d’image",
+      "resolution": "Résolution",
+      "count": "Variantes",
+      "countHint": "Chaque image compte dans votre limite mensuelle.",
+      "overlay": "Texte sur l’image",
+      "overlayHint": "Dessiné par TOUMA, jamais par l’IA : l’orthographe est toujours exacte. Prix et contacts doivent correspondre à vos données.",
+      "overlayPosition": "Position du texte",
+      "logo": "Logo",
+      "useBrandKit": "Appliquer mon kit de marque",
+      "useBrandKitHint": "Couleurs, style et consignes.",
+      "generate": "Générer",
+      "generating": "Génération…",
+      "results": "Résultats",
+      "resultAlt": "Image générée {n}",
+      "open": "Ouvrir l’image {n}",
+      "pick": "Sélectionner l’image {n}",
+      "favorite": "Favori",
+      "download": "Télécharger",
+      "compare": "Comparer avec l’original",
+      "original": "Photo originale",
+      "guidedWarning": "Mode guidé : le produit peut différer légèrement de votre photo. Comparez avant de publier.",
+      "upscaled": "Agrandie à la taille demandée",
+      "preserved": {
+        "EXACT": "Produit d’origine préservé",
+        "GUIDED": "Guidé — vérifiez le produit",
+        "NONE": "Illustration"
+      },
+      "usageLine": "{n} image(s) · {seconds} s · {model}",
+      "moreVariations": "Plus de variantes",
+      "empty": "Pas encore d’image",
+      "emptyHint": "Remplissez le formulaire et générez votre premier visuel."
+    },
+    "enums": {
+      "types": {
+        "PRODUCT_AD": "Publicité produit",
+        "ECOMMERCE_PHOTO": "Photo e-commerce",
+        "LIFESTYLE": "Scène lifestyle",
+        "PROMO_POSTER": "Affiche promo",
+        "SOCIAL_GRAPHIC": "Visuel réseaux sociaux",
+        "SEASONAL_CAMPAIGN": "Campagne saisonnière",
+        "BRAND_VISUAL": "Visuel de marque"
+      },
+      "styles": {
+        "PHOTOREALISTIC": "Photoréaliste",
+        "MINIMAL": "Minimaliste",
+        "LUXURY": "Luxe",
+        "PLAYFUL": "Ludique",
+        "BOLD": "Audacieux",
+        "NATURAL": "Naturel",
+        "VINTAGE": "Vintage",
+        "MODERN": "Moderne",
+        "ILLUSTRATED": "Illustré"
+      },
+      "backgrounds": {
+        "WHITE_STUDIO": "Studio blanc",
+        "LIGHT_GRADIENT": "Dégradé clair",
+        "BRAND_COLOR": "Couleur de marque",
+        "NATURAL_OUTDOOR": "Extérieur naturel",
+        "HOME_INTERIOR": "Intérieur de maison",
+        "KITCHEN": "Cuisine",
+        "WORKSHOP": "Atelier",
+        "MARKET": "Marché",
+        "CUSTOM": "Personnalisé (décrivez-le)"
+      },
+      "themes": {
+        "NONE": "Aucun",
+        "RAMADAN": "Ramadan",
+        "EID": "Aïd",
+        "BLACK_FRIDAY": "Black Friday",
+        "SUMMER": "Été",
+        "WINTER": "Hiver",
+        "NEW_YEAR": "Nouvel An",
+        "VALENTINES": "Saint-Valentin",
+        "MOTHERS_DAY": "Fête des mères",
+        "BACK_TO_SCHOOL": "Rentrée",
+        "CUSTOM": "Personnalisé (décrivez-le)"
+      },
+      "positions": {
+        "TOP": "Haut",
+        "CENTER": "Centre",
+        "BOTTOM": "Bas"
+      },
+      "logoPlacements": {
+        "NONE": "Pas de logo",
+        "TOP_LEFT": "Haut gauche",
+        "TOP_RIGHT": "Haut droite",
+        "BOTTOM_LEFT": "Bas gauche",
+        "BOTTOM_RIGHT": "Bas droite"
+      },
+      "resolutions": {
+        "STANDARD": "Standard (1080 px)",
+        "HD": "HD (1920 px)"
+      },
+      "videoFormats": {
+        "SHORT_VERTICAL": "Vertical court 9:16 (Reels, TikTok, Shorts)",
+        "SQUARE": "Carré 1:1 (fil)",
+        "LANDSCAPE": "Paysage 16:9 (YouTube, web)"
+      },
+      "videoStyles": {
+        "CINEMATIC": "Cinématique",
+        "UGC": "UGC (authentique)",
+        "MINIMAL": "Minimaliste",
+        "ENERGETIC": "Énergique",
+        "LUXURY": "Luxe",
+        "DOCUMENTARY": "Documentaire"
+      },
+      "colorRoles": {
+        "PRIMARY": "Principale",
+        "SECONDARY": "Secondaire",
+        "ACCENT": "Accent",
+        "BACKGROUND": "Arrière-plan",
+        "TEXT": "Texte"
+      }
+    },
+    "videos": {
+      "title": "Studio vidéo",
+      "subtitle": "Courtes vidéos promo via un vrai fournisseur vidéo.",
+      "format": "Format",
+      "seconds": "Durée (secondes)",
+      "secondsHint": "Facturé à la seconde générée, dans votre limite mensuelle.",
+      "style": "Style",
+      "storyboard": "Storyboard",
+      "storyboardHint": "Utilisez un storyboard pour guider la vidéo.",
+      "noStoryboard": "Sans storyboard",
+      "scene": "Scène",
+      "allScenes": "Toutes les scènes",
+      "photo": "Photo produit (facultatif)",
+      "generate": "Générer la vidéo",
+      "generating": "Génération…",
+      "usageLine": "{s} s · {model}",
+      "empty": "Pas encore de vidéo",
+      "emptyHint": "Une vidéo peut prendre quelques minutes. Vous pouvez quitter cette page.",
+      "emptyUnconfigured": "La génération vidéo est indisponible tant qu’aucun fournisseur n’est configuré.",
+      "yours": "Vos vidéos",
+      "open": "Ouvrir la vidéo du {date}"
+    },
+    "storyboards": {
+      "title": "Storyboards",
+      "subtitle": "Script et plan de scènes, fondés sur vos vraies données.",
+      "generate": "Créer le storyboard",
+      "generating": "Rédaction…",
+      "empty": "Pas encore de storyboard",
+      "emptyHint": "Choisissez un objectif et créez le premier.",
+      "previous": "Storyboards précédents",
+      "hook": "Accroche",
+      "timeline": "Chronologie",
+      "scene": "Scène {n}",
+      "camera": "Caméra",
+      "voiceover": "Voix off",
+      "onScreen": "Texte à l’écran",
+      "audio": "Audio",
+      "focus": "Point focal",
+      "script": "Script",
+      "cta": "Appel à l’action",
+      "music": "Musique",
+      "videoPrompt": "Prompt vidéo",
+      "copy": "Copier",
+      "copied": "Copié",
+      "makeVideo": "Créer une vidéo"
+    },
+    "brandKit": {
+      "title": "Kit de marque",
+      "subtitle": "Appliqué à chaque image, vidéo, storyboard et texte créé par TOUMA.",
+      "readOnly": "Vous pouvez consulter le kit de marque mais pas le modifier.",
+      "logo": "Logo",
+      "logoHint": "Partagé avec le profil de votre entreprise.",
+      "logoAlt": "Votre logo",
+      "chooseLogo": "Choisir un logo",
+      "changeLogo": "Changer le logo",
+      "removeLogo": "Retirer le logo",
+      "colors": "Couleurs",
+      "colorsHint": "Dans la limite autorisée, chacune avec un rôle.",
+      "colorName": "Nom de la couleur",
+      "hex": "Code hexadécimal",
+      "role": "Rôle",
+      "pick": "Choisir la couleur {n}",
+      "removeColor": "Retirer la couleur {n}",
+      "addColor": "Ajouter une couleur",
+      "invalidColor": "Utilisez un code comme #1A7F5A.",
+      "identity": "Identité",
+      "headingFont": "Police des titres",
+      "bodyFont": "Police du texte",
+      "visualStyle": "Style visuel",
+      "visualStyleHint": "Utilisé quand vous ne choisissez pas de style pour une image.",
+      "tone": "Ton préféré",
+      "toneHint": "Utilisé pour les légendes, scripts et storyboards.",
+      "guidelines": "Consignes",
+      "guidelinesHint": "Une règle par ligne · {count} pour l’instant",
+      "none": "Aucune",
+      "saved": "Kit de marque enregistré",
+      "preview": "Aperçu",
+      "previewText": "Votre offre, à votre image",
+      "previewButton": "Commander",
+      "previewHint": "Un aperçu de l’association de vos couleurs et polices."
+    },
+    "history": {
+      "title": "Historique créatif",
+      "subtitle": "Chaque image et vidéo, avec fournisseur, statut, coût et durée.",
+      "kind": "Type",
+      "allKinds": "Tous les types",
+      "images": "Images",
+      "videos": "Vidéos",
+      "image": "Image",
+      "video": "Vidéo",
+      "empty": "Rien pour l’instant",
+      "emptyHint": "Vos générations apparaîtront ici.",
+      "openItem": "Ouvrir {kind} du {date}",
+      "provider": "Fournisseur",
+      "units": "Produit",
+      "imagesCount": "{n} image(s)",
+      "time": "Durée de traitement",
+      "cost": "Coût estimé",
+      "prompt": "Prompt",
+      "delete": "Supprimer",
+      "deleteTitle": "Supprimer cette génération ?",
+      "deleteText": "Les fichiers sont retirés de votre médiathèque."
+    },
+    "job": {
+      "queued": "En attente dans la file…",
+      "retrying": "Petit incident chez le fournisseur, nouvelle tentative ({attempt} sur {max})…",
+      "generatingImage": "Génération de {count} image(s)…",
+      "leaveHint": "Vous pouvez quitter cette page : le résultat sera dans votre historique.",
+      "video": {
+        "starting": "Envoi de la demande vidéo…",
+        "queued": "Le fournisseur a mis votre vidéo en file…",
+        "in_progress": "Le fournisseur génère votre vidéo…",
+        "completed": "Enregistrement de votre vidéo…"
+      }
+    },
+    "errors": {
+      "UNKNOWN": "Une erreur est survenue. Aucune génération échouée n’est facturée.",
+      "IMAGE_NOT_CONFIGURED": "Aucun fournisseur d’images n’est configuré. Demandez à un administrateur de le configurer.",
+      "VIDEO_NOT_CONFIGURED": "Aucun fournisseur vidéo n’est configuré : impossible de générer une vidéo.",
+      "IMAGE_LIMIT_REACHED": "Vous avez atteint la limite d’images de ce mois.",
+      "VIDEO_LIMIT_REACHED": "Vous avez atteint la limite vidéo de ce mois.",
+      "STORAGE_QUOTA_EXCEEDED": "Votre stockage est plein. Supprimez des médias puis réessayez.",
+      "STORAGE_NOT_CONFIGURED": "Le stockage de fichiers n’est pas configuré.",
+      "STORAGE_UNAVAILABLE": "Le stockage est indisponible pour le moment. Réessayez bientôt.",
+      "PRODUCT_CUTOUT_FAILED": "Le produit n’a pas pu être détouré. Utilisez une photo sur fond uni ou transparent, ou choisissez le mode guidé.",
+      "OVERLAY_UNVERIFIED": "Le texte sur l’image contient des informations (prix, téléphone, adresse…) absentes de vos données. Corrigez vos données ou le texte.",
+      "NO_LOGO": "Ajoutez d’abord un logo dans votre kit de marque.",
+      "ASPECT_NOT_SUITED": "Ce format ne convient pas à la plateforme choisie.",
+      "IDEMPOTENCY_KEY_REUSED": "Cette clé de requête a déjà servi pour une autre demande.",
+      "VIDEO_SUBMIT_UNKNOWN": "Nous n’avons pas pu confirmer que la vidéo a été acceptée. Pour éviter une double facturation, elle n’a pas été renvoyée — vérifiez l’historique avant de réessayer.",
+      "VIDEO_TIMEOUT": "La vidéo a pris trop de temps et a été arrêtée.",
+      "VIDEO_LENGTH_INVALID": "Cette durée n’est pas autorisée pour ce format.",
+      "VIDEO_FORMAT_UNSUPPORTED": "Le fournisseur vidéo ne prend pas en charge ce format.",
+      "IMAGE_TO_VIDEO_UNSUPPORTED": "Le fournisseur vidéo ne peut pas animer une photo.",
+      "IMAGE_PROVIDER_FAILED": "Le fournisseur d’images a échoué. Réessayez.",
+      "IMAGE_PROVIDER_REFUSED": "Le fournisseur d’images a refusé cette demande. Reformulez-la.",
+      "IMAGE_PROVIDER_AUTH": "Le fournisseur d’images a refusé les identifiants. Contactez un administrateur.",
+      "IMAGE_PROVIDER_BILLING": "Le compte du fournisseur d’images a un problème de facturation. Contactez un administrateur.",
+      "IMAGE_PROVIDER_RATE_LIMIT": "Le fournisseur d’images est saturé. Réessayez dans un instant.",
+      "IMAGE_PROVIDER_TIMEOUT": "Le fournisseur d’images a mis trop de temps. Réessayez.",
+      "VIDEO_PROVIDER_FAILED": "Le fournisseur vidéo a échoué. Réessayez.",
+      "VIDEO_PROVIDER_REFUSED": "Le fournisseur vidéo a refusé cette demande. Reformulez-la.",
+      "VIDEO_PROVIDER_AUTH": "Le fournisseur vidéo a refusé les identifiants. Contactez un administrateur.",
+      "VIDEO_PROVIDER_BILLING": "Le compte du fournisseur vidéo a un problème de facturation. Contactez un administrateur.",
+      "VIDEO_PROVIDER_RATE_LIMIT": "Le fournisseur vidéo est saturé. Réessayez dans un instant.",
+      "VIDEO_PROVIDER_TIMEOUT": "Le fournisseur vidéo a mis trop de temps. Réessayez.",
+      "FILE_TYPE_MISMATCH": "Le contenu du fichier ne correspond pas à son type.",
+      "FILE_TOO_LARGE": "Ce fichier est trop volumineux.",
+      "FILE_TYPE": "Ce type de fichier n’est pas autorisé.",
+      "IMAGE_CORRUPT": "Cette image est illisible.",
+      "CREATIVE_FORBIDDEN": "Vous n’êtes plus autorisé à utiliser le Studio créatif pour cette entreprise.",
+      "CREATIVE_JOB_STALLED": "La génération ne s’est pas terminée et a été annulée. Rien n’a été facturé.",
+      "CREATIVE_JOB_FAILED": "La génération s’est arrêtée de façon inattendue. Rien n’a été facturé.",
+      "CREATIVE_QUEUE_UNAVAILABLE": "La file de génération est indisponible. Réessayez bientôt."
     }
   }
 }

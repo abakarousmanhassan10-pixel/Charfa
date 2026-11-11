@@ -30,6 +30,13 @@ const testEnv = {
   AI_WORKER_INLINE: 'true',
   AI_JOB_BACKOFF_MS: '100',
   AI_MODEL_PRICING: JSON.stringify({ 'gpt-4o-mini': { inputPerMillion: 0.15, outputPerMillion: 0.6 } }),
+  // TEST-ONLY deterministic image/video providers (refused unless APP_ENV=test). Real providers are never faked in production.
+  IMAGE_PROVIDER: 'fake',
+  VIDEO_PROVIDER: 'fake',
+  CREATIVE_VIDEO_POLL_MS: '60',
+  CREATIVE_JOB_BACKOFF_MS: '40',
+  CREATIVE_RATE_LIMIT_PER_MINUTE: '1000',
+  CREATIVE_MODEL_PRICING: JSON.stringify({ 'gpt-image-1': { perImageUsd: 0.04 }, 'sora-2': { perSecondUsd: 0.1 } }),
   // Real SMTP delivery to a local capture server started by account.e2e.ts (no email provider mock in the API).
   EMAIL_TRANSPORT: 'smtp',
   SMTP_HOST: '127.0.0.1',

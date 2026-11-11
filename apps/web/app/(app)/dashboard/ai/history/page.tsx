@@ -5,6 +5,8 @@ import { AiSection, UsageLine } from '@/components/ai/ai-section';
 import { ContentEditor } from '@/components/ai/content-editor';
 import type { ContentOutput, Generation } from '@/components/ai/types';
 import { BusinessAnalysisView, ProductAnalysisView, StrategyView } from '@/components/ai/views';
+import { StoryboardView } from '@/components/creative/storyboard-view';
+import type { Storyboard } from '@/components/creative/types';
 import { useBusiness } from '@/components/business-provider';
 import { useI18n } from '@/components/i18n-provider';
 import { Badge } from '@/components/ui/badge';
@@ -84,6 +86,7 @@ export default function HistoryPage() {
             {open.output && open.task === 'BUSINESS_ANALYSIS' && <BusinessAnalysisView data={open.output} />}
             {open.output && open.task === 'PRODUCT_ANALYSIS' && <ProductAnalysisView data={open.output} />}
             {open.output && open.task === 'MARKETING_STRATEGY' && <StrategyView data={open.output} />}
+            {open.output && open.task === 'STORYBOARD' && <StoryboardView generation={open as Generation<Storyboard>} canCreateVideo={false} />}
             {open.output && open.task === 'CONTENT' && (
               <ContentEditor initial={open.output as ContentOutput} rule={FORMAT_RULES[open.format as AiFormat]} saving={false} regenerating={false} savedVersion={null} onSave={() => undefined} onRegenerate={() => undefined} readOnly />
             )}

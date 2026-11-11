@@ -9,7 +9,7 @@ export interface StepReport {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface Generation<T = any> {
   id: string;
-  task: 'BUSINESS_ANALYSIS' | 'PRODUCT_ANALYSIS' | 'MARKETING_STRATEGY' | 'CONTENT';
+  task: 'BUSINESS_ANALYSIS' | 'PRODUCT_ANALYSIS' | 'MARKETING_STRATEGY' | 'CONTENT' | 'STORYBOARD';
   status: 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'BLOCKED';
   /** waiting for the next queue attempt after a transient provider failure */
   retrying?: boolean;

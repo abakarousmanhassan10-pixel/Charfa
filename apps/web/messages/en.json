@@ -96,7 +96,8 @@
       "services": "Services",
       "categories": "Categories",
       "knowledge": "Knowledge base",
-      "ai": "TOUMA AI"
+      "ai": "TOUMA AI",
+      "creative": "Creative Studio"
     },
     "analyticsTitle": "Performance",
     "noAnalytics": "No data yet. Metrics appear here once social accounts are connected and posts are published — we never display estimated numbers as measured results.",
@@ -519,7 +520,8 @@
       "BUSINESS_ANALYSIS": "Business analysis",
       "PRODUCT_ANALYSIS": "Product analysis",
       "MARKETING_STRATEGY": "Marketing strategy",
-      "CONTENT": "Content"
+      "CONTENT": "Content",
+      "STORYBOARD": "Storyboard"
     },
     "statuses": {
       "SUCCEEDED": "Succeeded",
@@ -830,6 +832,365 @@
       "ROLE_HIERARCHY": "You cannot grant this role.",
       "TOO_SOON": "Please wait a minute before resending.",
       "VALIDATION_ERROR": "Enter a valid email address."
+    }
+  },
+  "creative": {
+    "title": "Creative Studio",
+    "tabs": {
+      "overview": "Overview",
+      "images": "Images",
+      "videos": "Videos",
+      "storyboards": "Storyboards",
+      "brandKit": "Brand kit",
+      "history": "History"
+    },
+    "overview": {
+      "title": "Creative Studio",
+      "subtitle": "Images, videos and storyboards for your business, in your brand.",
+      "hero": "Create visuals that look like you",
+      "heroText": "Your real products and your brand kit, never invented details.",
+      "quick": {
+        "images": {
+          "title": "AI images",
+          "text": "Ads, posters and lifestyle scenes from your product photo."
+        },
+        "videos": {
+          "title": "AI videos",
+          "text": "Short promo videos, generated only by a real provider."
+        },
+        "storyboards": {
+          "title": "Storyboards",
+          "text": "Script, scenes, camera and voiceover for your next video."
+        },
+        "brandKit": {
+          "title": "Brand kit",
+          "text": "Logo, colors, fonts and tone applied everywhere."
+        }
+      },
+      "providers": "Providers",
+      "providersHint": "Generation only runs on providers that are really configured.",
+      "image": "Image provider",
+      "video": "Video provider",
+      "storyboard": "Storyboards",
+      "storage": "File storage",
+      "usage": "This month",
+      "limitPlan": "Plan limit",
+      "limitDefault": "Default limit",
+      "imagesUsed": "Images",
+      "videoSeconds": "Video seconds",
+      "storageUsed": "Storage",
+      "recent": "Recent creations",
+      "seeAll": "See all",
+      "noRecent": "Nothing created yet."
+    },
+    "notConfigured": {
+      "image": {
+        "title": "Image generation is not configured",
+        "text": "An administrator must configure an image provider before images can be created. TOUMA never fakes a generated image."
+      },
+      "video": {
+        "title": "Video generation is not configured",
+        "text": "No video provider is configured. You can still write scripts and storyboards; TOUMA never fakes a generated video."
+      }
+    },
+    "images": {
+      "title": "Image studio",
+      "subtitle": "Generate ads, posters and scenes. Your product photo stays untouched.",
+      "sections": {
+        "subject": "Subject",
+        "look": "Look and feel",
+        "format": "Format and platform",
+        "text": "Text and logo"
+      },
+      "photo": "Product photo",
+      "choosePhoto": "Choose a photo",
+      "removePhoto": "Remove photo",
+      "photoHint": "Optional. A photo on a plain background gives the most faithful result.",
+      "illustration": "Without a photo, the image is an illustration, not your real product.",
+      "preservation": "Product fidelity",
+      "mode": {
+        "EXACT": "Exact",
+        "EXACTHint": "Your real product pixels are placed on a generated scene. The AI never sees or redraws the product.",
+        "GUIDED": "Guided",
+        "GUIDEDHint": "The AI edits your photo and is told to keep the product unchanged. Best effort: check the result."
+      },
+      "type": "Type",
+      "style": "Style",
+      "styleHint": "Overrides your brand style.",
+      "styleDefault": "Use my brand style",
+      "background": "Background",
+      "backgroundNote": "Describe the background",
+      "theme": "Seasonal theme",
+      "themeNote": "Describe the theme",
+      "platform": "Target platform",
+      "aspect": "Aspect ratio",
+      "resolution": "Resolution",
+      "count": "Variations",
+      "countHint": "Each image counts toward your monthly limit.",
+      "overlay": "Text on the image",
+      "overlayHint": "Drawn by TOUMA, never by the AI, so it is always spelled correctly. Prices and contacts must match your data.",
+      "overlayPosition": "Text position",
+      "logo": "Logo",
+      "useBrandKit": "Apply my brand kit",
+      "useBrandKitHint": "Colors, style and guidelines.",
+      "generate": "Generate",
+      "generating": "Generating…",
+      "results": "Results",
+      "resultAlt": "Generated image {n}",
+      "open": "Open image {n}",
+      "pick": "Select image {n}",
+      "favorite": "Favorite",
+      "download": "Download",
+      "compare": "Compare with original",
+      "original": "Original photo",
+      "guidedWarning": "Guided mode: the product may differ slightly from your photo. Compare before publishing.",
+      "upscaled": "Upscaled to the requested size",
+      "preserved": {
+        "EXACT": "Original product preserved",
+        "GUIDED": "Guided — verify the product",
+        "NONE": "Illustration"
+      },
+      "usageLine": "{n} image(s) · {seconds}s · {model}",
+      "moreVariations": "More variations",
+      "empty": "No image yet",
+      "emptyHint": "Fill the form and generate your first visual."
+    },
+    "enums": {
+      "types": {
+        "PRODUCT_AD": "Product ad",
+        "ECOMMERCE_PHOTO": "E-commerce photo",
+        "LIFESTYLE": "Lifestyle scene",
+        "PROMO_POSTER": "Promo poster",
+        "SOCIAL_GRAPHIC": "Social graphic",
+        "SEASONAL_CAMPAIGN": "Seasonal campaign",
+        "BRAND_VISUAL": "Brand visual"
+      },
+      "styles": {
+        "PHOTOREALISTIC": "Photorealistic",
+        "MINIMAL": "Minimal",
+        "LUXURY": "Luxury",
+        "PLAYFUL": "Playful",
+        "BOLD": "Bold",
+        "NATURAL": "Natural",
+        "VINTAGE": "Vintage",
+        "MODERN": "Modern",
+        "ILLUSTRATED": "Illustrated"
+      },
+      "backgrounds": {
+        "WHITE_STUDIO": "White studio",
+        "LIGHT_GRADIENT": "Light gradient",
+        "BRAND_COLOR": "Brand color",
+        "NATURAL_OUTDOOR": "Natural outdoor",
+        "HOME_INTERIOR": "Home interior",
+        "KITCHEN": "Kitchen",
+        "WORKSHOP": "Workshop",
+        "MARKET": "Market",
+        "CUSTOM": "Custom (describe it)"
+      },
+      "themes": {
+        "NONE": "None",
+        "RAMADAN": "Ramadan",
+        "EID": "Eid",
+        "BLACK_FRIDAY": "Black Friday",
+        "SUMMER": "Summer",
+        "WINTER": "Winter",
+        "NEW_YEAR": "New Year",
+        "VALENTINES": "Valentine's Day",
+        "MOTHERS_DAY": "Mother's Day",
+        "BACK_TO_SCHOOL": "Back to school",
+        "CUSTOM": "Custom (describe it)"
+      },
+      "positions": {
+        "TOP": "Top",
+        "CENTER": "Center",
+        "BOTTOM": "Bottom"
+      },
+      "logoPlacements": {
+        "NONE": "No logo",
+        "TOP_LEFT": "Top left",
+        "TOP_RIGHT": "Top right",
+        "BOTTOM_LEFT": "Bottom left",
+        "BOTTOM_RIGHT": "Bottom right"
+      },
+      "resolutions": {
+        "STANDARD": "Standard (1080 px)",
+        "HD": "HD (1920 px)"
+      },
+      "videoFormats": {
+        "SHORT_VERTICAL": "Short vertical 9:16 (Reels, TikTok, Shorts)",
+        "SQUARE": "Square 1:1 (feed)",
+        "LANDSCAPE": "Landscape 16:9 (YouTube, web)"
+      },
+      "videoStyles": {
+        "CINEMATIC": "Cinematic",
+        "UGC": "UGC (authentic)",
+        "MINIMAL": "Minimal",
+        "ENERGETIC": "Energetic",
+        "LUXURY": "Luxury",
+        "DOCUMENTARY": "Documentary"
+      },
+      "colorRoles": {
+        "PRIMARY": "Primary",
+        "SECONDARY": "Secondary",
+        "ACCENT": "Accent",
+        "BACKGROUND": "Background",
+        "TEXT": "Text"
+      }
+    },
+    "videos": {
+      "title": "Video studio",
+      "subtitle": "Short promo videos from a real video provider.",
+      "format": "Format",
+      "seconds": "Length (seconds)",
+      "secondsHint": "Billed per second generated, within your monthly limit.",
+      "style": "Style",
+      "storyboard": "Storyboard",
+      "storyboardHint": "Use a storyboard to guide the video.",
+      "noStoryboard": "No storyboard",
+      "scene": "Scene",
+      "allScenes": "All scenes",
+      "photo": "Product photo (optional)",
+      "generate": "Generate video",
+      "generating": "Generating…",
+      "usageLine": "{s}s · {model}",
+      "empty": "No video yet",
+      "emptyHint": "Videos can take a few minutes. You can leave this page.",
+      "emptyUnconfigured": "Video generation is unavailable until a provider is configured.",
+      "yours": "Your videos",
+      "open": "Open video from {date}"
+    },
+    "storyboards": {
+      "title": "Storyboards",
+      "subtitle": "Script and scene plan, grounded in your real business data.",
+      "generate": "Create storyboard",
+      "generating": "Writing…",
+      "empty": "No storyboard yet",
+      "emptyHint": "Choose a goal and create your first one.",
+      "previous": "Previous storyboards",
+      "hook": "Hook",
+      "timeline": "Timeline",
+      "scene": "Scene {n}",
+      "camera": "Camera",
+      "voiceover": "Voiceover",
+      "onScreen": "On-screen text",
+      "audio": "Audio",
+      "focus": "Focus",
+      "script": "Script",
+      "cta": "Call to action",
+      "music": "Music",
+      "videoPrompt": "Video prompt",
+      "copy": "Copy",
+      "copied": "Copied",
+      "makeVideo": "Make a video"
+    },
+    "brandKit": {
+      "title": "Brand kit",
+      "subtitle": "Applied to every image, video, storyboard and text TOUMA creates.",
+      "readOnly": "You can view the brand kit but not edit it.",
+      "logo": "Logo",
+      "logoHint": "Shared with your business profile.",
+      "logoAlt": "Your logo",
+      "chooseLogo": "Choose a logo",
+      "changeLogo": "Change logo",
+      "removeLogo": "Remove logo",
+      "colors": "Colors",
+      "colorsHint": "Up to the allowed number of colors, each with a role.",
+      "colorName": "Color name",
+      "hex": "Hex code",
+      "role": "Role",
+      "pick": "Pick color {n}",
+      "removeColor": "Remove color {n}",
+      "addColor": "Add a color",
+      "invalidColor": "Use a code like #1A7F5A.",
+      "identity": "Identity",
+      "headingFont": "Heading font",
+      "bodyFont": "Body font",
+      "visualStyle": "Visual style",
+      "visualStyleHint": "Used when you do not pick a style for an image.",
+      "tone": "Preferred tone",
+      "toneHint": "Used for captions, scripts and storyboards.",
+      "guidelines": "Guidelines",
+      "guidelinesHint": "One rule per line · {count} so far",
+      "none": "None",
+      "saved": "Brand kit saved",
+      "preview": "Preview",
+      "previewText": "Your offer, in your brand",
+      "previewButton": "Order now",
+      "previewHint": "A quick look at how your colors and fonts combine."
+    },
+    "history": {
+      "title": "Creative history",
+      "subtitle": "Every image and video, with provider, status, cost and time.",
+      "kind": "Kind",
+      "allKinds": "All kinds",
+      "images": "Images",
+      "videos": "Videos",
+      "image": "Image",
+      "video": "Video",
+      "empty": "Nothing here yet",
+      "emptyHint": "Your generations will appear here.",
+      "openItem": "Open {kind} from {date}",
+      "provider": "Provider",
+      "units": "Produced",
+      "imagesCount": "{n} image(s)",
+      "time": "Processing time",
+      "cost": "Estimated cost",
+      "prompt": "Prompt",
+      "delete": "Delete",
+      "deleteTitle": "Delete this generation?",
+      "deleteText": "The files are removed from your media library."
+    },
+    "job": {
+      "queued": "Waiting in the queue…",
+      "retrying": "The provider had a hiccup, retrying (attempt {attempt} of {max})…",
+      "generatingImage": "Generating {count} image(s)…",
+      "leaveHint": "You can leave this page: the result will be in your history.",
+      "video": {
+        "starting": "Sending the video request…",
+        "queued": "The provider queued your video…",
+        "in_progress": "The provider is generating your video…",
+        "completed": "Saving your video…"
+      }
+    },
+    "errors": {
+      "UNKNOWN": "Something went wrong. Nothing was charged for a failed generation.",
+      "IMAGE_NOT_CONFIGURED": "No image provider is configured. Ask an administrator to set one up.",
+      "VIDEO_NOT_CONFIGURED": "No video provider is configured, so no video can be generated.",
+      "IMAGE_LIMIT_REACHED": "You reached this month’s image limit.",
+      "VIDEO_LIMIT_REACHED": "You reached this month’s video limit.",
+      "STORAGE_QUOTA_EXCEEDED": "Your storage is full. Delete some media and try again.",
+      "STORAGE_NOT_CONFIGURED": "File storage is not configured.",
+      "STORAGE_UNAVAILABLE": "File storage is unavailable right now. Try again shortly.",
+      "PRODUCT_CUTOUT_FAILED": "The product could not be separated from its background. Use a photo on a plain or transparent background, or choose the guided mode.",
+      "OVERLAY_UNVERIFIED": "The text on the image contains details (price, phone, address…) that are not in your business data. Fix your data or the text.",
+      "NO_LOGO": "Add a logo in your brand kit first.",
+      "ASPECT_NOT_SUITED": "This format does not suit the chosen platform.",
+      "IDEMPOTENCY_KEY_REUSED": "This request key was already used for a different request.",
+      "VIDEO_SUBMIT_UNKNOWN": "We could not confirm the video was accepted by the provider. To avoid double billing it was not sent again — check your history before retrying.",
+      "VIDEO_TIMEOUT": "The video took too long and was stopped.",
+      "VIDEO_LENGTH_INVALID": "This video length is not allowed for the chosen format.",
+      "VIDEO_FORMAT_UNSUPPORTED": "The video provider does not support this format.",
+      "IMAGE_TO_VIDEO_UNSUPPORTED": "The video provider cannot animate a photo.",
+      "IMAGE_PROVIDER_FAILED": "The image provider failed. Try again.",
+      "IMAGE_PROVIDER_REFUSED": "The image provider refused this request. Rephrase it.",
+      "IMAGE_PROVIDER_AUTH": "The image provider rejected the credentials. Contact an administrator.",
+      "IMAGE_PROVIDER_BILLING": "The image provider account has a billing problem. Contact an administrator.",
+      "IMAGE_PROVIDER_RATE_LIMIT": "The image provider is busy. Try again in a moment.",
+      "IMAGE_PROVIDER_TIMEOUT": "The image provider took too long. Try again.",
+      "VIDEO_PROVIDER_FAILED": "The video provider failed. Try again.",
+      "VIDEO_PROVIDER_REFUSED": "The video provider refused this request. Rephrase it.",
+      "VIDEO_PROVIDER_AUTH": "The video provider rejected the credentials. Contact an administrator.",
+      "VIDEO_PROVIDER_BILLING": "The video provider account has a billing problem. Contact an administrator.",
+      "VIDEO_PROVIDER_RATE_LIMIT": "The video provider is busy. Try again in a moment.",
+      "VIDEO_PROVIDER_TIMEOUT": "The video provider took too long. Try again.",
+      "FILE_TYPE_MISMATCH": "The file content does not match its type.",
+      "FILE_TOO_LARGE": "This file is too large.",
+      "FILE_TYPE": "This file type is not allowed.",
+      "IMAGE_CORRUPT": "This image cannot be read.",
+      "CREATIVE_FORBIDDEN": "You are no longer allowed to use the Creative Studio for this business.",
+      "CREATIVE_JOB_STALLED": "The generation did not finish and was cancelled. Nothing was charged.",
+      "CREATIVE_JOB_FAILED": "The generation stopped unexpectedly. Nothing was charged.",
+      "CREATIVE_QUEUE_UNAVAILABLE": "The generation queue is unavailable. Try again shortly."
     }
   }
 }

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3, BookOpenCheck, BriefcaseBusiness, Building2, CalendarDays, CreditCard, FolderTree, Image as ImageIcon, Inbox,
-  LayoutDashboard, Loader2, LogOut, Menu, Package, Share2, UserRound, Wand2, X,
+  LayoutDashboard, Loader2, LogOut, Menu, Package, Palette, Share2, UserRound, Wand2, X,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { useBusiness } from '@/components/business-provider';
@@ -27,6 +27,7 @@ const NAV: NavItem[] = [
   { key: 'media', href: '/dashboard/media', icon: ImageIcon },
   { key: 'knowledge', href: '/dashboard/knowledge', icon: BookOpenCheck },
   { key: 'ai', href: '/dashboard/ai', icon: Wand2 },
+  { key: 'creative', href: '/dashboard/creative', icon: Palette },
   { key: 'calendar', icon: CalendarDays },
   { key: 'social', icon: Share2 },
   { key: 'inbox', icon: Inbox },
