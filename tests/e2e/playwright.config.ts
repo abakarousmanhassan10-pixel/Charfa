@@ -37,6 +37,8 @@ const testEnv = {
   CREATIVE_JOB_BACKOFF_MS: '40',
   CREATIVE_RATE_LIMIT_PER_MINUTE: '1000',
   CREATIVE_MODEL_PRICING: JSON.stringify({ 'gpt-image-1': { perImageUsd: 0.04 }, 'sora-2': { perSecondUsd: 0.1 } }),
+  CALENDAR_RATE_LIMIT_PER_MINUTE: '1000',
+  CALENDAR_DISPATCH_BACKOFF_MS: '100',
   // Real SMTP delivery to a local capture server started by account.e2e.ts (no email provider mock in the API).
   EMAIL_TRANSPORT: 'smtp',
   SMTP_HOST: '127.0.0.1',

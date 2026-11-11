@@ -521,7 +521,8 @@
       "PRODUCT_ANALYSIS": "Analyse produit",
       "MARKETING_STRATEGY": "Stratégie marketing",
       "CONTENT": "Contenu",
-      "STORYBOARD": "Storyboard"
+      "STORYBOARD": "Storyboard",
+      "CONTENT_PLAN": "Plan de contenu"
     },
     "statuses": {
       "SUCCEEDED": "Réussi",
@@ -1191,6 +1192,290 @@
       "CREATIVE_JOB_STALLED": "La génération ne s’est pas terminée et a été annulée. Rien n’a été facturé.",
       "CREATIVE_JOB_FAILED": "La génération s’est arrêtée de façon inattendue. Rien n’a été facturé.",
       "CREATIVE_QUEUE_UNAVAILABLE": "La file de génération est indisponible. Réessayez bientôt."
+    }
+  },
+  "calendar": {
+    "title": "Calendrier de contenu",
+    "legend": "Légende des statuts",
+    "tabs": {
+      "overview": "Aperçu",
+      "month": "Mois",
+      "week": "Semaine",
+      "day": "Jour",
+      "planner": "Planificateur 30 jours",
+      "approvals": "Approbations"
+    },
+    "status": {
+      "DRAFT": "Brouillon",
+      "IN_REVIEW": "En attente d’approbation",
+      "REJECTED": "Refusé",
+      "APPROVED": "Approuvé",
+      "SCHEDULED": "Programmé",
+      "PUBLISHING": "En cours de publication",
+      "PUBLISHED": "Publié",
+      "FAILED": "Échec",
+      "CANCELLED": "Annulé"
+    },
+    "workflow": {
+      "DRAFT": "Un brouillon. Rédigez le texte, puis soumettez-le pour approbation.",
+      "IN_REVIEW": "En attente d’une personne autorisée à approuver ce texte précis.",
+      "REJECTED": "Refusé. Modifiez le texte et soumettez-le à nouveau.",
+      "APPROVED": "Approuvé. Il ne sera publié que si une personne autorisée le programme : c’est l’autorisation explicite de publier.",
+      "SCHEDULED": "Programmé : autorisé pour publication à l’heure indiquée.",
+      "PUBLISHING": "Transmis au service de publication.",
+      "PUBLISHED": "Publié.",
+      "FAILED": "La publication programmée a échoué. Vous pouvez réessayer.",
+      "CANCELLED": "Annulé. Il ne sera pas publié."
+    },
+    "decision": {
+      "SUBMITTED": "Soumis pour approbation",
+      "APPROVED": "Approuvé",
+      "REJECTED": "Refusé",
+      "AUTHORIZED": "Autorisé à publier",
+      "REVOKED": "Retiré",
+      "CANCELLED": "Annulé"
+    },
+    "errors": {
+      "CALENDAR_CONFLICT": "Cet horaire est en conflit avec le calendrier.",
+      "CONFLICT_CONFIRMATION_REQUIRED": "Cet horaire est en conflit avec le calendrier. Confirmez pour continuer.",
+      "APPROVAL_REQUIRED": "Ce contenu doit être approuvé (dans sa version actuelle) avant d’être programmé.",
+      "INVALID_STATE": "Cette action n’est pas possible dans l’état actuel de l’entrée.",
+      "TOO_LATE": "Cette entrée est déjà en cours de transmission au service de publication.",
+      "CONTENT_INCOMPLETE": "Complétez le contenu (texte et médias) avant de le soumettre.",
+      "APPROVAL_BLOCKED": "Ce texte contient des informations absentes de vos données vérifiées.",
+      "PLAN_ALREADY_APPLIED": "Ce plan a déjà été appliqué au calendrier.",
+      "PLAN_NOT_READY": "Ce plan n’est pas terminé.",
+      "NO_FREE_SLOT": "Aucun horaire recommandé libre dans les 14 prochains jours. Choisissez-en un.",
+      "DUPLICATE_RECURRENCE": "Cette récurrence existe déjà.",
+      "TOO_MANY_OCCURRENCES": "Cette récurrence créerait trop d’entrées. Raccourcissez-la.",
+      "NO_FUTURE_OCCURRENCES": "Toutes les occurrences sont dans le passé.",
+      "RANGE_TOO_LARGE": "Cette période est trop longue.",
+      "ENTRY_NOT_FOUND": "Entrée du calendrier introuvable.",
+      "START_IN_PAST": "Le plan ne peut pas commencer dans le passé.",
+      "INVALID_OCCASION": "Une occasion est invalide ou hors du plan.",
+      "PERMISSION_DENIED": "Vous n’avez pas la permission de faire cela.",
+      "INVALID_TIME": "La date ou l’heure n’est pas valide.",
+      "WEEKDAYS_REQUIRED": "Choisissez au moins un jour de la semaine.",
+      "INVALID_RANGE": "La période n’est pas valide.",
+      "MEDIA_NOT_FOUND": "Un média est introuvable ou pas prêt.",
+      "ITEM_NOT_FOUND": "Le produit ou service est introuvable.",
+      "CALENDAR_QUEUE_UNAVAILABLE": "La file de planification est indisponible. Réessayez bientôt.",
+      "AI_INVALID_OUTPUT": "Le plan IA n’a pas passé les contrôles d’exactitude. Réessayez."
+    },
+    "platforms": {
+      "INSTAGRAM": "Instagram",
+      "FACEBOOK": "Facebook",
+      "TIKTOK": "TikTok",
+      "YOUTUBE": "YouTube"
+    },
+    "pillars": {
+      "PROMOTIONAL": "Promotionnel",
+      "EDUCATIONAL": "Éducatif",
+      "PRODUCT_SHOWCASE": "Vitrine produit",
+      "ENGAGEMENT": "Engagement client",
+      "BRAND_AWARENESS": "Notoriété de marque",
+      "SEASONAL": "Saisonnier"
+    },
+    "types": {
+      "TEXT": "Texte",
+      "IMAGE": "Image",
+      "VIDEO": "Vidéo",
+      "CAROUSEL": "Carrousel"
+    },
+    "timeSource": {
+      "MANUAL": "Choisi par vous",
+      "MANUALHint": "Vous avez choisi cet horaire.",
+      "ANALYTICS": "D’après vos données",
+      "ANALYTICSHint": "D’après l’engagement mesuré de vos publications.",
+      "ESTIMATE": "Estimation",
+      "ESTIMATEHint": "Estimation : repère général pour la plateforme, pas vos données d’audience."
+    },
+    "allPlatforms": "Toutes les plateformes",
+    "timezoneNote": "Les heures sont affichées dans le fuseau de votre entreprise : {tz}.",
+    "publishingNote": "La publication n’est pas encore connectée. Les entrées programmées attendent et rien n’est publié automatiquement.",
+    "dragHint": "Faites glisser une entrée vers un autre jour pour la déplacer, ou ouvrez-la pour choisir une heure précise.",
+    "emptyDay": "Rien de prévu.",
+    "more": "+{count} de plus",
+    "count": "{count} entrées",
+    "moved": "« {title} » déplacé au {date}, {time}.",
+    "nav": {
+      "previous": "Précédent",
+      "next": "Suivant",
+      "today": "Aujourd’hui"
+    },
+    "month": {
+      "title": "Mois",
+      "subtitle": "Votre plan d’un coup d’œil. Glissez les entrées entre les jours."
+    },
+    "week": {
+      "title": "Semaine",
+      "subtitle": "Sept jours de contenu, par plateforme."
+    },
+    "day": {
+      "title": "Jour",
+      "subtitle": "Heure par heure. Glissez une entrée vers une autre heure."
+    },
+    "new": {
+      "title": "Planifier une publication",
+      "text": "Elle commence comme brouillon. Rien n’est publié sans approbation ni autorisation.",
+      "button": "Nouvelle entrée",
+      "create": "Créer l’entrée",
+      "on": "Planifier une publication le {date}",
+      "timeHint": "Laissez vide pour utiliser l’heure recommandée."
+    },
+    "conflict": {
+      "title": "Conflit de calendrier",
+      "text": "Cet horaire est en conflit. Vous pouvez continuer si c’est voulu.",
+      "confirm": "Continuer quand même",
+      "cancel": "Choisir un autre horaire",
+      "badge": "Conflit",
+      "codes": {
+        "SLOT_TOO_CLOSE": "Trop proche d’une autre publication sur cette plateforme",
+        "DAILY_LIMIT": "Plus de publications que recommandé sur une journée pour cette plateforme",
+        "PAST_TIME": "Cet horaire est dans le passé",
+        "DUPLICATE_PLACEMENT": "Ce contenu est déjà planifié sur cette plateforme",
+        "ACCOUNT_NOT_CONNECTED": "Aucun compte connecté pour cette plateforme pour l’instant"
+      }
+    },
+    "entry": {
+      "when": "Quand",
+      "date": "Date",
+      "time": "Heure",
+      "content": "Contenu",
+      "title": "Titre",
+      "platform": "Plateforme",
+      "pillar": "Pilier de contenu",
+      "type": "Type",
+      "caption": "Légende",
+      "captionHint": "{count} / {max} caractères",
+      "hashtags": "Hashtags",
+      "cta": "Appel à l’action",
+      "brief": "Brief",
+      "briefHint": "Ce que cette publication doit dire et montrer.",
+      "workflow": "Approbation et publication",
+      "history": "Historique",
+      "noHistory": "Aucune décision pour l’instant.",
+      "system": "TOUMA",
+      "aiAssisted": "Assisté par IA : approbation requise",
+      "editWarning": "Modifier le texte retire l’approbation et l’autorisation.",
+      "needsApprover": "En attente d’une personne autorisée à approuver.",
+      "needsScheduler": "Une personne autorisée à programmer des publications doit l’autoriser.",
+      "authorizeText": "J’autorise TOUMA à publier ce texte approuvé le {when}.",
+      "rejectReason": "Motif (visible par l’auteur)",
+      "rejectedWith": "Refusé : {reason}",
+      "failedWith": "La publication a échoué : {error}",
+      "noPublisher": "La publication n’est pas encore connectée : cette entrée attendra au lieu d’être publiée."
+    },
+    "actions": {
+      "save": "Enregistrer",
+      "move": "Déplacer",
+      "retryAt": "Réessayer à cette heure",
+      "submit": "Soumettre pour approbation",
+      "approve": "Approuver",
+      "reject": "Refuser",
+      "rejectConfirm": "Refuser avec ce motif",
+      "authorize": "Programmer et autoriser",
+      "unschedule": "Déprogrammer",
+      "retry": "Réessayer",
+      "cancel": "Annuler l’entrée",
+      "delete": "Supprimer",
+      "review": "Examiner",
+      "open": "Ouvrir"
+    },
+    "overview": {
+      "title": "Calendrier de contenu",
+      "subtitle": "Planifiez, approuvez et programmez votre contenu marketing.",
+      "plan": "Planifier 30 jours avec l’IA",
+      "pending": "En attente d’approbation",
+      "scheduled": "Programmés",
+      "next30": "Entrées dans les 30 prochains jours",
+      "problems": "Problèmes : {failed} échecs, {conflicts} conflits",
+      "upcoming": "À venir",
+      "noUpcoming": "Rien de prévu. Créez une entrée ou planifiez 30 jours avec l’IA.",
+      "balance": "Mix de contenu (30 prochains jours)",
+      "noBalance": "Pas encore de contenu catégorisé.",
+      "settings": "Réglages de planification",
+      "timezone": "Fuseau horaire de l’entreprise",
+      "connected": "Plateformes connectées",
+      "noneConnected": "Aucune pour l’instant"
+    },
+    "planner": {
+      "pageTitle": "Planificateur 30 jours",
+      "subtitle": "Un plan marketing IA construit à partir de vos vraies données. Vous le relisez avant qu’il n’entre dans le calendrier.",
+      "title": "Générer un plan",
+      "intro": "TOUMA AI planifie un mélange équilibré de contenu promotionnel, éducatif, produit, engagement et marque. Elle n’invente jamais de fêtes, promotions ou faits : les publications saisonnières n’existent que pour les occasions ajoutées ci-dessous.",
+      "notConfigured": "TOUMA AI n’est pas configurée sur ce serveur : impossible de générer un plan.",
+      "start": "Premier jour",
+      "days": "Jours",
+      "perWeek": "Publications par semaine",
+      "platforms": "Plateformes",
+      "connected": "Connectée",
+      "goal": "Objectif de ce plan",
+      "occasions": "Occasions à utiliser",
+      "occasionsHint": "Fêtes, événements ou campagnes réels pour votre entreprise. Sans occasion, le plan n’a pas de publications saisonnières.",
+      "occasionName": "Nom de l’occasion",
+      "addOccasion": "Ajouter l’occasion",
+      "removeOccasion": "Retirer {name}",
+      "instructions": "Instructions supplémentaires",
+      "generate": "Générer le plan",
+      "generating": "Génération…",
+      "previewTitle": "Plan du {start} · {days} jours",
+      "missing": "Informations manquantes",
+      "balance": "Mix de contenu",
+      "timeNote": "Les heures sont proposées en {tz}. Ce sont des estimations générales sauf si vos données d’audience disent autre chose.",
+      "include": "Inclure « {title} »",
+      "noTime": "Pas d’heure libre",
+      "apply": "Ajouter {count} brouillons au calendrier",
+      "applyHint": "Ils sont ajoutés comme brouillons. Chacun nécessite encore approbation et autorisation.",
+      "applied": "Plan ajouté au calendrier ({count} brouillons).",
+      "openCalendar": "Ouvrir le calendrier",
+      "previous": "Plans précédents",
+      "open": "Ouvrir"
+    },
+    "recurrence": {
+      "title": "Publications récurrentes",
+      "intro": "Créez des entrées qui se répètent à la même heure locale, même lors des changements d’heure. Chacune est un brouillon à approuver.",
+      "frequency": "Répétition",
+      "weekly": "Chaque semaine",
+      "daily": "Chaque jour",
+      "weekdays": "Jours de la semaine",
+      "from": "Du",
+      "until": "Au",
+      "create": "Créer la récurrence",
+      "created": "{count} entrées créées.",
+      "entries": "{count} entrées",
+      "stop": "Arrêter",
+      "stopTitle": "Arrêter cette récurrence ?",
+      "stopText": "Les entrées futures non approuvées sont annulées. Les entrées approuvées et programmées sont conservées."
+    },
+    "approvals": {
+      "title": "Approbations",
+      "subtitle": "Rien n’est publié sans qu’une personne approuve le texte exact et autorise sa publication.",
+      "pending": "En attente d’approbation",
+      "emptyTitle": "Rien à approuver",
+      "emptyText": "Les nouvelles soumissions apparaîtront ici.",
+      "ready": "Approuvés, prêts à programmer",
+      "readyHint": "Programmer est l’autorisation explicite de publier.",
+      "readyEmpty": "Aucune entrée approuvée en attente.",
+      "decisions": "Décisions récentes",
+      "decisionsEmpty": "Aucune décision pour l’instant.",
+      "rejectTitle": "Refuser cette entrée",
+      "aiNote": "Assisté par IA : le texte est vérifié avec vos données validées à l’approbation."
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "Aucune notification.",
+    "readAll": "Tout marquer comme lu",
+    "unread": "{count} non lues",
+    "types": {
+      "calendar": {
+        "approval_requested": "Approbation requise : {title}",
+        "upcoming": "Publication à venir : {title}",
+        "failed": "Échec de publication : {title}",
+        "conflict": "Conflit de calendrier : {title}",
+        "blocked": "Échéance atteinte mais non publié : {title}"
+      }
     }
   }
 }

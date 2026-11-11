@@ -67,7 +67,7 @@ export class RecurrenceService {
       return { rule, created: slots.length, conflicts };
     });
     await this.audit.record({ action: 'calendar.recurrence_created', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'RecurrenceRule', entityId: out.rule.id, metadata: { created: out.created, platform } });
-    if (out.conflicts) await this.notifications.notify({ businessId: tenant.businessId, permission: 'publication.schedule', type: 'calendar.conflict', title: `Recurring schedule "${dto.title}" has conflicts`, data: { recurrenceId: out.rule.id, count: out.conflicts }, dedupeKey: `recurrence-conflict:${out.rule.id}` });
+    if (out.conflicts) await this.notifications.notify({ businessId: tenant.businessId, permission: 'publication.schedule', type: 'calendar.conflict', title: `Recurring schedule "${dto.title}" has conflicts`, data: { recurrenceId: out.rule.id, entryTitle: dto.title, count: out.conflicts }, dedupeKey: `recurrence-conflict:${out.rule.id}` });
     return { id: out.rule.id, created: out.created, skippedPast: dates.length - slots.length, conflicts: out.conflicts };
   }
 

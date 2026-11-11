@@ -11,6 +11,8 @@ export class ApiError extends Error {
     message: string | string[],
     /** Extra detail sent by the API, e.g. the list of issues that blocked an approval. */
     public readonly details?: string[],
+    /** Structured extras: calendar conflicts to confirm, missing fields, the id of an already-applied plan. */
+    public readonly extra?: { conflicts?: Array<{ code: string; severity: string; message: string; withEntryId?: string; withTitle?: string }>; missing?: string[]; planId?: string },
   ) {
     super(Array.isArray(message) ? message.join(', ') : message);
   }
@@ -36,7 +38,7 @@ async function parse<T>(res: Response): Promise<T> {
   }
   if (!res.ok) {
     const code = body.code ?? (res.status === 429 ? 'TOO_MANY_REQUESTS' : res.status === 400 ? 'VALIDATION' : 'UNKNOWN');
-    throw new ApiError(res.status, code, body.message ?? res.statusText, Array.isArray(body.issues) ? body.issues.map(String) : undefined);
+    throw new ApiError(res.status, code, body.message ?? res.statusText, Array.isArray(body.issues) ? body.issues.map(String) : undefined, { conflicts: Array.isArray(body.conflicts) ? body.conflicts : undefined, missing: Array.isArray(body.missing) ? body.missing : undefined, planId: typeof body.planId === 'string' ? body.planId : undefined });
   }
   return body as T;
 }

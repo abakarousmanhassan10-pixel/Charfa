@@ -101,7 +101,7 @@ export class CalendarWorkerService implements OnApplicationBootstrap, OnApplicat
         const res = await this.prisma.calendarEvent.updateMany({ where: { id: e.id, dispatchState: 'NONE' }, data: { dispatchState: 'BLOCKED', lastError: 'Publishing is not connected yet' } });
         if (res.count) {
           blocked++;
-          await this.notifications.notify({ businessId: e.businessId, permission: 'publication.schedule', type: 'calendar.blocked', title: `Due but not published: ${e.title}`, body: 'Publishing is not connected, so this entry was not published.', data: { entryId: e.id, platform: e.platform }, dedupeKey: `blocked:${e.id}:${e.scheduledAt.getTime()}` });
+          await this.notifications.notify({ businessId: e.businessId, permission: 'publication.schedule', type: 'calendar.blocked', title: `Due but not published: ${e.title}`, body: 'Publishing is not connected, so this entry was not published.', data: { entryId: e.id, entryTitle: e.title, platform: e.platform }, dedupeKey: `blocked:${e.id}:${e.scheduledAt.getTime()}` });
         }
         continue;
       }
@@ -135,7 +135,7 @@ export class CalendarWorkerService implements OnApplicationBootstrap, OnApplicat
       n++;
       await this.notifications.notify({
         businessId: e.businessId, permission: 'publication.schedule', userIds: e.authorizedById ? [e.authorizedById] : [], type: 'calendar.upcoming', title: `Upcoming publication: ${e.title}`,
-        data: { entryId: e.id, platform: e.platform, scheduledAt: e.scheduledAt.toISOString() }, dedupeKey: `upcoming:${e.id}:${e.scheduledAt.getTime()}`,
+        data: { entryId: e.id, entryTitle: e.title, platform: e.platform, scheduledAt: e.scheduledAt.toISOString() }, dedupeKey: `upcoming:${e.id}:${e.scheduledAt.getTime()}`,
       });
     }
     return n;
@@ -232,7 +232,7 @@ export class CalendarWorkerService implements OnApplicationBootstrap, OnApplicat
     await this.audit.record({ action: 'calendar.dispatch_failed', actorId: null, businessId: e.businessId, entityType: 'CalendarEvent', entityId: e.id, metadata: { code, message: message.slice(0, 300) } });
     await this.notifications.notify({
       businessId: e.businessId, permission: 'publication.schedule', userIds: e.authorizedById ? [e.authorizedById] : [], type: 'calendar.failed', title: `Publication failed: ${e.title}`, body: message.slice(0, 300),
-      data: { entryId: e.id, platform: e.platform, code }, dedupeKey: `failed:${e.id}:${e.scheduledAt.getTime()}:${code}`,
+      data: { entryId: e.id, entryTitle: e.title, platform: e.platform, code }, dedupeKey: `failed:${e.id}:${e.scheduledAt.getTime()}:${code}`,
     });
   }
 

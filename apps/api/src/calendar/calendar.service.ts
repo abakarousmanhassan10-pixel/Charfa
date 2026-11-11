@@ -243,7 +243,7 @@ export class CalendarService {
       type: 'calendar.conflict',
       title: `Calendar conflict: ${e.title}`,
       body: soft.map((c) => c.message).join(' '),
-      data: { entryId: e.id, codes: soft.map((c) => c.code) },
+      data: { entryId: e.id, entryTitle: e.title, codes: soft.map((c) => c.code) },
       dedupeKey: `conflict:${e.id}:${e.scheduledAt.getTime()}`,
     });
   }
@@ -475,7 +475,7 @@ export class CalendarService {
       return e;
     });
     await this.audit.record({ action: 'calendar.submitted', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id, metadata: { version: e.content!.version } });
-    await this.notifications.notify({ businessId: tenant.businessId, permission: 'content.approve', type: 'calendar.approval_requested', title: `Approval needed: ${e.title}`, data: { entryId: e.id, platform: e.platform, scheduledAt: e.scheduledAt.toISOString() }, dedupeKey: `approval:${e.id}:${e.content!.version}` });
+    await this.notifications.notify({ businessId: tenant.businessId, permission: 'content.approve', type: 'calendar.approval_requested', title: `Approval needed: ${e.title}`, data: { entryId: e.id, entryTitle: e.title, platform: e.platform, scheduledAt: e.scheduledAt.toISOString() }, dedupeKey: `approval:${e.id}:${e.content!.version}` });
     return this.get(tenant, id);
   }
 

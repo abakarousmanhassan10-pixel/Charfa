@@ -521,7 +521,8 @@
       "PRODUCT_ANALYSIS": "Product analysis",
       "MARKETING_STRATEGY": "Marketing strategy",
       "CONTENT": "Content",
-      "STORYBOARD": "Storyboard"
+      "STORYBOARD": "Storyboard",
+      "CONTENT_PLAN": "Content plan"
     },
     "statuses": {
       "SUCCEEDED": "Succeeded",
@@ -1191,6 +1192,290 @@
       "CREATIVE_JOB_STALLED": "The generation did not finish and was cancelled. Nothing was charged.",
       "CREATIVE_JOB_FAILED": "The generation stopped unexpectedly. Nothing was charged.",
       "CREATIVE_QUEUE_UNAVAILABLE": "The generation queue is unavailable. Try again shortly."
+    }
+  },
+  "calendar": {
+    "title": "Content calendar",
+    "legend": "Status legend",
+    "tabs": {
+      "overview": "Overview",
+      "month": "Month",
+      "week": "Week",
+      "day": "Day",
+      "planner": "30-day planner",
+      "approvals": "Approvals"
+    },
+    "status": {
+      "DRAFT": "Draft",
+      "IN_REVIEW": "Pending approval",
+      "REJECTED": "Rejected",
+      "APPROVED": "Approved",
+      "SCHEDULED": "Scheduled",
+      "PUBLISHING": "Publishing",
+      "PUBLISHED": "Published",
+      "FAILED": "Failed",
+      "CANCELLED": "Cancelled"
+    },
+    "workflow": {
+      "DRAFT": "A draft. Write the text, then submit it for approval.",
+      "IN_REVIEW": "Waiting for someone who can approve content to review this exact text.",
+      "REJECTED": "Rejected. Edit the text and submit it again.",
+      "APPROVED": "Approved. It will only be published if someone with permission schedules it, which is the explicit authorization to publish.",
+      "SCHEDULED": "Scheduled: authorized for publication at the time shown.",
+      "PUBLISHING": "Handed to the publisher.",
+      "PUBLISHED": "Published.",
+      "FAILED": "The scheduled publication failed. You can retry it.",
+      "CANCELLED": "Cancelled. It will not be published."
+    },
+    "decision": {
+      "SUBMITTED": "Submitted for approval",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "AUTHORIZED": "Authorized to publish",
+      "REVOKED": "Withdrawn",
+      "CANCELLED": "Cancelled"
+    },
+    "errors": {
+      "CALENDAR_CONFLICT": "This time conflicts with the calendar.",
+      "CONFLICT_CONFIRMATION_REQUIRED": "This time conflicts with the calendar. Confirm to continue.",
+      "APPROVAL_REQUIRED": "This content must be approved (in its current version) before it can be scheduled.",
+      "INVALID_STATE": "This action is not possible in the current state of the entry.",
+      "TOO_LATE": "This entry is already being handed to the publisher.",
+      "CONTENT_INCOMPLETE": "Complete the content (text and media) before submitting it.",
+      "APPROVAL_BLOCKED": "This text contains information that is not in your verified business data.",
+      "PLAN_ALREADY_APPLIED": "This plan was already applied to the calendar.",
+      "PLAN_NOT_READY": "This plan is not finished.",
+      "NO_FREE_SLOT": "No free recommended time in the next 14 days. Choose a time yourself.",
+      "DUPLICATE_RECURRENCE": "This recurring schedule already exists.",
+      "TOO_MANY_OCCURRENCES": "This schedule would create too many entries. Shorten it.",
+      "NO_FUTURE_OCCURRENCES": "All occurrences of this schedule are in the past.",
+      "RANGE_TOO_LARGE": "That range is too large.",
+      "ENTRY_NOT_FOUND": "Calendar entry not found.",
+      "START_IN_PAST": "The plan cannot start in the past.",
+      "INVALID_OCCASION": "An occasion is invalid or outside the plan.",
+      "PERMISSION_DENIED": "You do not have permission to do this.",
+      "INVALID_TIME": "The date or time is not valid.",
+      "WEEKDAYS_REQUIRED": "Choose at least one weekday.",
+      "INVALID_RANGE": "The date range is not valid.",
+      "MEDIA_NOT_FOUND": "A media item was not found or is not ready.",
+      "ITEM_NOT_FOUND": "The product or service was not found.",
+      "CALENDAR_QUEUE_UNAVAILABLE": "The scheduling queue is unavailable. Try again shortly.",
+      "AI_INVALID_OUTPUT": "The AI plan did not pass the accuracy checks. Try again."
+    },
+    "platforms": {
+      "INSTAGRAM": "Instagram",
+      "FACEBOOK": "Facebook",
+      "TIKTOK": "TikTok",
+      "YOUTUBE": "YouTube"
+    },
+    "pillars": {
+      "PROMOTIONAL": "Promotional",
+      "EDUCATIONAL": "Educational",
+      "PRODUCT_SHOWCASE": "Product showcase",
+      "ENGAGEMENT": "Customer engagement",
+      "BRAND_AWARENESS": "Brand awareness",
+      "SEASONAL": "Seasonal"
+    },
+    "types": {
+      "TEXT": "Text",
+      "IMAGE": "Image",
+      "VIDEO": "Video",
+      "CAROUSEL": "Carousel"
+    },
+    "timeSource": {
+      "MANUAL": "Chosen by you",
+      "MANUALHint": "You chose this time.",
+      "ANALYTICS": "Based on your data",
+      "ANALYTICSHint": "Based on the measured engagement of your published posts.",
+      "ESTIMATE": "Estimate",
+      "ESTIMATEHint": "Estimate: general guidance for the platform, not your audience data."
+    },
+    "allPlatforms": "All platforms",
+    "timezoneNote": "Times are shown in your business timezone: {tz}.",
+    "publishingNote": "Publishing is not connected yet. Scheduled entries wait and nothing is published automatically.",
+    "dragHint": "Drag an entry to another day to move it, or open it to choose an exact time.",
+    "emptyDay": "Nothing planned.",
+    "more": "+{count} more",
+    "count": "{count} entries",
+    "moved": "Moved “{title}” to {date}, {time}.",
+    "nav": {
+      "previous": "Previous",
+      "next": "Next",
+      "today": "Today"
+    },
+    "month": {
+      "title": "Month",
+      "subtitle": "Your plan at a glance. Drag entries between days."
+    },
+    "week": {
+      "title": "Week",
+      "subtitle": "Seven days of content, by platform."
+    },
+    "day": {
+      "title": "Day",
+      "subtitle": "Hour by hour. Drag an entry to another hour."
+    },
+    "new": {
+      "title": "Plan a post",
+      "text": "It starts as a draft. Nothing is published without approval and authorization.",
+      "button": "New entry",
+      "create": "Create entry",
+      "on": "Plan a post on {date}",
+      "timeHint": "Leave empty to use the recommended time."
+    },
+    "conflict": {
+      "title": "Calendar conflict",
+      "text": "This time has a conflict. You can still continue if it is intended.",
+      "confirm": "Continue anyway",
+      "cancel": "Choose another time",
+      "badge": "Conflict",
+      "codes": {
+        "SLOT_TOO_CLOSE": "Too close to another post on this platform",
+        "DAILY_LIMIT": "More posts than recommended on one day for this platform",
+        "PAST_TIME": "This time is in the past",
+        "DUPLICATE_PLACEMENT": "This content is already planned on this platform",
+        "ACCOUNT_NOT_CONNECTED": "No connected account for this platform yet"
+      }
+    },
+    "entry": {
+      "when": "When",
+      "date": "Date",
+      "time": "Time",
+      "content": "Content",
+      "title": "Title",
+      "platform": "Platform",
+      "pillar": "Content pillar",
+      "type": "Type",
+      "caption": "Caption",
+      "captionHint": "{count} / {max} characters",
+      "hashtags": "Hashtags",
+      "cta": "Call to action",
+      "brief": "Brief",
+      "briefHint": "What this post should say and show.",
+      "workflow": "Approval and publication",
+      "history": "History",
+      "noHistory": "No decisions yet.",
+      "system": "TOUMA",
+      "aiAssisted": "AI-assisted: needs approval",
+      "editWarning": "Editing the text withdraws the approval and the authorization.",
+      "needsApprover": "Waiting for a person who can approve content.",
+      "needsScheduler": "A person who can schedule publications must authorize this.",
+      "authorizeText": "I authorize TOUMA to publish this approved text on {when}.",
+      "rejectReason": "Reason (shown to the author)",
+      "rejectedWith": "Rejected: {reason}",
+      "failedWith": "The publication failed: {error}",
+      "noPublisher": "Publishing is not connected yet, so this entry will wait instead of being published."
+    },
+    "actions": {
+      "save": "Save changes",
+      "move": "Move",
+      "retryAt": "Retry at this time",
+      "submit": "Submit for approval",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectConfirm": "Reject with this reason",
+      "authorize": "Schedule and authorize",
+      "unschedule": "Unschedule",
+      "retry": "Retry",
+      "cancel": "Cancel entry",
+      "delete": "Delete",
+      "review": "Review",
+      "open": "Open"
+    },
+    "overview": {
+      "title": "Content calendar",
+      "subtitle": "Plan, approve and schedule your marketing content.",
+      "plan": "Plan 30 days with AI",
+      "pending": "Waiting for approval",
+      "scheduled": "Scheduled",
+      "next30": "Entries in the next 30 days",
+      "problems": "Problems: {failed} failed, {conflicts} conflicts",
+      "upcoming": "Coming up",
+      "noUpcoming": "Nothing planned yet. Create an entry or plan 30 days with AI.",
+      "balance": "Content mix (next 30 days)",
+      "noBalance": "No categorized content yet.",
+      "settings": "Scheduling settings",
+      "timezone": "Business timezone",
+      "connected": "Connected platforms",
+      "noneConnected": "None yet"
+    },
+    "planner": {
+      "pageTitle": "30-day planner",
+      "subtitle": "An AI marketing plan built from your real business data. You review it before it enters the calendar.",
+      "title": "Generate a plan",
+      "intro": "TOUMA AI plans a balanced mix of promotional, educational, product, engagement and brand content. It never invents holidays, promotions or business facts: seasonal posts exist only for occasions you add below.",
+      "notConfigured": "TOUMA AI is not configured on this server, so plans cannot be generated.",
+      "start": "First day",
+      "days": "Days",
+      "perWeek": "Posts per week",
+      "platforms": "Platforms",
+      "connected": "Connected",
+      "goal": "Objective for this plan",
+      "occasions": "Occasions you want to use",
+      "occasionsHint": "Holidays, events or campaigns that are real for your business. Without any, the plan has no seasonal posts.",
+      "occasionName": "Occasion name",
+      "addOccasion": "Add occasion",
+      "removeOccasion": "Remove {name}",
+      "instructions": "Extra instructions",
+      "generate": "Generate plan",
+      "generating": "Generating…",
+      "previewTitle": "Plan from {start} · {days} days",
+      "missing": "Missing information",
+      "balance": "Content mix",
+      "timeNote": "Times are proposed in {tz}. They are estimates from general guidance unless your own audience data says otherwise.",
+      "include": "Include “{title}”",
+      "noTime": "No free time",
+      "apply": "Add {count} drafts to the calendar",
+      "applyHint": "They are added as drafts. Each one still needs approval and authorization.",
+      "applied": "Plan added to the calendar ({count} drafts).",
+      "openCalendar": "Open the calendar",
+      "previous": "Previous plans",
+      "open": "Open"
+    },
+    "recurrence": {
+      "title": "Recurring schedules",
+      "intro": "Create entries that repeat at the same local time, even across clock changes. Each one is a draft that still needs approval.",
+      "frequency": "Repeats",
+      "weekly": "Weekly",
+      "daily": "Every day",
+      "weekdays": "Weekdays",
+      "from": "From",
+      "until": "Until",
+      "create": "Create schedule",
+      "created": "{count} entries created.",
+      "entries": "{count} entries",
+      "stop": "Stop",
+      "stopTitle": "Stop this recurring schedule?",
+      "stopText": "Unapproved future entries are cancelled. Approved and scheduled ones are kept."
+    },
+    "approvals": {
+      "title": "Approvals",
+      "subtitle": "Nothing is published without a person approving the exact text and authorizing its publication.",
+      "pending": "Waiting for approval",
+      "emptyTitle": "Nothing to approve",
+      "emptyText": "New submissions will appear here.",
+      "ready": "Approved, ready to schedule",
+      "readyHint": "Scheduling is the explicit authorization to publish.",
+      "readyEmpty": "No approved entries waiting.",
+      "decisions": "Recent decisions",
+      "decisionsEmpty": "No decisions yet.",
+      "rejectTitle": "Reject this entry",
+      "aiNote": "AI-assisted: the text is checked against your verified business data when approved."
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications.",
+    "readAll": "Mark all as read",
+    "unread": "{count} unread",
+    "types": {
+      "calendar": {
+        "approval_requested": "Approval needed: {title}",
+        "upcoming": "Upcoming publication: {title}",
+        "failed": "Publication failed: {title}",
+        "conflict": "Calendar conflict: {title}",
+        "blocked": "Due but not published: {title}"
+      }
     }
   }
 }

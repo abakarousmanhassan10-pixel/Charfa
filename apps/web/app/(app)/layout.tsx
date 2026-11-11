@@ -11,6 +11,7 @@ import { useBusiness } from '@/components/business-provider';
 import { EmailVerificationBanner } from '@/components/email-verification-banner';
 import { LocaleSwitcher, useI18n } from '@/components/i18n-provider';
 import { Logo } from '@/components/logo';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -28,7 +29,7 @@ const NAV: NavItem[] = [
   { key: 'knowledge', href: '/dashboard/knowledge', icon: BookOpenCheck },
   { key: 'ai', href: '/dashboard/ai', icon: Wand2 },
   { key: 'creative', href: '/dashboard/creative', icon: Palette },
-  { key: 'calendar', icon: CalendarDays },
+  { key: 'calendar', href: '/dashboard/calendar', icon: CalendarDays },
   { key: 'social', icon: Share2 },
   { key: 'inbox', icon: Inbox },
   { key: 'analytics', icon: BarChart3 },
@@ -187,6 +188,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Select>
           </div>
           <div className="ms-auto flex items-center gap-2 sm:gap-3">
+            <NotificationBell />
             <div className="hidden sm:block">
               <LocaleSwitcher />
             </div>
