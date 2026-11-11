@@ -103,3 +103,13 @@ Managed PostgreSQL with point-in-time recovery (7–30 days) plus daily snapshot
 | CreativeGeneration | One image/video request and its job: kind, status, provider/model, prompt, params, `idempotencyKey` + `requestHash` (unique per business), provider ref/status, reserved/produced units, `settledAt`, cost, processing time, brand snapshot |
 | CreativeOutput | One produced file: media asset, size, preservation (`EXACT`/`GUIDED`/`NONE`), `upscaled`, `selected` (favorite) |
 | AIUsagePeriod (extended) | Adds reserved/completed image and video-second counters; `AITask` gains `STORYBOARD` |
+
+## Calendar models (Phase 5, migration `20261111120000_smart_calendar`)
+| Model | Purpose |
+|---|---|
+| CalendarEvent (extended) | One entry per platform: `platform`, `pillar`, `brief`, `occasion`, UTC `scheduledAt` + `timezone`, `timeSource`/`timeNote`, `placementKey` (unique: one content per platform), authorization (`authorizedById/At/Version`), hand-off (`dispatchState`, `dispatchKey` unique, `dispatchAttempts`, `lockedUntil`, `lastError`), `reminderSentAt`, `planId`, `recurrenceId` + `occurrenceDate` (unique per rule) |
+| ContentPlan | An applied AI plan; `generationId` unique so a plan is applied once |
+| RecurrenceRule | Recurring schedule: frequency, weekdays, local time, timezone, date range |
+| ApprovalRecord | Append-only decisions: SUBMITTED, APPROVED, REJECTED, AUTHORIZED, REVOKED, CANCELLED with version, actor and note |
+| Notification (extended) | `dedupeKey`, unique per user |
+| AITask | adds `CONTENT_PLAN` |

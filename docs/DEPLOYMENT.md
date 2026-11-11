@@ -57,3 +57,6 @@ Cookies are `Secure` automatically in production. Put the API behind HTTPS (`tru
 
 ### Creative Studio
 No extra service: the AI worker also runs the creative queue. Set `IMAGE_PROVIDER`/`VIDEO_PROVIDER` (see [CREATIVE.md](CREATIVE.md)); `VIDEO_PROVIDER` defaults to `none`. The API image installs fonts for overlay text. `fake` providers must never be set in production (production validation reports them). `/health/ready` includes the creative worker heartbeat.
+
+### Calendar scheduler
+No extra service: `node dist/ai-worker.js` also runs the calendar scheduler (queue `touma.calendar`). At least one worker must be running for reminders, blocked-entry notices and (from Phase 6) publication hand-off. Tune with `CALENDAR_*` variables (see [CALENDAR.md](CALENDAR.md)). `/health/ready` reports `calendarWorker`.

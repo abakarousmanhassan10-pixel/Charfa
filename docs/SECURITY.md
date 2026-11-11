@@ -68,3 +68,11 @@ Report vulnerabilities privately to the maintainers. Do not open public issues f
 - **Abuse and cost:** per-user rate limit, atomic monthly limits for images and video seconds, idempotency keys, no automatic resubmission of paid video jobs.
 - **No fake media:** unconfigured providers return 503; `fake` providers are refused outside `APP_ENV=test` and flagged by production validation.
 - **Truthfulness:** exact-product compositing, overlay text grounded against verified business data, illustrations labelled as such.
+
+## Calendar controls (Phase 5)
+- **No publication without explicit authorization:** content must be approved in its current version by someone with `content.approve`, then scheduled by someone with `publication.schedule`; any text edit withdraws both. The scheduler re-checks version and authorizer before handing anything over, and the calendar itself never publishes.
+- **Separation of duties by role:** editors write and submit; admins and owners approve and authorize. Every decision is an append-only `ApprovalRecord` plus an audit entry.
+- **Idempotent hand-off:** dispatch key per entry, approved version and time; claims are conditional updates; recovered claims are re-sent with the same key.
+- **Concurrency:** scheduling decisions are serialised per business and platform with advisory locks; duplicate placements are blocked by a unique key.
+- **Tenant isolation:** every calendar query is scoped by `businessId`; other businesses receive 404; notifications are private to their recipient.
+- **AI honesty:** plans cannot contain occasions the merchant did not supply, invented promotions or unknown products (validated before storage).

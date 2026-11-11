@@ -118,3 +118,6 @@ Browser ◄── signed URL /api/v1/media/:id/content?exp&sig ◄── API str
 
 ## Creative Studio (Phase 4)
 `@touma/creative` holds provider-neutral contracts (`ImageProvider`, `VideoProvider`), the OpenAI adapters, prompt building and image composition (cutout, composite, overlay, logo). `apps/api/src/creative` owns the API, quota, idempotency and the BullMQ worker (`touma.creative`), which runs in the same process as the AI worker (`dist/ai-worker.js`). Generated files are stored through the existing media pipeline. See [CREATIVE.md](CREATIVE.md).
+
+## Calendar (Phase 5)
+`apps/api/src/calendar`: entry/workflow service, scheduling (conflicts, recommendations), plan and recurrence services, the BullMQ scheduler (`touma.calendar`, run by `dist/ai-worker.js`) and the `PUBLISHING_GATEWAY` interface Phase 6 implements. Timezone arithmetic lives in `@touma/shared`. Notifications: `apps/api/src/notifications`. See [CALENDAR.md](CALENDAR.md).

@@ -4,7 +4,9 @@
 
 TOUMA AI is the AI-powered marketing automation SaaS by **TOUMA**. It helps e-commerce stores, restaurants, retail shops, brands, agencies, freelancers and service providers run their marketing: product analysis, AI content and visuals, a 30-day content calendar, approval workflows, scheduled publishing through **official** social APIs, a unified inbox, analytics and subscriptions.
 
-> **Status: Phase 4 (Creative Studio: AI images, videos, storyboards, brand kit) complete and tested; real provider generation is unverified.** See [docs/CREATIVE.md](docs/CREATIVE.md) and [docs/phase-reports/PHASE-4-CREATIVE-STUDIO.md](docs/phase-reports/PHASE-4-CREATIVE-STUDIO.md).
+> **Status: Phase 5 (smart content calendar, approvals, AI 30-day planner, scheduler) complete and tested; nothing is published yet (Phase 6).** See [docs/CALENDAR.md](docs/CALENDAR.md) and [docs/phase-reports/PHASE-5-CALENDAR.md](docs/phase-reports/PHASE-5-CALENDAR.md).
+>
+> Phase 4 (Creative Studio: AI images, videos, storyboards, brand kit) complete and tested; real provider generation is unverified.** See [docs/CREATIVE.md](docs/CREATIVE.md) and [docs/phase-reports/PHASE-4-CREATIVE-STUDIO.md](docs/phase-reports/PHASE-4-CREATIVE-STUDIO.md).
 >
 > Phase 3 (TOUMA AI marketing engine) complete and tested. Business and product analysis, marketing strategy and multilingual content generation with an orchestrator, strict output validation and token tracking (`docs/AI.md`).
 >

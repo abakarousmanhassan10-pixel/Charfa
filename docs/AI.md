@@ -195,3 +195,6 @@ Error codes:
 
 ## Creative Studio
 Images, videos, storyboards and the brand kit are documented in [CREATIVE.md](CREATIVE.md). Storyboards run through this pipeline (task `STORYBOARD`, agent `storyboardCreator@1`); content generation now receives the brand kit (`content-creator@2`).
+
+## Content planning
+The 30-day marketing plan (`CONTENT_PLAN`, agent `contentPlanner@1`) is documented in [CALENDAR.md](CALENDAR.md). It uses the same job queue, grounding, usage limits and cost tracking, and its output is validated for balance, invented occasions and invented promotions before it is stored.

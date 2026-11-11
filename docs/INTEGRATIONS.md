@@ -19,3 +19,6 @@ When a platform's API can't publish a given format, the publication is set to `M
 
 ## Image and video providers (Phase 4)
 OpenAI `gpt-image-1` (images) and the OpenAI `/videos` API (video) are implemented behind provider interfaces. They are **unverified against the real services**. Configuration: [CREATIVE.md](CREATIVE.md).
+
+## Publishing interface (Phase 5 → Phase 6)
+The calendar hands due, authorized entries to `PUBLISHING_GATEWAY` (idempotent on the dispatch key) and receives results through `recordPublished` / `recordFailed`. No social publisher exists yet; see [CALENDAR.md](CALENDAR.md).

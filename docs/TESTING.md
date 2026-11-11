@@ -47,3 +47,6 @@ Email flows use real SMTP: API integration tests and `tests/e2e/account.e2e.ts` 
 
 ## Creative Studio tests
 API: `apps/api/test/creative-{images,video,throttle}.e2e-spec.ts` run with the test-only fake providers (stubbed HTTP for the OpenAI adapters in `packages/creative`). Browser: `tests/e2e/creative.e2e.ts` including 390×844 mobile checks. These prove the workflows, not real provider output.
+
+## Calendar tests
+API: `apps/api/test/calendar{,-plan,-worker}.e2e-spec.ts` (real PostgreSQL, Redis, BullMQ; test-only AI provider; the publisher is scripted, there is no real one). Unit: `packages/shared/src/timezone.spec.ts`, `packages/ai-engine/src/content-plan.spec.ts`. Browser: `tests/e2e/calendar.e2e.ts` (includes 390×844 phone checks). The scheduler tick is driven by the tests (`CALENDAR_TICK_MS` is set very high).
