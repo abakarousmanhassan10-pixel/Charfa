@@ -8,7 +8,9 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { HealthModule } from './health/health.module';
-import { RedisModule } from './health/redis.provider';
+import { REDIS, RedisModule } from './health/redis.provider';
+import { RedisThrottlerStorage } from './common/throttle/redis-throttler.storage';
+import type Redis from 'ioredis';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { BusinessesModule } from './businesses/businesses.module';
 import { AdminModule } from './admin/admin.module';
@@ -19,6 +21,8 @@ import { ProductsModule } from './products/products.module';
 import { ServicesModule } from './services/services.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { AiModule } from './ai/ai.module';
+import { EmailModule } from './email/email.module';
+import { InvitationsModule } from './invitations/invitations.module';
 
 @Global()
 @Module({})
@@ -35,12 +39,21 @@ export class AppModule {
       module: AppModule,
       imports: [
         EnvModule.forRoot(env),
-        ThrottlerModule.forRoot([{ name: 'default', ttl: env.THROTTLE_TTL_MS, limit: env.THROTTLE_LIMIT }]),
+        ThrottlerModule.forRootAsync({
+          inject: [REDIS],
+          useFactory: (redis: Redis) => ({
+            throttlers: [{ name: 'default', ttl: env.THROTTLE_TTL_MS, limit: env.THROTTLE_LIMIT }],
+            // Shared counters across all API instances; memory only for single-instance development.
+            storage: env.RATE_LIMIT_STORE === 'redis' ? new RedisThrottlerStorage(redis) : undefined,
+          }),
+        }),
         PrismaModule,
         RedisModule,
         CryptoModule,
         AuditModule,
+        EmailModule,
         AuthModule,
+        InvitationsModule,
         TenancyModule,
         UsersModule,
         StorageModule,

@@ -16,4 +16,4 @@ export const DEFAULT_JOB_OPTIONS = {
   removeOnFail: { age: 7 * 24 * 3600 },
 };
 
-export type MaintenanceJob = { type: 'purge-expired-sessions' };
+export type MaintenanceJob = { type: 'purge-expired-sessions' } | { type: 'storage-cleanup' } | { type: 'purge-auth-tokens' };

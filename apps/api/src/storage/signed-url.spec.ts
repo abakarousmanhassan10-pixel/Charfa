@@ -25,3 +25,16 @@ describe('MediaUrlSigner', () => {
     expect(signer.verify('m1', a.exp, a.sig, now)).toBe(false);
   });
 });
+
+describe('MediaUrlSigner variants', () => {
+  const signer = new MediaUrlSigner(Buffer.alloc(32, 3).toString('base64'), 3600);
+  it('a thumbnail signature cannot be used for the original and vice versa', () => {
+    const now = Date.now();
+    const t = signer.sign('m1', now, 'thumb');
+    expect(signer.verify('m1', t.exp, t.sig, now, 'thumb')).toBe(true);
+    expect(signer.verify('m1', t.exp, t.sig, now, 'original')).toBe(false);
+    const o = signer.sign('m1', now);
+    expect(signer.verify('m1', o.exp, o.sig, now, 'thumb')).toBe(false);
+    expect(signer.url('m1', now, 'thumb')).toMatch(/&variant=thumb$/);
+  });
+});

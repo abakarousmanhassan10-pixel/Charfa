@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { BusinessRole } from '@touma/database';
 import { prisma, register, resetDb, startApp } from './helpers';
+import { createHash } from 'crypto';
 import { html, mp4, png, svg } from './fixtures';
 
 /**
@@ -292,7 +293,6 @@ describe('Phase 2: businesses, catalog, media, knowledge (e2e)', () => {
         type: 'IMAGE',
         status: 'READY',
         mimeType: 'image/png',
-        sizeBytes: buf.length,
         width: 32,
         height: 16,
         originalFilename: 'Photo 1.png',
@@ -305,7 +305,12 @@ describe('Phase 2: businesses, catalog, media, knowledge (e2e)', () => {
       expect(JSON.stringify(res.body)).not.toMatch(/storageKey|S3_|secret/i);
 
       const content = await request(http).get(res.body.url).expect(200);
-      expect(Buffer.compare(content.body as Buffer, buf)).toBe(0);
+      // Images are re-encoded: the stored bytes are produced by our encoder, not the uploader.
+      expect((content.body as Buffer).length).toBe(res.body.sizeBytes);
+      expect(createHash('sha256').update(content.body as Buffer).digest('hex')).toBe(row.checksumSha256);
+      expect((content.body as Buffer).subarray(1, 4).toString()).toBe('PNG');
+      const thumb = await request(http).get(res.body.thumbnailUrl).expect(200);
+      expect(thumb.headers['content-type']).toBe('image/webp');
       expect(content.headers).toMatchObject({
         'content-type': 'image/png',
         'x-content-type-options': 'nosniff',

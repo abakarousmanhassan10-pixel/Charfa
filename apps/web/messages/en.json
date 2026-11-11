@@ -392,7 +392,11 @@
       "FILE_EMPTY": "The file is empty.",
       "STORAGE_NOT_CONFIGURED": "Media storage is not configured yet.",
       "NETWORK": "Network error. Please retry.",
-      "INSUFFICIENT_PERMISSION": "Your role cannot upload media."
+      "INSUFFICIENT_PERMISSION": "Your role cannot upload media.",
+      "MALWARE_DETECTED": "This file was rejected by the malware scanner.",
+      "SCAN_UNAVAILABLE": "The malware scanner is unavailable. Please retry later.",
+      "STORAGE_QUOTA_EXCEEDED": "Storage quota exceeded for this business.",
+      "STORAGE_UNAVAILABLE": "Media storage is temporarily unavailable."
     },
     "folder": "Folder",
     "folderHint": "e.g. products/summer",
@@ -410,7 +414,8 @@
     "type": "Type",
     "useSelected": "Use selected ({count})",
     "usedBy": "Used by",
-    "videos": "Videos"
+    "videos": "Videos",
+    "storageUsed": "Storage used"
   },
   "products": {
     "create": "Create product",
@@ -720,6 +725,55 @@
       "agent": "Agent",
       "input": "Input",
       "output": "Output"
+    }
+  },
+  "account": {
+    "forgotLink": "Forgot password?",
+    "forgotTitle": "Reset your password",
+    "forgotSubtitle": "Enter your email and we will send you a reset link.",
+    "forgotSent": "If an account exists for this email, a reset link is on its way. It expires in 30 minutes.",
+    "sendLink": "Send reset link",
+    "backToLogin": "Back to sign in",
+    "resetTitle": "Choose a new password",
+    "resetSubtitle": "All your sessions will be signed out.",
+    "resetDone": "Your password has been changed. Please sign in again.",
+    "invalidLink": "This link is invalid or has expired.",
+    "passwordsDiffer": "The passwords do not match.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "setPassword": "Set new password",
+    "verifyTitle": "Email verification",
+    "verified": "Your email address is verified.",
+    "unverified": "Please verify {email} using the link we sent you.",
+    "resend": "Resend email",
+    "resent": "Verification email sent.",
+    "tooSoon": "Please wait a minute before requesting another email."
+  },
+  "invite": {
+    "title": "Team invitation",
+    "join": "You have been invited to join {business} as {role}.",
+    "sentTo": "This invitation was sent to {email}.",
+    "accept": "Accept invitation",
+    "invalid": "This invitation is invalid, expired or was revoked.",
+    "mismatch": "This invitation was sent to {email}. Sign in with that address to accept it.",
+    "alreadyMember": "You are already a member of this business.",
+    "cardTitle": "Invitations",
+    "cardHint": "Invite teammates by email. Invitations expire after 7 days.",
+    "role": "Role",
+    "send": "Send invitation",
+    "sent": "Invitation sent to {email}.",
+    "resend": "Resend",
+    "revoke": "Revoke",
+    "revoked": "Invitation revoked.",
+    "expires": "Expires {date}",
+    "errors": {
+      "ALREADY_MEMBER": "This person is already a member.",
+      "EMAIL_NOT_VERIFIED": "Verify your own email address before inviting people.",
+      "INVITATION_LIMIT": "Too many pending invitations.",
+      "RESEND_LIMIT": "This invitation cannot be resent again.",
+      "ROLE_HIERARCHY": "You cannot grant this role.",
+      "TOO_SOON": "Please wait a minute before resending.",
+      "VALIDATION_ERROR": "Enter a valid email address."
     }
   }
 }

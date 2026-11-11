@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { useBusiness } from '@/components/business-provider';
+import { EmailVerificationBanner } from '@/components/email-verification-banner';
 import { LocaleSwitcher, useI18n } from '@/components/i18n-provider';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
@@ -194,7 +195,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </header>
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          <EmailVerificationBanner />
+          {children}
+        </main>
       </div>
     </div>
   );

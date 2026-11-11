@@ -8,7 +8,8 @@ import { requestMeta } from '../common/request-meta';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService, type IssuedTokens } from './auth.service';
 import { CSRF_HEADER, CsrfGuard } from './csrf.guard';
-import { AuthResponse, AuthUserResponse, LoginDto, RegisterDto } from './dto/auth.dto';
+import { AuthResponse, AuthUserResponse, EmailOnlyDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto } from './dto/auth.dto';
+import { AccountService } from './account.service';
 
 export const REFRESH_COOKIE = 'touma_rt';
 const REFRESH_COOKIE_PATH = '/api/v1/auth';
@@ -21,6 +22,7 @@ const authThrottle = () => ({ default: { limit: Number(process.env.AUTH_THROTTLE
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly account: AccountService,
     private readonly prisma: PrismaService,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
@@ -30,7 +32,45 @@ export class AuthController {
   @Post('register')
   @ApiOkResponse({ type: AuthResponse })
   async register(@Body() dto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return this.respond(res, await this.auth.register(dto, requestMeta(req)));
+    const tokens = await this.auth.register(dto, requestMeta(req));
+    await this.account.sendVerification({ id: tokens.user.id, email: tokens.user.email, locale: tokens.user.locale }, requestMeta(req));
+    return this.respond(res, tokens);
+  }
+
+  @Public()
+  @Throttle(authThrottle())
+  @Post('email/verify')
+  @HttpCode(200)
+  verifyEmail(@Body() dto: TokenDto, @Req() req: Request) {
+    return this.account.verifyEmail(dto.token, requestMeta(req));
+  }
+
+  @ApiBearerAuth()
+  @Throttle(authThrottle())
+  @Post('email/resend')
+  @HttpCode(202)
+  async resendVerification(@CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+    await this.account.resendVerification(user.id, requestMeta(req));
+    return { sent: true };
+  }
+
+  /** Always 202 with the same body, whether or not the email is registered. */
+  @Public()
+  @Throttle(authThrottle())
+  @Post('password/forgot')
+  @HttpCode(202)
+  async forgotPassword(@Body() dto: EmailOnlyDto, @Req() req: Request) {
+    await this.account.forgotPassword(dto.email, requestMeta(req));
+    return { message: 'If an account exists for this email, a reset link has been sent.' };
+  }
+
+  @Public()
+  @Throttle(authThrottle())
+  @Post('password/reset')
+  @HttpCode(204)
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    await this.account.resetPassword(dto.token, dto.password, requestMeta(req));
+    this.clearCookie(res);
   }
 
   @Public()

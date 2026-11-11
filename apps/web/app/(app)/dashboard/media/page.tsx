@@ -35,6 +35,7 @@ export default function MediaPage() {
   if (folder !== undefined) params.set('folder', folder); // "" = root folder, so it must be kept
   const list = useResource<Paged<MediaItem>>(`/media?${params.toString()}`, active?.id);
   const folders = useResource<Array<{ folder: string; count: number }>>('/media/folders', active?.id);
+  const usage = useResource<{ usedBytes: number; quotaBytes: number; files: number }>('/media/usage', active?.id);
   const [selected, setSelected] = useState<Detail | null>(null);
   const [meta, setMeta] = useState({ altText: '', folder: '', tags: '' });
   const [metaError, setMetaError] = useState<string | null>(null);
@@ -52,6 +53,29 @@ export default function MediaPage() {
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title={t('media.title')} description={t('media.subtitle')} />
+      {usage.data && (
+        <div className="mb-4 max-w-md" data-testid="storage-usage">
+          <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+            <span>{t('media.storageUsed')}</span>
+            <span>
+              {formatBytes(usage.data.usedBytes)} / {formatBytes(usage.data.quotaBytes)}
+            </span>
+          </div>
+          <div
+            className="h-2 overflow-hidden rounded-full bg-muted"
+            role="meter"
+            aria-label={t('media.storageUsed')}
+            aria-valuemin={0}
+            aria-valuemax={usage.data.quotaBytes}
+            aria-valuenow={usage.data.usedBytes}
+          >
+            <div
+              className={usage.data.usedBytes / usage.data.quotaBytes > 0.9 ? 'h-full bg-destructive' : 'h-full bg-primary'}
+              style={{ width: `${Math.min(100, (usage.data.usedBytes / Math.max(1, usage.data.quotaBytes)) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
       {canWrite && (
         <Card className="mb-6">
           <CardContent className="pt-6">
@@ -61,6 +85,7 @@ export default function MediaPage() {
               onUploaded={() => {
                 void list.reload();
                 void folders.reload();
+                void usage.reload();
               }}
             />
           </CardContent>
@@ -157,7 +182,7 @@ export default function MediaPage() {
                     json: { altText: meta.altText, folder: meta.folder, tags: meta.tags.split(',').map((s) => s.trim()).filter(Boolean) },
                   });
                   setSelected(null);
-                  await Promise.all([list.reload(), folders.reload()]);
+                  await Promise.all([list.reload(), folders.reload(), usage.reload()]);
                 } catch (err) {
                   setMetaError(err instanceof ApiError ? err.message : t('auth.errors.UNKNOWN'));
                 }
@@ -198,7 +223,7 @@ export default function MediaPage() {
         onConfirm={async () => {
           await api(`/media/${selected!.id}`, { method: 'DELETE', businessId: active.id });
           setSelected(null);
-          await Promise.all([list.reload(), folders.reload()]);
+          await Promise.all([list.reload(), folders.reload(), usage.reload()]);
         }}
       />
     </div>

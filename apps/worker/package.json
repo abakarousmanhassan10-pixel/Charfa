@@ -13,6 +13,7 @@
   "dependencies": {
     "@touma/config": "workspace:*",
     "@touma/database": "workspace:*",
+    "@touma/storage": "workspace:*",
     "bullmq": "^5.81.5",
     "ioredis": "^5.4.2"
   },
@@ -26,6 +27,8 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "roots": ["<rootDir>/src"]
+    "roots": [
+      "<rootDir>/src"
+    ]
   }
 }

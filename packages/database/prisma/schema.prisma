@@ -300,6 +300,19 @@ enum AIGenerationStatus {
   BLOCKED // refused before calling the provider (limit reached, not configured)
 }
 
+enum MalwareScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  SKIPPED // scanner not configured (development only; refused in production unless explicitly allowed)
+  ERROR
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
 enum KnowledgeSource {
   BUSINESS_PROFILE
   PRODUCT
@@ -328,18 +341,21 @@ model User {
   updatedAt        DateTime     @updatedAt @db.Timestamptz(3)
   deletedAt        DateTime?    @db.Timestamptz(3)
 
-  sessions          Session[]
-  memberships       Membership[]
-  invitationsSent   Membership[]     @relation("MembershipInviter")
-  contentsCreated   Content[]        @relation("ContentCreator")
-  contentsApproved  Content[]        @relation("ContentApprover")
-  mediaUploaded     MediaAsset[]
-  messagesAuthored  Message[]
-  notifications     Notification[]
-  auditLogs         AuditLog[]
-  aiUsages          AIUsage[]
-  knowledgeVerified KnowledgeEntry[] @relation("KnowledgeVerifier")
-  aiGenerations     AIGeneration[]
+  sessions            Session[]
+  memberships         Membership[]
+  invitationsSent     Membership[]     @relation("MembershipInviter")
+  contentsCreated     Content[]        @relation("ContentCreator")
+  contentsApproved    Content[]        @relation("ContentApprover")
+  mediaUploaded       MediaAsset[]
+  messagesAuthored    Message[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  aiUsages            AIUsage[]
+  knowledgeVerified   KnowledgeEntry[] @relation("KnowledgeVerifier")
+  aiGenerations       AIGeneration[]
+  authTokens          AuthToken[]
+  invitationsCreated  Invitation[]     @relation("InvitationInviter")
+  invitationsAccepted Invitation[]     @relation("InvitationAcceptor")
 
   @@index([status])
   @@index([deletedAt])
@@ -373,29 +389,31 @@ model Session {
 // ─────────────────────────────── Tenancy ───────────────────────────────
 
 model Business {
-  id             String       @id @default(cuid())
-  name           String
-  slug           String       @unique
-  type           BusinessType @default(OTHER)
-  description    String?
-  website        String?
-  industry       String?
-  country        String? // ISO 3166-1 alpha-2
-  city           String?
-  address        String?
-  contactEmail   String?
-  contactPhone   String? // E.164 recommended, stored as entered
-  defaultLocale  String       @default("en")
+  id                String       @id @default(cuid())
+  name              String
+  slug              String       @unique
+  type              BusinessType @default(OTHER)
+  description       String?
+  website           String?
+  industry          String?
+  country           String? // ISO 3166-1 alpha-2
+  city              String?
+  address           String?
+  contactEmail      String?
+  contactPhone      String? // E.164 recommended, stored as entered
+  defaultLocale     String       @default("en")
   /// IANA timezone used for scheduling. Timestamps remain UTC; this is the display/scheduling zone.
-  timezone       String       @default("UTC")
-  currency       String       @default("USD") // ISO 4217
-  brandVoice     String?
-  targetAudience String?
-  objectives     String?
-  logoMediaId    String?      @unique
-  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
-  deletedAt      DateTime?    @db.Timestamptz(3)
+  timezone          String       @default("UTC")
+  currency          String       @default("USD") // ISO 4217
+  brandVoice        String?
+  targetAudience    String?
+  objectives        String?
+  logoMediaId       String?      @unique
+  /// Per-business storage quota override in bytes (null = MEDIA_STORAGE_QUOTA_MB default).
+  storageQuotaBytes BigInt?
+  createdAt         DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
+  deletedAt         DateTime?    @db.Timestamptz(3)
 
   logo               MediaAsset?         @relation("BusinessLogo", fields: [logoMediaId], references: [id], onDelete: SetNull)
   memberships        Membership[]
@@ -417,6 +435,7 @@ model Business {
   knowledgeEntries   KnowledgeEntry[]
   categories         Category[]
   aiGenerations      AIGeneration[]
+  invitations        Invitation[]
 
   @@index([deletedAt])
   @@index([createdAt])
@@ -655,30 +674,38 @@ model Content {
 }
 
 model MediaAsset {
-  id               String        @id @default(cuid())
-  businessId       String
-  type             MediaType
-  status           MediaStatus   @default(PENDING_UPLOAD)
-  storageKey       String        @unique
-  originalFilename String
+  id                 String            @id @default(cuid())
+  businessId         String
+  type               MediaType
+  status             MediaStatus       @default(PENDING_UPLOAD)
+  storageKey         String            @unique
+  originalFilename   String
   /// Virtual folder for organization in the media library ("" = root).
-  folder           String        @default("")
-  tags             String[]
-  mimeType         String
-  sizeBytes        BigInt?
-  width            Int?
-  height           Int?
-  durationSec      Decimal?      @db.Decimal(10, 3)
-  checksumSha256   String?
-  altText          String?
-  origin           ContentOrigin @default(HUMAN)
-  aiProvider       String?
-  aiPrompt         String?
-  rejectionReason  String?
-  uploadedById     String?
-  createdAt        DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime      @updatedAt @db.Timestamptz(3)
-  deletedAt        DateTime?     @db.Timestamptz(3)
+  folder             String            @default("")
+  tags               String[]
+  mimeType           String
+  sizeBytes          BigInt?
+  width              Int?
+  height             Int?
+  durationSec        Decimal?          @db.Decimal(10, 3)
+  checksumSha256     String?
+  altText            String?
+  origin             ContentOrigin     @default(HUMAN)
+  aiProvider         String?
+  aiPrompt           String?
+  rejectionReason    String?
+  /// Server-generated key of the WebP thumbnail (images only).
+  thumbnailKey       String?
+  thumbnailSizeBytes BigInt?
+  /// Size of the file as uploaded, before re-encoding.
+  originalSizeBytes  BigInt?
+  scanStatus         MalwareScanStatus @default(PENDING)
+  scanEngine         String?
+  scannedAt          DateTime?         @db.Timestamptz(3)
+  uploadedById       String?
+  createdAt          DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime          @updatedAt @db.Timestamptz(3)
+  deletedAt          DateTime?         @db.Timestamptz(3)
 
   business   Business       @relation("BusinessMedia", fields: [businessId], references: [id], onDelete: Cascade)
   products   ProductMedia[]
@@ -1091,4 +1118,64 @@ model AIGeneration {
   @@index([businessId, createdAt])
   @@index([businessId, task, status, createdAt])
   @@index([businessId, task, itemId, contextHash])
+}
+
+/// Single-use, expiring tokens for email verification and password reset. Only a SHA-256 hash is stored.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  type      AuthTokenType
+  tokenHash String        @unique
+  /// Address the token was sent to (verification is bound to it).
+  email     String
+  expiresAt DateTime      @db.Timestamptz(3)
+  usedAt    DateTime?     @db.Timestamptz(3)
+  ipAddress String?
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, createdAt])
+  @@index([expiresAt])
+}
+
+/// Email invitation to join a business. The token (hashed) proves control of the invited address.
+model Invitation {
+  id           String       @id @default(cuid())
+  businessId   String
+  email        String
+  role         BusinessRole
+  tokenHash    String       @unique
+  invitedById  String?
+  expiresAt    DateTime     @db.Timestamptz(3)
+  acceptedAt   DateTime?    @db.Timestamptz(3)
+  acceptedById String?
+  revokedAt    DateTime?    @db.Timestamptz(3)
+  sendCount    Int          @default(1)
+  lastSentAt   DateTime     @default(now()) @db.Timestamptz(3)
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invitedBy  User?    @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  acceptedBy User?    @relation("InvitationAcceptor", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  @@index([businessId, email])
+  @@index([businessId, acceptedAt, revokedAt])
+}
+
+/// Durable queue of storage objects to delete. Deletions that fail are retried by the worker
+/// with backoff, so a temporary storage outage never leaves orphaned files behind.
+model StorageDeletion {
+  id            String    @id @default(cuid())
+  businessId    String?
+  storageKey    String
+  reason        String
+  attempts      Int       @default(0)
+  lastError     String?
+  nextAttemptAt DateTime  @default(now()) @db.Timestamptz(3)
+  completedAt   DateTime? @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([completedAt, nextAttemptAt])
+  @@index([storageKey])
 }

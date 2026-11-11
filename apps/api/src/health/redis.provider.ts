@@ -18,7 +18,7 @@ class RedisCloser implements OnModuleDestroy {
       provide: REDIS,
       inject: [APP_ENV],
       useFactory: (env: AppEnv) =>
-        new Redis(env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 2, enableOfflineQueue: false }),
+        new Redis(env.REDIS_URL, { maxRetriesPerRequest: 2, enableOfflineQueue: true, connectTimeout: 5000 }),
     },
     RedisCloser,
   ],

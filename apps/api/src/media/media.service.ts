@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
@@ -17,7 +18,6 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { pipeline } from 'stream/promises';
 import type { Request } from 'express';
-import imageSize from 'image-size';
 import { Prisma, type MediaAsset } from '@touma/database';
 import { MEDIA_RULES, type AllowedMimeType } from '@touma/shared';
 import { AppEnv, InjectEnv } from '../config';
@@ -25,9 +25,11 @@ import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { Page, pageArgs, toPage } from '../common/pagination';
 import type { TenantContext } from '../tenancy/tenant-context';
-import { OBJECT_STORAGE, type ObjectStorage } from '../storage/object-storage';
-import { MediaUrlSigner } from '../storage/signed-url';
-import { sanitizeFilename, sniffMime } from '../storage/file-sniffer';
+import { OBJECT_STORAGE, sanitizeFilename, sniffMime, StorageError, type ObjectStorage } from '@touma/storage';
+import { MediaUrlSigner, type MediaVariant } from '../storage/signed-url';
+import { StorageDeletionQueue } from '../storage/deletion-queue';
+import { ImageRejectedError, processImage } from './image-processor';
+import { MALWARE_SCANNER, ScannerUnavailableError, type MalwareScanner } from './malware-scanner';
 import { FOLDER_REGEX, normalizeFolder, type MediaQueryDto, type UpdateMediaDto } from './media.dto';
 
 export interface MediaDto {
@@ -44,6 +46,8 @@ export interface MediaDto {
   altText: string | null;
   createdAt: Date;
   url: string | null;
+  thumbnailUrl: string | null;
+  scanStatus: MediaAsset['scanStatus'];
 }
 
 interface ReceivedFile {
@@ -63,7 +67,9 @@ export class MediaService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly signer: MediaUrlSigner,
+    private readonly deletions: StorageDeletionQueue,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    @Inject(MALWARE_SCANNER) private readonly scanner: MalwareScanner,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
 
@@ -82,6 +88,8 @@ export class MediaService {
       altText: m.altText,
       createdAt: m.createdAt,
       url: m.status === 'READY' && !m.deletedAt ? this.signer.url(m.id) : null,
+      thumbnailUrl: m.status === 'READY' && !m.deletedAt && m.thumbnailKey ? this.signer.url(m.id, Date.now(), 'thumb') : null,
+      scanStatus: m.scanStatus,
     };
   }
 
@@ -188,80 +196,149 @@ export class MediaService {
     if (file.size > max) {
       return { ok: false, error: new PayloadTooLargeException({ code: 'FILE_TOO_LARGE', message: `${rule.type === 'IMAGE' ? 'Images' : 'Videos'} are limited to ${Math.round(max / 1048576)} MB` }) };
     }
-    let width: number | null = null;
-    let height: number | null = null;
-    if (rule.type === 'IMAGE') {
-      try {
-        const dims = imageSize(await readFile(file.path));
-        width = dims.width ?? null;
-        height = dims.height ?? null;
-      } catch {
-        return { ok: false, error: new UnsupportedMediaTypeException({ code: 'IMAGE_CORRUPT', message: 'The image could not be read' }) };
-      }
-      if (!width || !height || width > 20000 || height > 20000) {
-        return { ok: false, error: new UnsupportedMediaTypeException({ code: 'IMAGE_DIMENSIONS', message: 'Image dimensions are invalid or too large' }) };
-      }
-    }
-    return { ok: true, mime: sniffed, rule, width, height };
+    return { ok: true, mime: sniffed, rule, width: null, height: null };
   }
 
+  /** Bytes used by a business (originals + thumbnails of live media) and its quota. */
+  async usage(businessId: string) {
+    const [agg, business] = await Promise.all([
+      this.prisma.mediaAsset.aggregate({ where: { businessId, deletedAt: null }, _sum: { sizeBytes: true, thumbnailSizeBytes: true }, _count: { _all: true } }),
+      this.prisma.business.findUniqueOrThrow({ where: { id: businessId }, select: { storageQuotaBytes: true } }),
+    ]);
+    const used = Number(agg._sum.sizeBytes ?? 0n) + Number(agg._sum.thumbnailSizeBytes ?? 0n);
+    const quota = business.storageQuotaBytes !== null ? Number(business.storageQuotaBytes) : Math.floor(this.env.MEDIA_STORAGE_QUOTA_MB * 1024 * 1024);
+    return { usedBytes: used, quotaBytes: quota, files: agg._count._all };
+  }
+
+  private quotaError(u: { usedBytes: number; quotaBytes: number }) {
+    return new HttpException(
+      { code: 'STORAGE_QUOTA_EXCEEDED', message: `Storage quota exceeded (${Math.round(u.usedBytes / 1048576)} of ${Math.round(u.quotaBytes / 1048576)} MB used)` },
+      HttpStatus.PAYLOAD_TOO_LARGE,
+    );
+  }
+
+  private async reject(tenant: TenantContext, file: ReceivedFile, error: HttpException, extra: Record<string, unknown> = {}) {
+    await this.audit.record({
+      action: 'media.upload_rejected',
+      actorId: tenant.userId,
+      businessId: tenant.businessId,
+      metadata: { reason: (error.getResponse() as { code: string }).code, declared: file.declaredMime, size: file.size, ...extra },
+    });
+    return error;
+  }
+
+  /**
+   * Upload pipeline: receive (size cap) → magic-byte type check → per-type size limit →
+   * quota pre-check → malware scan (fail closed) → images: decode, re-encode, strip metadata,
+   * thumbnail → quota check on final sizes → private storage under the tenant prefix → record.
+   */
   async upload(tenant: TenantContext, req: Request): Promise<MediaDto> {
     this.requireStorage();
+    const declared = Number(req.headers['content-length'] ?? 0);
+    const before = await this.usage(tenant.businessId);
+    if (declared > 0 && before.usedBytes + declared > before.quotaBytes * 1.05) throw this.quotaError(before);
+
     const file = await this.receive(req);
+    const keys: string[] = [];
     try {
       const result = await this.validate(file);
-      if (!result.ok) {
-        await this.audit.record({
-          action: 'media.upload_rejected',
-          actorId: tenant.userId,
-          businessId: tenant.businessId,
-          metadata: { reason: (result.error.getResponse() as { code: string }).code, declared: file.declaredMime, size: file.size },
-        });
-        throw result.error;
-      }
-      const folderRaw = normalizeFolder(file.fields.folder ?? '') as string;
-      const folder = FOLDER_REGEX.test(folderRaw) ? folderRaw : '';
-      const altText = file.fields.altText?.trim().slice(0, 300) || null;
+      if (!result.ok) throw await this.reject(tenant, file, result.error);
 
-      const id = randomUUID().replace(/-/g, '');
-      // Server-generated key, always namespaced by tenant. Never derived from user input.
-      const storageKey = `businesses/${tenant.businessId}/media/${id}.${result.rule.ext}`;
-      await this.storage.put(storageKey, createReadStream(file.path), { contentType: result.mime, contentLength: file.size });
-
+      // Malware scan of the bytes exactly as uploaded.
+      let scan: Awaited<ReturnType<MalwareScanner['scanFile']>>;
       try {
-        const media = await this.prisma.mediaAsset.create({
-          data: {
-            businessId: tenant.businessId,
-            type: result.rule.type,
-            status: 'READY',
-            storageKey,
-            originalFilename: file.filename,
-            folder,
-            mimeType: result.mime,
-            sizeBytes: BigInt(file.size),
-            width: result.width,
-            height: result.height,
-            checksumSha256: file.sha256,
-            altText,
-            uploadedById: tenant.userId,
-          },
-        });
-        await this.audit.record({
-          action: 'media.upload',
-          actorId: tenant.userId,
-          businessId: tenant.businessId,
-          entityType: 'MediaAsset',
-          entityId: media.id,
-          metadata: { mime: result.mime, size: file.size },
-        });
-        return this.toDto(media);
+        scan = await this.scanner.scanFile(file.path);
       } catch (err) {
-        await this.storage.delete(storageKey).catch(() => undefined);
+        if (err instanceof ScannerUnavailableError) {
+          this.logger.error(`Malware scan unavailable: ${err.message}`);
+          throw await this.reject(tenant, file, new ServiceUnavailableException({ code: 'SCAN_UNAVAILABLE', message: 'Uploads are temporarily unavailable (virus scanning failed). Try again later.' }));
+        }
         throw err;
       }
+      if (scan.status === 'INFECTED') {
+        throw await this.reject(tenant, file, new HttpException({ code: 'MALWARE_DETECTED', message: 'The file was rejected by the virus scanner' }, HttpStatus.UNPROCESSABLE_ENTITY), { signature: scan.signature });
+      }
+
+      let body: Buffer | null = null;
+      let thumb: Buffer | null = null;
+      let width: number | null = null;
+      let height: number | null = null;
+      if (result.rule.type === 'IMAGE') {
+        try {
+          const processed = await processImage(await readFile(file.path), result.mime, this.env.MEDIA_MAX_IMAGE_PIXELS);
+          ({ data: body, thumbnail: thumb, width, height } = processed);
+        } catch (err) {
+          if (err instanceof ImageRejectedError) throw await this.reject(tenant, file, new UnsupportedMediaTypeException({ code: err.code, message: err.message }));
+          throw err;
+        }
+      }
+      const storedSize = body ? body.length : file.size;
+      const thumbSize = thumb ? thumb.length : 0;
+      const usage = await this.usage(tenant.businessId);
+      if (usage.usedBytes + storedSize + thumbSize > usage.quotaBytes) throw await this.reject(tenant, file, this.quotaError(usage));
+
+      const id = randomUUID().replace(/-/g, '');
+      // Server-generated keys, always namespaced by tenant. Never derived from user input.
+      const storageKey = `businesses/${tenant.businessId}/media/${id}.${result.rule.ext}`;
+      const thumbnailKey = thumb ? `businesses/${tenant.businessId}/media/thumbs/${id}.webp` : null;
+      try {
+        await this.storage.put(storageKey, body ?? createReadStream(file.path), { contentType: result.mime, contentLength: storedSize });
+        keys.push(storageKey);
+        if (thumb && thumbnailKey) {
+          await this.storage.put(thumbnailKey, thumb, { contentType: 'image/webp', contentLength: thumb.length });
+          keys.push(thumbnailKey);
+        }
+      } catch (err) {
+        throw this.storageFailure(err);
+      }
+
+      const folderRaw = normalizeFolder(file.fields.folder ?? '') as string;
+      const media = await this.prisma.mediaAsset.create({
+        data: {
+          businessId: tenant.businessId,
+          type: result.rule.type,
+          status: 'READY',
+          storageKey,
+          thumbnailKey,
+          originalFilename: file.filename,
+          folder: FOLDER_REGEX.test(folderRaw) ? folderRaw : '',
+          mimeType: result.mime,
+          sizeBytes: BigInt(storedSize),
+          originalSizeBytes: BigInt(file.size),
+          thumbnailSizeBytes: thumb ? BigInt(thumbSize) : null,
+          width,
+          height,
+          checksumSha256: body ? createHash('sha256').update(body).digest('hex') : file.sha256,
+          altText: file.fields.altText?.trim().slice(0, 300) || null,
+          scanStatus: scan.status,
+          scanEngine: this.scanner.engine,
+          scannedAt: scan.status === 'SKIPPED' ? null : new Date(),
+          uploadedById: tenant.userId,
+        },
+      });
+      keys.length = 0; // committed: keep the objects
+      await this.audit.record({
+        action: 'media.upload',
+        actorId: tenant.userId,
+        businessId: tenant.businessId,
+        entityType: 'MediaAsset',
+        entityId: media.id,
+        metadata: { mime: result.mime, size: storedSize, originalSize: file.size, scan: scan.status },
+      });
+      return this.toDto(media);
     } finally {
       await rm(file.path, { force: true });
+      // Anything stored but not committed is removed (via the durable queue if storage fails).
+      if (keys.length) await this.deletions.deleteKeys(keys, { businessId: tenant.businessId, reason: 'upload-rollback' }).catch(() => undefined);
     }
+  }
+
+  private storageFailure(err: unknown) {
+    if (err instanceof StorageError) {
+      this.logger.error(`Storage ${err.kind}: ${err.message}`);
+      return new ServiceUnavailableException({ code: 'STORAGE_UNAVAILABLE', message: 'Media storage is temporarily unavailable' });
+    }
+    return err as Error;
   }
 
   async list(tenant: TenantContext, q: MediaQueryDto): Promise<Page<MediaDto>> {
@@ -325,7 +402,7 @@ export class MediaService {
     return this.toDto(media);
   }
 
-  /** Soft-deletes the record, detaches it everywhere, then removes the stored object. */
+  /** Soft-deletes the record, detaches it everywhere, then removes the stored objects through the durable deletion queue. */
   async remove(tenant: TenantContext, id: string) {
     const media = await this.find(tenant, id);
     await this.prisma.$transaction([
@@ -334,12 +411,7 @@ export class MediaService {
       this.prisma.mediaAsset.update({ where: { id }, data: { deletedAt: new Date() } }),
     ]);
     await this.audit.record({ action: 'media.delete', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'MediaAsset', entityId: id });
-    try {
-      await this.storage.delete(media.storageKey);
-    } catch (err) {
-      // Record stays soft-deleted; an orphaned object is cleaned up by the maintenance job later.
-      this.logger.warn(`Could not delete object for media ${id}: ${(err as Error).message}`);
-    }
+    await this.deletions.deleteKeys([media.storageKey, media.thumbnailKey], { businessId: tenant.businessId, reason: 'media-delete' });
   }
 
   /** Ownership check used by other modules before linking media (products, logo). */
@@ -360,16 +432,23 @@ export class MediaService {
   }
 
   /** Public (signature-authorised) content delivery. */
-  async openContent(id: string, exp: number, sig: string, range?: string) {
-    if (!this.signer.verify(id, exp, sig)) {
+  async openContent(id: string, exp: number, sig: string, range?: string, variant: MediaVariant = 'original') {
+    if (!this.signer.verify(id, exp, sig, Date.now(), variant)) {
       throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Media not found' });
     }
     this.requireStorage();
     const media = await this.prisma.mediaAsset.findFirst({ where: { id, deletedAt: null, status: 'READY' } });
-    if (!media) throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Media not found' });
+    const key = variant === 'thumb' ? media?.thumbnailKey : media?.storageKey;
+    if (!media || !key) throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Media not found' });
     const safeRange = range && /^bytes=\d*-\d*$/.test(range) ? range : undefined;
-    const object = await this.storage.get(media.storageKey, safeRange);
-    return { media, object, maxAgeSeconds: Math.max(0, Math.floor((exp - Date.now()) / 1000)) };
+    let object;
+    try {
+      object = await this.storage.get(key, safeRange);
+    } catch (err) {
+      if (err instanceof StorageError && err.kind === 'not_found') throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Media not found' });
+      throw this.storageFailure(err);
+    }
+    return { media, object, contentType: variant === 'thumb' ? 'image/webp' : media.mimeType, maxAgeSeconds: Math.max(0, Math.floor((exp - Date.now()) / 1000)) };
   }
 }
 

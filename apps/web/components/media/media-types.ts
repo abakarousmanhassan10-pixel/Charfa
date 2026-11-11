@@ -12,5 +12,7 @@ export interface MediaItem {
   altText: string | null;
   createdAt: string;
   url: string | null;
+  thumbnailUrl?: string | null;
+  scanStatus?: 'PENDING' | 'CLEAN' | 'INFECTED' | 'SKIPPED' | 'ERROR';
   position?: number;
 }

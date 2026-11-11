@@ -20,3 +20,11 @@ process.env.AI_INPUT_COST_PER_1M_TOKENS = '0.15';
 process.env.AI_OUTPUT_COST_PER_1M_TOKENS = '0.6';
 process.env.MEDIA_MAX_IMAGE_MB = '1';
 process.env.MEDIA_MAX_VIDEO_MB = '2';
+process.env.MEDIA_MAX_IMAGE_PIXELS = '4000000';
+process.env.MALWARE_SCANNER = process.env.MALWARE_SCANNER || 'none';
+// Real SMTP delivery to an in-process SMTP server started by the tests that read emails (test/mailbox.ts).
+process.env.EMAIL_TRANSPORT = 'smtp';
+process.env.SMTP_HOST = '127.0.0.1';
+process.env.SMTP_PORT = process.env.TEST_SMTP_PORT || '2525';
+process.env.EMAIL_FROM = 'TOUMA Test <no-reply@touma.test>';
+process.env.WEB_URL = 'http://localhost:3000';

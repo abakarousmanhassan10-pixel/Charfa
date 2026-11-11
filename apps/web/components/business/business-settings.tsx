@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { api, ApiError } from '@/lib/api-client';
 import { MediaPicker } from '@/components/media/media-picker';
+import { InvitationsCard } from '@/components/business/invitations-card';
 
 interface Member {
   id: string;
@@ -223,6 +224,8 @@ export function BusinessSettings() {
           </ul>
         </CardContent>
       </Card>
+
+      {canManage && <InvitationsCard businessId={active.id} myRole={active.role as BusinessRole} />}
 
       {can('business.delete') && (
         <Card className="border-destructive/40">

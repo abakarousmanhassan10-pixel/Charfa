@@ -8,6 +8,11 @@ describe('Rate limiting (e2e)', () => {
   beforeAll(async () => {
     process.env.AUTH_THROTTLE_LIMIT = '3';
     jest.resetModules();
+    const Redis = (await import('ioredis')).default;
+    const redis = new Redis(process.env.REDIS_URL!);
+    const keys = await redis.keys('touma:rl:*');
+    if (keys.length) await redis.del(...keys);
+    await redis.quit();
     const helpers = await import('./helpers');
     app = await helpers.startApp();
     await helpers.prisma.$disconnect();

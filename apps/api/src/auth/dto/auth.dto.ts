@@ -68,3 +68,28 @@ export class AuthResponse {
   @ApiProperty({ type: AuthUserResponse })
   user: AuthUserResponse;
 }
+
+export class EmailOnlyDto {
+  @ApiProperty({ example: 'owner@example.com' })
+  @Transform(normaliseEmail)
+  @IsEmail()
+  @MaxLength(254)
+  email: string;
+}
+
+export class TokenDto {
+  @ApiProperty({ description: 'Token received by email' })
+  @IsString()
+  @MinLength(20)
+  @MaxLength(200)
+  token: string;
+}
+
+export class ResetPasswordDto extends TokenDto {
+  @ApiProperty({ minLength: PASSWORD_MIN_LENGTH })
+  @IsString()
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @MaxLength(PASSWORD_MAX_LENGTH)
+  @Matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { message: 'Password must contain lowercase, uppercase and a digit' })
+  password: string;
+}

@@ -5,6 +5,7 @@ import { api, authRequest, logout as apiLogout, refreshSession } from '@/lib/api
 export interface Profile {
   id: string;
   email: string;
+  emailVerified?: boolean;
   fullName: string;
   locale: string;
   timezone: string;

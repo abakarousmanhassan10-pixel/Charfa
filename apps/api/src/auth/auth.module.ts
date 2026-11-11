@@ -6,11 +6,13 @@ import { AuthService } from './auth.service';
 import { CsrfGuard } from './csrf.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PasswordService } from './password.service';
+import { AccountService } from './account.service';
+import { AuthTokensService } from './auth-tokens.service';
 
 @Module({
   imports: [JwtModule.register({})],
   controllers: [AuthController],
-  providers: [AuthService, PasswordService, CsrfGuard, { provide: APP_GUARD, useClass: JwtAuthGuard }],
-  exports: [AuthService, PasswordService],
+  providers: [AuthService, AccountService, AuthTokensService, PasswordService, CsrfGuard, { provide: APP_GUARD, useClass: JwtAuthGuard }],
+  exports: [AuthService, PasswordService, AuthTokensService],
 })
 export class AuthModule {}

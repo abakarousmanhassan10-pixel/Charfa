@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { safeNext } from '@/components/auth-shell';
 import { Loader2 } from 'lucide-react';
 import { loginSchema, registerSchema } from '@touma/shared';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const { t, locale } = useI18n();
   const auth = useAuth();
   const router = useRouter();
+  const params = useSearchParams();
+  const next = safeNext(params.get('next'));
+  const presetEmail = params.get('email') ?? undefined;
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
@@ -39,7 +43,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     try {
       if (mode === 'login') await auth.login(data.email!, data.password!);
       else await auth.register(parsed.data as { email: string; password: string; fullName: string; locale: string });
-      router.replace('/dashboard');
+      router.replace(next ?? '/dashboard');
     } catch (err) {
       const code = err instanceof ApiError ? err.code : 'UNKNOWN';
       const message = t(`auth.errors.${code}`);
@@ -56,6 +60,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         id={name}
         name={name}
         type={type}
+        defaultValue={name === 'email' ? presetEmail : undefined}
         autoComplete={autoComplete}
         required
         aria-invalid={Boolean(fieldErrors[name])}
@@ -103,9 +108,14 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 {t(mode === 'login' ? 'common.signIn' : 'common.signUp')}
               </Button>
             </form>
+            {mode === 'login' && (
+              <p className="mt-4 text-center text-sm">
+                <Link className="text-primary hover:underline" href="/forgot-password">{t('account.forgotLink')}</Link>
+              </p>
+            )}
             <p className="mt-6 text-center text-sm text-muted-foreground">
               {t(mode === 'login' ? 'auth.noAccount' : 'auth.haveAccount')}{' '}
-              <Link className="font-medium text-primary hover:underline" href={mode === 'login' ? '/register' : '/login'}>
+              <Link className="font-medium text-primary hover:underline" href={`${mode === 'login' ? '/register' : '/login'}${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
                 {t(mode === 'login' ? 'common.signUp' : 'common.signIn')}
               </Link>
             </p>

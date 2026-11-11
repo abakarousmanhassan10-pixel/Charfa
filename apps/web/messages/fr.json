@@ -392,7 +392,11 @@
       "FILE_EMPTY": "Le fichier est vide.",
       "STORAGE_NOT_CONFIGURED": "Le stockage des médias n'est pas encore configuré.",
       "NETWORK": "Erreur réseau. Réessayez.",
-      "INSUFFICIENT_PERMISSION": "Votre rôle ne permet pas d'importer des médias."
+      "INSUFFICIENT_PERMISSION": "Votre rôle ne permet pas d'importer des médias.",
+      "MALWARE_DETECTED": "Ce fichier a été rejeté par l’antivirus.",
+      "SCAN_UNAVAILABLE": "L'antivirus est indisponible. Réessayez plus tard.",
+      "STORAGE_QUOTA_EXCEEDED": "Quota de stockage dépassé pour cette entreprise.",
+      "STORAGE_UNAVAILABLE": "Le stockage des médias est temporairement indisponible."
     },
     "folder": "Dossier",
     "folderHint": "ex. produits/ete",
@@ -410,7 +414,8 @@
     "type": "Type",
     "useSelected": "Utiliser la sélection ({count})",
     "usedBy": "Utilisé par",
-    "videos": "Vidéos"
+    "videos": "Vidéos",
+    "storageUsed": "Stockage utilisé"
   },
   "products": {
     "create": "Créer le produit",
@@ -720,6 +725,55 @@
       "agent": "Agent",
       "input": "Entrée",
       "output": "Sortie"
+    }
+  },
+  "account": {
+    "forgotLink": "Mot de passe oublié ?",
+    "forgotTitle": "Réinitialiser votre mot de passe",
+    "forgotSubtitle": "Saisissez votre e-mail, nous vous enverrons un lien de réinitialisation.",
+    "forgotSent": "Si un compte existe pour cet e-mail, un lien est en route. Il expire dans 30 minutes.",
+    "sendLink": "Envoyer le lien",
+    "backToLogin": "Retour à la connexion",
+    "resetTitle": "Choisir un nouveau mot de passe",
+    "resetSubtitle": "Toutes vos sessions seront déconnectées.",
+    "resetDone": "Votre mot de passe a été modifié. Veuillez vous reconnecter.",
+    "invalidLink": "Ce lien est invalide ou a expiré.",
+    "passwordsDiffer": "Les mots de passe ne correspondent pas.",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "setPassword": "Définir le mot de passe",
+    "verifyTitle": "Vérification de l'e-mail",
+    "verified": "Votre adresse e-mail est vérifiée.",
+    "unverified": "Veuillez vérifier {email} avec le lien que nous vous avons envoyé.",
+    "resend": "Renvoyer l'e-mail",
+    "resent": "E-mail de vérification envoyé.",
+    "tooSoon": "Veuillez patienter une minute avant de redemander un e-mail."
+  },
+  "invite": {
+    "title": "Invitation d'équipe",
+    "join": "Vous êtes invité(e) à rejoindre {business} en tant que {role}.",
+    "sentTo": "Cette invitation a été envoyée à {email}.",
+    "accept": "Accepter l'invitation",
+    "invalid": "Cette invitation est invalide, expirée ou révoquée.",
+    "mismatch": "Cette invitation a été envoyée à {email}. Connectez-vous avec cette adresse pour l’accepter.",
+    "alreadyMember": "Vous êtes déjà membre de cette entreprise.",
+    "cardTitle": "Invitations",
+    "cardHint": "Invitez des collaborateurs par e-mail. Les invitations expirent après 7 jours.",
+    "role": "Rôle",
+    "send": "Envoyer l'invitation",
+    "sent": "Invitation envoyée à {email}.",
+    "resend": "Renvoyer",
+    "revoke": "Révoquer",
+    "revoked": "Invitation révoquée.",
+    "expires": "Expire le {date}",
+    "errors": {
+      "ALREADY_MEMBER": "Cette personne est déjà membre.",
+      "EMAIL_NOT_VERIFIED": "Vérifiez votre propre adresse e-mail avant d’inviter.",
+      "INVITATION_LIMIT": "Trop d'invitations en attente.",
+      "RESEND_LIMIT": "Cette invitation ne peut plus être renvoyée.",
+      "ROLE_HIERARCHY": "Vous ne pouvez pas attribuer ce rôle.",
+      "TOO_SOON": "Veuillez patienter une minute avant de renvoyer.",
+      "VALIDATION_ERROR": "Saisissez une adresse e-mail valide."
     }
   }
 }

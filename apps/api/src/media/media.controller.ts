@@ -39,6 +39,13 @@ export class MediaController {
     return this.media.list(tenant, q);
   }
 
+  @Get('usage')
+  @ApiBearerAuth()
+  @RequireTenantPermission('media.read')
+  usage(@Tenant() tenant: TenantContext) {
+    return this.media.usage(tenant.businessId);
+  }
+
   @Get('folders')
   @ApiBearerAuth()
   @RequireTenantPermission('media.read')
@@ -59,11 +66,13 @@ export class MediaController {
     @Query('sig') sig: string,
     @Headers('range') range: string | undefined,
     @Res() res: Response,
+    @Query('variant') variant?: string,
   ) {
     if (typeof sig !== 'string' || typeof exp !== 'string') throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Media not found' });
-    const { media, object, maxAgeSeconds } = await this.media.openContent(id, Number(exp), sig, range);
+    if (variant !== undefined && variant !== 'thumb') throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Media not found' });
+    const { media, object, contentType, maxAgeSeconds } = await this.media.openContent(id, Number(exp), sig, range, variant === 'thumb' ? 'thumb' : 'original');
     res.status(object.partial ? 206 : 200);
-    res.setHeader('Content-Type', media.mimeType);
+    res.setHeader('Content-Type', contentType);
     if (object.contentLength !== undefined) res.setHeader('Content-Length', String(object.contentLength));
     if (object.contentRange) res.setHeader('Content-Range', object.contentRange);
     res.setHeader('Accept-Ranges', 'bytes');

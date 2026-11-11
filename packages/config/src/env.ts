@@ -75,11 +75,47 @@ export const appEnvSchema = z.object({
   S3_BUCKET: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
-  /** Required for MinIO and most S3-compatible providers. */
+  /** aws | r2 (Cloudflare) | minio | custom. Sets addressing/region defaults. */
+  S3_PROVIDER: z.enum(['aws', 'r2', 'minio', 'custom']).default('minio'),
+  /** Override path-style addressing (default: true for minio/custom, false for aws/r2). */
   S3_FORCE_PATH_STYLE: z
     .enum(['true', 'false'])
-    .default('true')
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === 'true')),
+  /** Create the bucket on first use. Only for local MinIO; production buckets are provisioned explicitly. */
+  S3_AUTO_CREATE_BUCKET: z
+    .enum(['true', 'false'])
+    .default('false')
     .transform((v) => v === 'true'),
+  /** Default storage quota per business (originals + thumbnails). Can be overridden per business. */
+  MEDIA_STORAGE_QUOTA_MB: z.coerce.number().positive().default(1024),
+  /** Decompression-bomb guard: maximum decoded image size in pixels. */
+  MEDIA_MAX_IMAGE_PIXELS: z.coerce.number().int().positive().default(40_000_000),
+  /** clamav: scan every upload with clamd (INSTREAM). none: no scanning (refused in production unless ALLOW_UNSCANNED_UPLOADS=true). */
+  MALWARE_SCANNER: z.enum(['clamav', 'none']).default('none'),
+  CLAMAV_HOST: z.string().default('localhost'),
+  CLAMAV_PORT: z.coerce.number().int().positive().default(3310),
+  CLAMAV_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  ALLOW_UNSCANNED_UPLOADS: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  // ─── Email ───
+  /** smtp: real delivery. log: development only, emails (with links) are written to the server log. */
+  EMAIL_TRANSPORT: z.enum(['smtp', 'log']).default('log'),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  EMAIL_FROM: z.string().default('TOUMA <no-reply@localhost>'),
+  // ─── Infrastructure ───
+  /** redis: rate limits shared by all API instances. memory: single-instance development only. */
+  RATE_LIMIT_STORE: z.enum(['redis', 'memory']).default('redis'),
+  WORKER_HEALTH_PORT: z.coerce.number().int().positive().default(4001),
   /**
    * s3 (default): S3-compatible storage. memory: in-process store for automated tests ONLY;
    * the loader refuses it unless APP_ENV=test.
@@ -108,6 +144,13 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
     );
   }
   const env = parsed.data;
+  if (env.APP_ENV === 'production' || env.APP_ENV === 'staging') {
+    const problems = productionProblems(env);
+    if (problems.length) throw new EnvValidationError(problems);
+  }
+  if (env.EMAIL_TRANSPORT === 'smtp' && !env.SMTP_HOST) {
+    throw new EnvValidationError(['SMTP_HOST is required when EMAIL_TRANSPORT=smtp']);
+  }
   if (env.AI_PROVIDER === 'fake' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['AI_PROVIDER=fake is only allowed when APP_ENV=test']);
   }
@@ -120,10 +163,45 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
   return env;
 }
 
+const EXAMPLE_VALUES = [
+  'change-me-access-secret-at-least-32-characters',
+  'change-me-refresh-secret-at-least-32-characters',
+  'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
+];
+
+/**
+ * Production/staging requirements. Every problem is listed at once so a deployment fails fast
+ * with a complete report, and the API never starts in a half-secure configuration.
+ */
+export function productionProblems(env: AppEnv): string[] {
+  const p: string[] = [];
+  const https = (u: string) => u.startsWith('https://');
+  if (!https(env.WEB_URL)) p.push('WEB_URL must use https');
+  if (env.CORS_ORIGINS.some((o) => !https(o))) p.push('CORS_ORIGINS must only contain https origins');
+  if (env.COOKIE_SECURE === false) p.push('COOKIE_SECURE must not be false');
+  for (const [k, v] of [['JWT_ACCESS_SECRET', env.JWT_ACCESS_SECRET], ['JWT_REFRESH_SECRET', env.JWT_REFRESH_SECRET], ['TOKEN_ENCRYPTION_KEY', env.TOKEN_ENCRYPTION_KEY]] as const) {
+    if (EXAMPLE_VALUES.includes(v)) p.push(`${k} still has the .env.example value`);
+  }
+  if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) p.push('JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must differ');
+  if (env.DATABASE_URL.includes('touma_dev_password') || env.DATABASE_URL.includes('aima_dev_password')) p.push('DATABASE_URL uses the development password');
+  if (env.STORAGE_DRIVER !== 's3') p.push('STORAGE_DRIVER must be s3');
+  if (!(env.S3_BUCKET && env.S3_REGION && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY)) p.push('S3 storage must be configured (S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY)');
+  if (env.S3_AUTO_CREATE_BUCKET) p.push('S3_AUTO_CREATE_BUCKET must be false (provision the bucket explicitly)');
+  if (env.EMAIL_TRANSPORT !== 'smtp') p.push('EMAIL_TRANSPORT must be smtp');
+  if (!env.SMTP_HOST) p.push('SMTP_HOST is required');
+  if (/localhost/i.test(env.EMAIL_FROM)) p.push('EMAIL_FROM must be a real sender address');
+  if (env.MALWARE_SCANNER === 'none' && !env.ALLOW_UNSCANNED_UPLOADS) p.push('MALWARE_SCANNER must be clamav (or set ALLOW_UNSCANNED_UPLOADS=true to accept the risk explicitly)');
+  if (env.RATE_LIMIT_STORE !== 'redis') p.push('RATE_LIMIT_STORE must be redis');
+  if (env.AI_PROVIDER === 'fake') p.push('AI_PROVIDER=fake is test-only');
+  return p;
+}
+
 /** Reports which optional external integrations are configured. Never returns secret values. */
 export function integrationStatus(env: AppEnv) {
   return {
     openai: env.AI_PROVIDER === 'fake' || Boolean(env.OPENAI_API_KEY),
+    email: env.EMAIL_TRANSPORT === 'smtp' && Boolean(env.SMTP_HOST),
+    malwareScanning: env.MALWARE_SCANNER === 'clamav',
     storage:
       env.STORAGE_DRIVER === 'memory' || Boolean(env.S3_BUCKET && env.S3_REGION && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY),
   };

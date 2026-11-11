@@ -30,6 +30,13 @@ describe('loadEnv', () => {
     ).toThrow(/must differ/);
   });
 
+  it('defaults the storage provider preset and keeps path style unset for the preset to decide', () => {
+    const env = loadEnv(valid);
+    expect(env.S3_PROVIDER).toBe('minio');
+    expect(env.S3_FORCE_PATH_STYLE).toBeUndefined();
+    expect(env.RATE_LIMIT_STORE).toBe('redis');
+  });
+
   it('refuses the in-memory storage driver outside tests', () => {
     expect(() => loadEnv({ ...valid, STORAGE_DRIVER: 'memory', APP_ENV: 'development' })).toThrow(/only allowed when APP_ENV=test/);
     expect(loadEnv({ ...valid, STORAGE_DRIVER: 'memory', APP_ENV: 'test' }).STORAGE_DRIVER).toBe('memory');
@@ -44,6 +51,53 @@ describe('loadEnv', () => {
   });
 
   it('reports integrations as not configured without credentials', () => {
-    expect(integrationStatus(loadEnv(valid))).toEqual({ openai: false, storage: false });
+    expect(integrationStatus(loadEnv(valid))).toEqual({ openai: false, storage: false, email: false, malwareScanning: false });
+  });
+
+  const prod = {
+    ...valid,
+    APP_ENV: 'production',
+    NODE_ENV: 'production',
+    DATABASE_URL: 'postgresql://touma:strong-pass@db.internal:5432/touma?sslmode=require',
+    WEB_URL: 'https://app.touma.example',
+    CORS_ORIGINS: 'https://app.touma.example',
+    STORAGE_DRIVER: 's3',
+    S3_PROVIDER: 'r2',
+    S3_BUCKET: 'touma-media',
+    S3_REGION: 'auto',
+    S3_ACCESS_KEY_ID: 'k',
+    S3_SECRET_ACCESS_KEY: 's',
+    EMAIL_TRANSPORT: 'smtp',
+    SMTP_HOST: 'smtp.example.com',
+    EMAIL_FROM: 'TOUMA <no-reply@touma.example>',
+    MALWARE_SCANNER: 'clamav',
+  };
+
+  it('accepts a complete production configuration', () => {
+    expect(() => loadEnv(prod)).not.toThrow();
+  });
+
+  it('lists every production problem at once', () => {
+    const err = (() => {
+      try {
+        loadEnv({ ...valid, APP_ENV: 'production', DATABASE_URL: 'postgresql://touma:touma_dev_password@db:5432/touma', WEB_URL: 'http://x.example', JWT_ACCESS_SECRET: 'change-me-access-secret-at-least-32-characters' });
+      } catch (e) {
+        return e as EnvValidationError;
+      }
+    })()!;
+    expect(err).toBeInstanceOf(EnvValidationError);
+    const all = err.issues.join('\n');
+    for (const m of ['WEB_URL must use https', 'JWT_ACCESS_SECRET still has the .env.example value', 'S3 storage must be configured', 'EMAIL_TRANSPORT must be smtp', 'MALWARE_SCANNER must be clamav', 'DATABASE_URL uses the development password']) {
+      expect(all).toContain(m);
+    }
+  });
+
+  it('allows unscanned uploads in production only when explicitly accepted', () => {
+    expect(() => loadEnv({ ...prod, MALWARE_SCANNER: 'none' })).toThrow(/MALWARE_SCANNER/);
+    expect(() => loadEnv({ ...prod, MALWARE_SCANNER: 'none', ALLOW_UNSCANNED_UPLOADS: 'true' })).not.toThrow();
+  });
+
+  it('requires SMTP_HOST for smtp transport', () => {
+    expect(() => loadEnv({ ...valid, EMAIL_TRANSPORT: 'smtp' })).toThrow(/SMTP_HOST/);
   });
 });

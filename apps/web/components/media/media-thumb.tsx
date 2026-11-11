@@ -14,5 +14,5 @@ export function MediaThumb({ media, className }: { media: MediaItem; className?:
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={media.url} alt={media.altText ?? ''} loading="lazy" className={cn('object-cover', className)} />;
+  return <img src={media.thumbnailUrl ?? media.url} alt={media.altText ?? ''} loading="lazy" className={cn('object-cover', className)} />;
 }
