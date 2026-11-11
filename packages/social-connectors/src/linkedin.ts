@@ -3,7 +3,7 @@ import { validateAgainstLimits } from './validate';
 import { matchCandidates, unavailable } from './reconcile';
 import {
   EMPTY_METRICS, SocialApiError, type AdapterConfig, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type PlatformAdapter, type PublishableContent, type PublishContext,
-  type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenSet,
+  type ConnectionVariant, type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenSet,
 } from './types';
 
 const API = 'https://api.linkedin.com';
@@ -17,6 +17,8 @@ function mapLinkedIn(r: HttpResult): SocialApiError {
   if (r.status === 403) return new SocialApiError('permission', `A required permission is missing (LinkedIn products and scopes must be approved): ${msg}`, { status: 403, code, outcome: 'not_created' });
   if (r.status === 429) return new SocialApiError('rate_limit', `The platform is rate limiting requests: ${msg}`, { status: 429, code, outcome: 'not_created', retryAfterMs: 3_600_000 });
   if (r.status >= 500) return new SocialApiError('transient', `The platform had a temporary problem: ${msg}`, { status: r.status, code, outcome: 'unknown' });
+  // LinkedIn refuses identical content with 422 DUPLICATE_POST: that means a post with this text most likely exists already, so the outcome is unknown (reconcile), never a plain failure.
+  if (r.status === 422 && /duplicate/i.test(`${code ?? ''} ${msg}`)) return new SocialApiError('validation', `LinkedIn says a post with this content already exists: ${msg}`, { status: 422, code, outcome: 'unknown' });
   return new SocialApiError('validation', `The platform rejected the request: ${msg}`, { status: r.status, code, outcome: 'not_created' });
 }
 
@@ -46,6 +48,7 @@ export class LinkedInPublisher implements PlatformAdapter {
     this.http = new Http(fetchImpl, cfg.timeoutMs);
   }
 
+  /** The personal application's configuration (the platform is connectable when personal publishing is). */
   missingConfiguration() {
     return [!this.cfg.linkedinClientId && 'LINKEDIN_CLIENT_ID', !this.cfg.linkedinClientSecret && 'LINKEDIN_CLIENT_SECRET'].filter(Boolean) as string[];
   }
@@ -53,15 +56,52 @@ export class LinkedInPublisher implements PlatformAdapter {
     return this.missingConfiguration().length === 0;
   }
 
+  private get orgEnabled() {
+    return this.cfg.linkedinOrgEnabled === true;
+  }
+
+  /** Personal and organization publishing are configured, enabled and approved separately. */
+  variants(): ConnectionVariant[] {
+    const personalEnabled = this.cfg.linkedinPersonalEnabled !== false;
+    const orgId = this.cfg.linkedinOrgClientId || this.cfg.linkedinClientId;
+    const orgSecret = this.cfg.linkedinOrgClientSecret || this.cfg.linkedinClientSecret;
+    return [
+      {
+        id: 'personal', accountType: 'PROFILE', enabled: personalEnabled, configured: this.isConfigured(), missingConfiguration: this.missingConfiguration(), scopes: [...PERSONAL_SCOPES],
+        reason: personalEnabled ? null : 'Personal LinkedIn publishing is switched off on this server (LINKEDIN_PERSONAL_ENABLED=false).',
+      },
+      {
+        id: 'organization', accountType: 'ORGANIZATION', enabled: this.orgEnabled, configured: Boolean(orgId && orgSecret),
+        missingConfiguration: [!orgId && 'LINKEDIN_ORG_CLIENT_ID (or LINKEDIN_CLIENT_ID)', !orgSecret && 'LINKEDIN_ORG_CLIENT_SECRET (or LINKEDIN_CLIENT_SECRET)'].filter(Boolean) as string[], scopes: [...ORG_SCOPES],
+        reason: this.orgEnabled ? null : 'Organization (Company Page) publishing is disabled until LinkedIn approves the Community Management API for the TOUMA application. After approval, set LINKEDIN_ORG_ENABLED=true and record the approval in LINKEDIN_ORG_APPROVAL_REF.',
+      },
+    ];
+  }
+
+  private variant(id?: string): ConnectionVariant {
+    const v = this.variants().find((x) => x.id === (id ?? 'personal'));
+    if (!v) throw new SocialApiError('validation', `Unknown LinkedIn connection type "${id}"`, { outcome: 'not_created' });
+    return v;
+  }
+
+  /** The application that issued a token: organization tokens carry organization scopes. */
+  private credentials(variantOrScopes: string | string[]) {
+    const org = Array.isArray(variantOrScopes) ? variantOrScopes.some((x) => (ORG_SCOPES as readonly string[]).includes(x)) : variantOrScopes === 'organization';
+    return org
+      ? { id: this.cfg.linkedinOrgClientId || this.cfg.linkedinClientId, secret: this.cfg.linkedinOrgClientSecret || this.cfg.linkedinClientSecret }
+      : { id: this.cfg.linkedinClientId, secret: this.cfg.linkedinClientSecret };
+  }
+
   private rest(t: TokenSet, extra: Record<string, string> = {}) {
     return { authorization: `Bearer ${t.accessToken}`, 'linkedin-version': this.cfg.linkedinApiVersion, 'x-restli-protocol-version': '2.0.0', ...extra };
   }
 
-  buildAuthorizationUrl(p: { state: string; redirectUri: string }): OAuthStart {
-    // The organization scopes are requested too; if the application has not been approved for them LinkedIn refuses the whole request,
-    // so the scope list can be reduced to the personal scopes with LINKEDIN_ORG_SCOPES=false (see docs/SOCIAL-INTEGRATIONS.md).
-    const scopes = this.cfg.linkedinOrgScopes === false ? [...PERSONAL_SCOPES] : [...PERSONAL_SCOPES, ...ORG_SCOPES];
-    const q = new URLSearchParams({ response_type: 'code', client_id: this.cfg.linkedinClientId ?? '', redirect_uri: p.redirectUri, state: p.state, scope: scopes.join(' ') });
+  buildAuthorizationUrl(p: { state: string; redirectUri: string; variant?: string }): OAuthStart {
+    // Personal and organization connections ask for their own scopes only: asking for organization scopes from an application LinkedIn
+    // has not approved makes LinkedIn refuse the whole request, and a personal connection must never depend on organization approval.
+    const v = this.variant(p.variant);
+    if (!v.enabled) throw new SocialApiError('unsupported', v.reason ?? 'This LinkedIn connection type is disabled', { outcome: 'not_created' });
+    const q = new URLSearchParams({ response_type: 'code', client_id: this.credentials(v.id).id ?? '', redirect_uri: p.redirectUri, state: p.state, scope: v.scopes.join(' ') });
     return { url: `https://www.linkedin.com/oauth/v2/authorization?${q.toString()}` };
   }
 
@@ -73,37 +113,45 @@ export class LinkedInPublisher implements PlatformAdapter {
     };
   }
 
-  async exchangeCode(p: { code: string; redirectUri: string }): Promise<TokenSet> {
-    const r = await this.http.ok('https://www.linkedin.com/oauth/v2/accessToken', { method: 'POST', headers: FORM_HEADERS, body: form({ grant_type: 'authorization_code', code: p.code, redirect_uri: p.redirectUri, client_id: this.cfg.linkedinClientId, client_secret: this.cfg.linkedinClientSecret }) }, mapLinkedIn);
+  async exchangeCode(p: { code: string; redirectUri: string; variant?: string }): Promise<TokenSet> {
+    const v = this.variant(p.variant);
+    if (!v.enabled) throw new SocialApiError('unsupported', v.reason ?? 'This LinkedIn connection type is disabled', { outcome: 'not_created' });
+    const c = this.credentials(v.id);
+    const r = await this.http.ok('https://www.linkedin.com/oauth/v2/accessToken', { method: 'POST', headers: FORM_HEADERS, body: form({ grant_type: 'authorization_code', code: p.code, redirect_uri: p.redirectUri, client_id: c.id, client_secret: c.secret }) }, mapLinkedIn);
     return this.tokens(r.json);
   }
 
   async refresh(t: TokenSet): Promise<TokenSet> {
     if (!t.refreshToken) throw new SocialApiError('unsupported', 'LinkedIn only issues refresh tokens to approved partners; the person must reconnect', { outcome: 'not_created' });
-    const r = await this.http.ok('https://www.linkedin.com/oauth/v2/accessToken', { method: 'POST', headers: FORM_HEADERS, body: form({ grant_type: 'refresh_token', refresh_token: t.refreshToken, client_id: this.cfg.linkedinClientId, client_secret: this.cfg.linkedinClientSecret }) }, mapLinkedIn);
+    const c = this.credentials(t.scopes); // the application that issued the token
+    const r = await this.http.ok('https://www.linkedin.com/oauth/v2/accessToken', { method: 'POST', headers: FORM_HEADERS, body: form({ grant_type: 'refresh_token', refresh_token: t.refreshToken, client_id: c.id, client_secret: c.secret }) }, mapLinkedIn);
     return this.tokens(r.json, t);
   }
 
-  async listAccounts(t: TokenSet): Promise<CandidateAccount[]> {
-    const out: CandidateAccount[] = [];
-    const me = await this.http.ok(`${API}/v2/userinfo`, { headers: { authorization: `Bearer ${t.accessToken}` } }, mapLinkedIn);
-    const u = (me.json ?? {}) as { sub?: string; name?: string; picture?: string };
+  async listAccounts(t: TokenSet, opts: { variant?: string } = {}): Promise<CandidateAccount[]> {
+    const v = this.variant(opts.variant);
+    if (!v.enabled) throw new SocialApiError('unsupported', v.reason ?? 'This LinkedIn connection type is disabled', { outcome: 'not_created' });
     const granted = t.scopes;
-    if (u.sub) {
+    if (v.id === 'personal') {
+      const me = await this.http.ok(`${API}/v2/userinfo`, { headers: { authorization: `Bearer ${t.accessToken}` } }, mapLinkedIn);
+      const u = (me.json ?? {}) as { sub?: string; name?: string; picture?: string };
+      if (!u.sub) return [];
       const missing = ['w_member_social'].filter((s) => granted.length > 0 && !granted.includes(s));
-      out.push({ externalAccountId: `urn:li:person:${u.sub}`, displayName: u.name ?? null, avatarUrl: u.picture ?? null, accountType: 'PROFILE', tokens: t, scopesGranted: granted, permissionsMissing: missing, metadata: {} });
+      return [{ externalAccountId: `urn:li:person:${u.sub}`, displayName: u.name ?? null, avatarUrl: u.picture ?? null, accountType: 'PROFILE', tokens: t, scopesGranted: granted, permissionsMissing: missing, metadata: {} }];
     }
-    // Company Pages: only when the application was approved for the organization scopes.
-    // Paged with start/count until a page comes back short; a refusal (no organization scopes approved) means personal publishing only.
+    // Organizations the member administers. Paged with start/count until a page comes back short. A refusal means LinkedIn has not
+    // granted this application the Community Management API: that is an error for an organization connection, not "no organizations".
     const orgUrns: string[] = [];
     for (let start = 0, page = 0; page < 100; page++) {
       const orgs = await this.http.request(`${API}/rest/organizationAcls`, { query: { q: 'roleAssignee', role: 'ADMINISTRATOR', state: 'APPROVED', start: String(start), count: '100' }, headers: this.rest(t) });
-      if (orgs.status !== 200) break;
+      if (orgs.status === 401 || orgs.status === 403) throw new SocialApiError('permission', 'LinkedIn has not granted this application access to organizations (Community Management API).', { status: orgs.status, outcome: 'not_created' });
+      if (orgs.status !== 200) throw mapLinkedIn(orgs);
       const els = (orgs.json?.elements ?? []) as Array<{ organization?: string }>;
       for (const el of els) if (el.organization) orgUrns.push(el.organization);
       if (els.length < 100) break;
       start += els.length;
     }
+    const out: CandidateAccount[] = [];
     for (const urn of orgUrns) {
       const id = urn.split(':').pop()!;
       const detail = await this.http.request(`${API}/rest/organizations/${id}`, { headers: this.rest(t) });
@@ -143,6 +191,7 @@ export class LinkedInPublisher implements PlatformAdapter {
   }
 
   async publish(a: AuthorizedAccount, c: PublishableContent, ctx: PublishContext): Promise<PublishOutcome> {
+    if (a.accountType === 'ORGANIZATION' && !this.orgEnabled) throw new SocialApiError('unsupported', 'Organization publishing is disabled until LinkedIn approves the Community Management API.', { outcome: 'not_created' });
     const post: Record<string, unknown> = {
       author: a.externalAccountId, commentary: this.text(c), visibility: 'PUBLIC',
       distribution: { feedDistribution: 'MAIN_FEED', targetEntities: [], thirdPartyDistributionChannels: [] }, lifecycleState: 'PUBLISHED', isReshareDisabledByAuthor: false,

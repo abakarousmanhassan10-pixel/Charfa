@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
 import { Prisma, type SocialAccount } from '@touma/database';
 import { PLATFORM_CAPABILITIES, SOCIAL_PLATFORMS, type SocialPlatformId } from '@touma/shared';
@@ -73,7 +73,7 @@ export class SocialAccountsService {
       const a = this.adapters[p];
       return {
         platform: p, label: PLATFORM_CAPABILITIES[p].label, configured: a.isConfigured(), missingConfiguration: a.missingConfiguration(), requiredScopes: [...a.requiredScopes], supportsRefresh: a.supportsRefresh,
-        redirectUri: this.redirectUri(p), capabilities: PLATFORM_CAPABILITIES[p], mode: this.env.SOCIAL_PROVIDER_MODE,
+        redirectUri: this.redirectUri(p), capabilities: PLATFORM_CAPABILITIES[p], mode: this.env.SOCIAL_PROVIDER_MODE, variants: a.variants?.() ?? null,
       };
     });
   }
@@ -111,25 +111,41 @@ export class SocialAccountsService {
 
   // ─── OAuth connection ───────────────────────────────────────────────────────
 
-  async start(tenant: TenantContext, platform: SocialPlatformId, reconnectAccountId?: string) {
+  /** The connection variant to use: the one asked for, or the first enabled one. A disabled or unconfigured variant is refused with the reason. */
+  private chooseVariant(platform: SocialPlatformId, asked?: string): string | null {
     const adapter = this.adapters[platform];
-    if (!adapter.isConfigured()) throw new ServiceUnavailableException({ code: 'PLATFORM_NOT_CONFIGURED', message: `${PLATFORM_CAPABILITIES[platform].label} is not configured on this server. An administrator must add the developer application credentials.`, missing: adapter.missingConfiguration() });
+    const variants = adapter.variants?.();
+    if (!variants) {
+      if (asked) throw new BadRequestException({ code: 'VARIANT_UNKNOWN', message: `${PLATFORM_CAPABILITIES[platform].label} has one way of connecting only` });
+      return null;
+    }
+    const v = variants.find((x) => x.id === (asked ?? 'personal'));
+    if (!v) throw new BadRequestException({ code: 'VARIANT_UNKNOWN', message: `Unknown connection type "${asked}"` });
+    if (!v.enabled) throw new ConflictException({ code: 'VARIANT_DISABLED', message: v.reason ?? 'This connection type is disabled' });
+    if (!v.configured) throw new ServiceUnavailableException({ code: 'PLATFORM_NOT_CONFIGURED', message: `This connection type is not configured on this server.`, missing: v.missingConfiguration });
+    return v.id;
+  }
+
+  async start(tenant: TenantContext, platform: SocialPlatformId, reconnectAccountId?: string, variantAsked?: string) {
+    const adapter = this.adapters[platform];
+    const variant = this.chooseVariant(platform, variantAsked);
+    if (!adapter.variants && !adapter.isConfigured()) throw new ServiceUnavailableException({ code: 'PLATFORM_NOT_CONFIGURED', message: `${PLATFORM_CAPABILITIES[platform].label} is not configured on this server. An administrator must add the developer application credentials.`, missing: adapter.missingConfiguration() });
     if (this.env.SOCIAL_PROVIDER_MODE === 'live' && !this.env.PUBLIC_API_URL) throw new ServiceUnavailableException({ code: 'PUBLIC_API_URL_MISSING', message: 'PUBLIC_API_URL is not set, so the platform cannot redirect back to TOUMA.' });
     if (reconnectAccountId) {
       const acc = await this.get(tenant, reconnectAccountId);
       if (acc.platform !== platform) throw new BadRequestException({ code: 'PLATFORM_MISMATCH', message: 'This account belongs to another platform' });
     }
     const state = randomBytes(32).toString('base64url');
-    const { url, codeVerifier } = adapter.buildAuthorizationUrl({ state, redirectUri: this.redirectUri(platform), reconnect: Boolean(reconnectAccountId) });
+    const { url, codeVerifier } = adapter.buildAuthorizationUrl({ state, redirectUri: this.redirectUri(platform), reconnect: Boolean(reconnectAccountId), variant: variant ?? undefined });
     // Sessions that were never completed are not kept.
     await this.prisma.socialConnectionSession.deleteMany({ where: { expiresAt: { lt: new Date(Date.now() - 86_400_000) } } });
     const session = await this.prisma.socialConnectionSession.create({
       data: {
         businessId: tenant.businessId, userId: tenant.userId, platform, stateHash: createHash('sha256').update(state).digest('hex'), codeVerifierEnc: codeVerifier ? this.cipher.encrypt(codeVerifier) : null,
-        reconnectAccountId: reconnectAccountId ?? null, expiresAt: new Date(Date.now() + this.env.SOCIAL_STATE_TTL_MINUTES * 60_000),
+        reconnectAccountId: reconnectAccountId ?? null, variant, expiresAt: new Date(Date.now() + this.env.SOCIAL_STATE_TTL_MINUTES * 60_000),
       },
     });
-    await this.audit.record({ action: 'social.connect_started', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'SocialConnectionSession', entityId: session.id, metadata: { platform, reconnect: Boolean(reconnectAccountId) } });
+    await this.audit.record({ action: 'social.connect_started', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'SocialConnectionSession', entityId: session.id, metadata: { platform, reconnect: Boolean(reconnectAccountId), variant } });
     return { sessionId: session.id, authorizationUrl: url, expiresAt: session.expiresAt.toISOString() };
   }
 
@@ -155,8 +171,8 @@ export class SocialAccountsService {
     const adapter = this.adapters[platform];
     try {
       const verifier = session.codeVerifierEnc ? this.cipher.decrypt(session.codeVerifierEnc) : null;
-      const tokens = await adapter.exchangeCode({ code: q.code, redirectUri: this.redirectUri(platform), codeVerifier: verifier });
-      const candidates = await adapter.listAccounts(tokens);
+      const tokens = await adapter.exchangeCode({ code: q.code, redirectUri: this.redirectUri(platform), codeVerifier: verifier, variant: session.variant ?? undefined });
+      const candidates = await adapter.listAccounts(tokens, { variant: session.variant ?? undefined });
       if (!candidates.length) return fail('NO_ACCOUNTS', 'No account that can publish was found for this login');
       const stored: StoredCandidate[] = candidates.map((c) => ({
         externalAccountId: c.externalAccountId, displayName: c.displayName ?? null, username: c.username ?? null, avatarUrl: c.avatarUrl ?? null, accountType: c.accountType, parentExternalId: c.parentExternalId ?? null,
@@ -184,7 +200,7 @@ export class SocialAccountsService {
     const existing = await this.prisma.socialAccount.findMany({ where: { businessId: tenant.businessId, platform: s.platform, deletedAt: null }, select: { externalAccountId: true, status: true } });
     const known = new Map(existing.map((e) => [e.externalAccountId, e.status]));
     return {
-      id: s.id, platform: s.platform, reconnectAccountId: s.reconnectAccountId,
+      id: s.id, platform: s.platform, variant: s.variant, reconnectAccountId: s.reconnectAccountId,
       candidates: ((s.candidates ?? []) as unknown as StoredCandidate[]).map((c) => ({
         externalAccountId: c.externalAccountId, displayName: c.displayName, username: c.username, avatarUrl: c.avatarUrl, accountType: c.accountType, permissionsMissing: c.permissionsMissing,
         criticalPermissionsMissing: c.permissionsMissing.filter((p) => !ANALYTICS_ONLY.has(p)), alreadyConnected: known.has(c.externalAccountId) && known.get(c.externalAccountId) !== 'DISCONNECTED',
@@ -302,6 +318,28 @@ export class SocialAccountsService {
    * The account with a token that works now, as the adapter needs it. Refreshes first when the token is about to expire.
    * Throws SocialAuthError when the account is not allowed to publish (not connected, expired, missing permissions).
    */
+  /**
+   * TikTok: what the creator may do right now (nickname, visibility options, disabled interactions, maximum duration).
+   * Asked of TikTok every time, never cached: TikTok requires the posting screen to reflect the current state of the account.
+   */
+  async tiktokCreatorInfo(businessId: string, accountId: string) {
+    const { account, auth } = await this.authorized(businessId, accountId).catch((e) => {
+      if (e instanceof SocialAuthError) throw new UnprocessableEntityException({ code: e.code, message: e.message });
+      throw e;
+    });
+    const adapter = this.adapters.TIKTOK;
+    if (account.platform !== 'TIKTOK' || !adapter.creatorInfo) throw new UnprocessableEntityException({ code: 'NOT_TIKTOK', message: 'This is not a TikTok account' });
+    try {
+      return { ...(await adapter.creatorInfo(auth)), accountId: account.id, queriedAt: new Date().toISOString() };
+    } catch (err) {
+      if (err instanceof SocialApiError) {
+        if (err.kind === 'auth') await this.needsReconnect(account, 'The platform rejected the access token. Reconnect the account.');
+        throw new UnprocessableEntityException({ code: err.kind === 'auth' ? 'TOKEN_EXPIRED' : err.kind === 'permission' ? 'PERMISSION_MISSING' : 'PLATFORM_UNAVAILABLE', message: err.message });
+      }
+      throw err;
+    }
+  }
+
   async authorized(businessId: string, accountId: string): Promise<{ account: SocialAccount; auth: AuthorizedAccount }> {
     let a = await this.prisma.socialAccount.findFirst({ where: { id: accountId, businessId, deletedAt: null } });
     if (!a) throw new SocialAuthError('ACCOUNT_NOT_CONNECTED', 'The social account does not exist for this business');

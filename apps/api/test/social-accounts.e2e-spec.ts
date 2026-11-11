@@ -39,8 +39,8 @@ describe('Social accounts (e2e)', () => {
 
   const stateOf = (url: string) => new URL(url).searchParams.get('state')!;
   /** Runs start → platform redirect → callback for a platform and returns the connection session id. */
-  async function authorize(c: Ctx, platform: string, code = 'valid-code', reconnectAccountId?: string) {
-    const start = await h.post(c, `/connections/${platform}/start`, reconnectAccountId ? { reconnectAccountId } : {}).expect(200);
+  async function authorize(c: Ctx, platform: string, code = 'valid-code', reconnectAccountId?: string, variant?: string) {
+    const start = await h.post(c, `/connections/${platform}/start`, { ...(reconnectAccountId ? { reconnectAccountId } : {}), ...(variant ? { variant } : {}) }).expect(200);
     const res = await request(h.http).get(`/api/v1/social/oauth/callback/${platform}?code=${code}&state=${stateOf(start.body.authorizationUrl)}`).expect(302);
     return { start: start.body, location: new URL(res.headers.location!) };
   }
@@ -55,6 +55,44 @@ describe('Social accounts (e2e)', () => {
       expect(res.body.platforms.find((p: { platform: string }) => p.platform === 'INSTAGRAM').capabilities.supports.TEXT).toBe(false);
       expect(res.body.publishing.available).toBe(true);
       expect(JSON.stringify(res.body)).not.toMatch(/test-meta-app-secret|test-tiktok-client-secret/);
+    });
+  });
+
+  describe('LinkedIn: personal and organization are separate, organization is disabled until approval', () => {
+    it('reports both connection types, with the reason organization publishing is unavailable', async () => {
+      const li = (await h.get(viewer, '/status').expect(200)).body.platforms.find((p: { platform: string }) => p.platform === 'LINKEDIN');
+      expect(li.variants.map((v: { id: string; enabled: boolean }) => [v.id, v.enabled])).toEqual([['personal', true], ['organization', false]]);
+      expect(li.variants[1].reason).toMatch(/Community Management API/);
+      expect((await h.get(viewer, '/status').expect(200)).body.platforms.find((p: { platform: string }) => p.platform === 'FACEBOOK').variants).toBeNull();
+    });
+
+    it('connects a personal profile without any organization approval; the organization connection is refused with a clear reason', async () => {
+      const t = await h.tenant('LinkedIn Co');
+      const { location } = await authorize(t, 'linkedin');
+      const pending = (await h.get(t, `/connections/${location.searchParams.get('connect')}`).expect(200)).body;
+      expect(pending.variant).toBe('personal');
+      expect(pending.candidates.map((c: { accountType: string }) => c.accountType)).toEqual(['PROFILE', 'PROFILE']);
+      const refused = await h.post(t, '/connections/linkedin/start', { variant: 'organization' }).expect(409);
+      expect(refused.body.code).toBe('VARIANT_DISABLED');
+      expect(refused.body.message).toMatch(/disabled until LinkedIn approves/);
+      await h.post(t, '/connections/facebook/start', { variant: 'organization' }).expect(400);
+      await h.post(t, '/connections/linkedin/start', { variant: 'company' }).expect(400);
+    });
+
+    it('once LinkedIn approval is recorded the organization connection lists Company Pages only; turning it off blocks publishing to them again', async () => {
+      const t = await h.tenant('LinkedIn Pages Co');
+      h.hub.linkedinOrgEnabled = true;
+      const { start, location } = await authorize(t, 'linkedin', 'valid-code', undefined, 'organization');
+      const pending = (await h.get(t, `/connections/${start.sessionId}`).expect(200)).body;
+      expect(pending.variant).toBe('organization');
+      expect(pending.candidates.map((c: { accountType: string }) => c.accountType)).toEqual(['ORGANIZATION', 'ORGANIZATION']);
+      expect(location.searchParams.get('connect')).toBe(start.sessionId);
+      const done = (await h.post(t, `/connections/${start.sessionId}/select`, { externalAccountIds: ['urn:li:organization:1'] }).expect(200)).body;
+      expect(done.items[0]).toMatchObject({ platform: 'LINKEDIN', accountType: 'ORGANIZATION', status: 'CONNECTED' });
+      // Approval withdrawn (flag off): the stored organization account is never published to.
+      h.hub.linkedinOrgEnabled = false;
+      const acc = await prisma.socialAccount.findFirstOrThrow({ where: { businessId: t.businessId, externalAccountId: 'urn:li:organization:1' } });
+      expect(acc.accountType).toBe('ORGANIZATION');
     });
   });
 

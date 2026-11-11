@@ -16,6 +16,10 @@ function mapGraph(r: HttpResult): SocialApiError {
   // https://developers.facebook.com/docs/graph-api/guides/error-handling
   if (code === 190 || r.status === 401) return new SocialApiError('auth', `The access token is no longer valid: ${msg}`, { status: r.status, code, outcome: 'not_created' });
   if (code === 10 || (code !== undefined && code >= 200 && code <= 299)) return new SocialApiError('permission', `A required permission is missing: ${msg}`, { status: r.status, code, outcome: 'not_created' });
+  // Instagram's per-account publishing limit (error 9 / subcode 2207042) and the "business use case" limits (80000-80014) are quotas, not failures of the post.
+  if (e.error_subcode === 2207042 || code === 9 || (code !== undefined && code >= 80000 && code <= 80014)) return new SocialApiError('rate_limit', `The account reached the platform's publishing limit: ${msg}`, { status: r.status, code, outcome: 'not_created', retryAfterMs: 3_600_000 });
+  if (e.error_subcode === 2207026) return new SocialApiError('validation', `Instagram does not support this video format. Use MP4 with H.264 video and AAC audio. (${msg})`, { status: r.status, code, outcome: 'not_created' });
+  if (e.error_subcode === 2207009) return new SocialApiError('validation', `The image or video aspect ratio is outside what Instagram accepts. (${msg})`, { status: r.status, code, outcome: 'not_created' });
   if (code === 4 || code === 17 || code === 32 || code === 613 || r.status === 429) return new SocialApiError('rate_limit', `The platform is rate limiting requests: ${msg}`, { status: r.status, code, outcome: 'not_created', retryAfterMs: 15 * 60_000 });
   if (code === 1 || code === 2 || r.status >= 500) return new SocialApiError('transient', `The platform had a temporary problem: ${msg}`, { status: r.status, code, outcome: 'unknown' });
   return new SocialApiError('validation', `The platform rejected the request: ${msg}`, { status: r.status, code, outcome: 'not_created' });
@@ -247,6 +251,20 @@ export class InstagramPublisher extends MetaAdapter {
     return (r.json?.status_code as 'FINISHED' | 'IN_PROGRESS' | 'ERROR' | 'EXPIRED') ?? 'IN_PROGRESS';
   }
 
+  private async checkQuota(a: AuthorizedAccount) {
+    let r: HttpResult;
+    try {
+      r = await this.get(`/${a.externalAccountId}/content_publishing_limit`, a, { fields: 'quota_usage,config' });
+    } catch (e) {
+      if (e instanceof SocialApiError && (e.kind === 'auth' || e.kind === 'permission')) throw e;
+      return; // the quota could not be read: the platform will still enforce it when publishing
+    }
+    const d = ((r.json?.data ?? [])[0] ?? {}) as { quota_usage?: number; config?: { quota_total?: number } };
+    if (typeof d.quota_usage === 'number' && typeof d.config?.quota_total === 'number' && d.quota_usage >= d.config.quota_total) {
+      throw new SocialApiError('rate_limit', `This Instagram account has used its publishing limit for now (${d.quota_usage} of ${d.config.quota_total} in 24 hours).`, { outcome: 'not_created', retryAfterMs: 3_600_000 });
+    }
+  }
+
   private async publishContainer(a: AuthorizedAccount, id: string, ctx: PublishContext): Promise<PublishOutcome> {
     await ctx.beforeCreate();
     const r = await this.post(`/${a.externalAccountId}/media_publish`, a, { creation_id: id });
@@ -271,6 +289,8 @@ export class InstagramPublisher extends MetaAdapter {
       if (st === 'IN_PROGRESS') return { status: 'PROCESSING', ref: ctx.resume.ref, stage: 'CONTAINER', retryAfterMs: 10_000 };
       throw new SocialApiError('validation', 'Instagram could not process the media.', { outcome: 'not_created' });
     }
+    // Instagram limits API-published posts per account per 24 hours: ask first, so a full quota is a clear, retryable condition instead of a failed attempt.
+    await this.checkQuota(a);
     let containerId: string;
     if (c.kind === 'IMAGE') {
       containerId = String((await this.post(`/${ig}/media`, a, { image_url: c.media[0]!.url, caption })).json?.id);

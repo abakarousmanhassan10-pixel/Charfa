@@ -48,6 +48,13 @@ export class SocialController {
     return this.accounts.list(tenant);
   }
 
+  @Get('accounts/:id/tiktok/creator-info')
+  @ApiOperation({ summary: "TikTok creator information for the posting screen: nickname, visibility options, disabled interactions, maximum video duration. Queried live from TikTok" })
+  @RequireTenantPermission('content.write')
+  tiktokCreatorInfo(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.accounts.tiktokCreatorInfo(tenant.businessId, id);
+  }
+
   @Get('accounts/:id')
   @RequireTenantPermission('social.read')
   async get(@Tenant() tenant: TenantContext, @Param('id') id: string) {
@@ -79,7 +86,7 @@ export class SocialController {
   @ApiOperation({ summary: 'Start an OAuth 2.0 connection (or a reconnection). Send the browser to authorizationUrl' })
   @RequireTenantPermission('social.manage')
   start(@Tenant() tenant: TenantContext, @Param('platform') platform: string, @Body() dto: StartConnectionDto) {
-    return this.accounts.start(tenant, platformOf(platform), dto.reconnectAccountId);
+    return this.accounts.start(tenant, platformOf(platform), dto.reconnectAccountId, dto.variant);
   }
 
   /** The platform sends the browser back here. Public by nature: the single-use state proves who started the connection. */

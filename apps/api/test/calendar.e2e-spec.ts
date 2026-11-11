@@ -356,6 +356,7 @@ describe('Calendar (e2e)', () => {
       const items = (await h.list(owner, body.startDate, body.endDate, '&platform=TIKTOK').expect(200)).body.items as Entry[];
       const keep = items[0]!;
       await request(h.http).patch(`/api/v1/calendar/entries/${keep.id}`).set(as(owner)).send({ caption: 'Daily tip: serve bissap cold.' }).expect(200);
+      await h.setTikTok(owner, keep.id).expect(200); // TikTok entries need the creator's posting choices before review
       await h.post(owner, keep.id, 'submit').expect(200);
       await h.post(owner, keep.id, 'approve').expect(200);
       const del = await request(h.http).delete(`/api/v1/calendar/recurrences/${first.body.id}`).set(as(owner)).expect(200);

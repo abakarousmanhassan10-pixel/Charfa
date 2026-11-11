@@ -1689,7 +1689,8 @@
       "openPost": "Open the post",
       "retry": "Retry",
       "iPublished": "I published it",
-      "metrics": "Metrics"
+      "metrics": "Metrics",
+      "limitedVisibility": "Not public:"
     },
     "manual": {
       "title": "Publish manually",
@@ -1756,6 +1757,76 @@
       "AMBIGUOUS": "Several posts on the platform match.",
       "UNAVAILABLE": "The platform could not be checked.",
       "foundNote": "Found on the platform after an unclear answer: confirmed by the platform, published only once."
+    },
+    "tiktok": {
+      "title": "TikTok posting settings",
+      "refresh": "Refresh from TikTok",
+      "loadingCreator": "Reading your TikTok account…",
+      "noAccount": "Choose a connected TikTok account first.",
+      "creatorError": "TikTok account information could not be read.",
+      "maxDuration": "This account can post videos of up to {seconds} seconds.",
+      "preview": "Preview of what will be posted",
+      "privacy": "Who can view this post",
+      "privacyPlaceholder": "Choose who can view…",
+      "privacyHint": "You choose the visibility. Only the options TikTok offers this account are listed.",
+      "onlyPrivate": "TikTok currently offers only private posting for this account. TOUMA does not change that: public posting depends on TikTok's approval of the TOUMA application.",
+      "privacyLevels": {
+        "PUBLIC_TO_EVERYONE": "Everyone",
+        "MUTUAL_FOLLOW_FRIENDS": "Friends (mutual followers)",
+        "FOLLOWER_OF_CREATOR": "Followers",
+        "SELF_ONLY": "Only me"
+      },
+      "interactions": "Allow people to",
+      "allow": {
+        "comment": "Comment",
+        "duet": "Duet",
+        "stitch": "Stitch"
+      },
+      "disabledByCreator": "turned off in your TikTok settings",
+      "photoNote": "Duet and Stitch are available for videos only.",
+      "disclosure": "Commercial content disclosure",
+      "disclosureToggle": "This post promotes a brand, product or service",
+      "disclosureHint": "Turn on if you are promoting yourself, a third party, or both. It is off until you turn it on.",
+      "yourBrand": "Your brand — you are promoting your own business",
+      "brandedContent": "Branded content — you are promoting another brand or a third party",
+      "disclosureIncomplete": "Select at least one option: Your brand or Branded content.",
+      "brandedNotPrivate": "Branded content visibility cannot be set to private.",
+      "label": {
+        "PROMOTIONAL": "Your post will be labeled “Promotional content”.",
+        "PAID_PARTNERSHIP": "Your post will be labeled “Paid partnership”."
+      },
+      "consentMusic": "By posting, you agree to TikTok's",
+      "consentBranded": "By posting, you agree to TikTok's Branded Content Policy and",
+      "musicLink": "Music Usage Confirmation",
+      "brandedLink": "Branded Content Policy",
+      "processing": "After you publish, it can take a few minutes for the post to appear on your TikTok profile.",
+      "summaryMissing": "The TikTok posting settings have not been completed. Complete and confirm them before publishing.",
+      "summaryAccount": "Account",
+      "summaryOn": "Allowed",
+      "summaryOff": "Not allowed",
+      "summaryNone": "No commercial content",
+      "editSettings": "TikTok settings",
+      "settingsTitle": "TikTok posting settings",
+      "settingsText": "Review each choice. Saving them changes the content, so it needs approval again.",
+      "save": "Save and confirm settings",
+      "saved": "TikTok settings saved.",
+      "confirmNow": "I confirm the TikTok settings above and I want this post published to my TikTok account now."
+    },
+    "variants": {
+      "LINKEDIN": {
+        "personal": {
+          "title": "Personal profile",
+          "note": "Publish as yourself. Available with LinkedIn's \"Share on LinkedIn\" product.",
+          "connect": "Connect personal profile",
+          "disabled": "Personal LinkedIn publishing is switched off on this server."
+        },
+        "organization": {
+          "title": "Company Page (organization)",
+          "note": "Publish as a Company Page you administer.",
+          "connect": "Connect Company Page",
+          "disabled": "Not available yet. LinkedIn must first approve the TOUMA application for its Community Management API. Until then TOUMA publishes to personal profiles only."
+        }
+      }
     }
   }
 }

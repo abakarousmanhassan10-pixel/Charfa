@@ -206,6 +206,112 @@ test('a publication the platform rules reject fails with a clear message and not
   await expect(page.getByTestId('stat-problems')).not.toHaveText('0');
 });
 
+test('LinkedIn: personal profile connects; organization publishing is shown as disabled until LinkedIn approves it', async ({ page }) => {
+  await setup(page);
+  await simulatePlatform(page);
+  await page.goto('/dashboard/social/accounts');
+  const card = page.locator('[data-testid="platform-card"][data-platform="LINKEDIN"]');
+  const org = card.locator('[data-testid="variant"][data-variant="organization"]');
+  await expect(org).toHaveAttribute('data-enabled', 'false');
+  await expect(org.getByTestId('variant-disabled')).toContainText('LinkedIn must first approve the TOUMA application');
+  await expect(org.getByTestId('connect-button')).toHaveCount(0); // no way to start an organization connection
+  await expect(card.locator('[data-testid="variant"][data-variant="personal"]').getByTestId('connect-button')).toBeVisible();
+  await connect(page, 'LINKEDIN');
+  await expect(page.locator('[data-testid="account-item"][data-platform="LINKEDIN"][data-status="CONNECTED"]').first()).toBeVisible();
+});
+
+test.describe('TikTok posting screen (audit readiness)', () => {
+  async function openComposer(page: Page) {
+    await setup(page);
+    await simulatePlatform(page);
+    await connect(page, 'TIKTOK');
+    await page.goto('/dashboard/social/publishing');
+    const form = page.getByTestId('composer');
+    await form.getByLabel('Platform').selectOption('TIKTOK');
+    await form.getByLabel('Type').selectOption('IMAGE');
+    await form.getByLabel('Title').fill('Bissap on TikTok');
+    await form.getByLabel('Caption').fill('Cold bissap, fresh today.');
+    await form.getByTestId('add-media').click();
+    const picker = page.getByRole('dialog', { name: 'Choose media' });
+    await picker.getByTestId('media-file-input').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: png(60, 60) });
+    await picker.getByRole('button', { name: 'Use selected (1)' }).click({ timeout: 20_000 });
+    return { form, panel: page.getByTestId('tiktok-panel') };
+  }
+
+  test('shows creator information, preview, and pre-selects nothing; saving needs every required choice', async ({ page }) => {
+    const { form, panel } = await openComposer(page);
+    await expect(panel.getByTestId('tiktok-nickname')).toHaveText('Test Creator'); // read live from TikTok (simulated here)
+    await expect(panel.getByTestId('tiktok-preview').locator('img')).toBeVisible();
+    // Nothing is chosen for the creator.
+    await expect(panel.getByTestId('tiktok-privacy')).toHaveValue('');
+    await expect(panel.getByTestId('tiktok-comment')).not.toBeChecked();
+    await expect(panel.getByTestId('tiktok-duet')).toHaveCount(0); // Duet and Stitch exist for videos only, not for photo posts
+    await expect(panel.getByTestId('tiktok-stitch')).toHaveCount(0);
+    await expect(panel.getByTestId('tiktok-commercial')).not.toBeChecked();
+    await expect(panel.getByTestId('tiktok-consent')).not.toBeChecked();
+    await expect(form.getByTestId('save-draft')).toBeDisabled();
+    await expect(panel.getByTestId('tiktok-missing')).toContainText('Choose who can view');
+    // The privacy options are the ones the account offers.
+    await expect(panel.getByTestId('tiktok-privacy').locator('option')).toHaveText(['Choose who can view…', 'Everyone', 'Followers', 'Only me']);
+    await panel.getByTestId('tiktok-privacy').selectOption('PUBLIC_TO_EVERYONE');
+    await expect(form.getByTestId('save-draft')).toBeDisabled(); // consent still missing
+    await panel.getByTestId('tiktok-consent').check();
+    await expect(form.getByTestId('save-draft')).toBeEnabled();
+  });
+
+  test('commercial content disclosure: needs a type, shows the label, and branded content cannot be private', async ({ page }) => {
+    const { form, panel } = await openComposer(page);
+    await panel.getByTestId('tiktok-privacy').selectOption('SELF_ONLY');
+    await panel.getByTestId('tiktok-consent').check();
+    await panel.getByTestId('tiktok-commercial').check();
+    await expect(panel.getByTestId('tiktok-disclosure-incomplete')).toBeVisible();
+    await expect(form.getByTestId('save-draft')).toBeDisabled();
+    await expect(panel.getByTestId('tiktok-branded')).toBeDisabled(); // private visibility + branded content is not allowed
+    await panel.getByTestId('tiktok-your-brand').check();
+    await expect(panel.getByTestId('tiktok-label')).toContainText('Promotional content');
+    await expect(form.getByTestId('save-draft')).toBeEnabled();
+    await panel.getByTestId('tiktok-privacy').selectOption('FOLLOWER_OF_CREATOR');
+    await panel.getByTestId('tiktok-branded').check();
+    await expect(panel.getByTestId('tiktok-label')).toContainText('Paid partnership');
+    await expect(panel.getByTestId('tiktok-consent')).toBeChecked();
+    await expect(panel.locator('[data-testid="tiktok-consent"] + span')).toContainText('Branded Content Policy');
+    // While branded content is selected, "Only me" cannot be chosen; unchecking it makes the option available again.
+    await expect(panel.getByTestId('tiktok-privacy').locator('option[value="SELF_ONLY"]')).toBeDisabled();
+    await expect(panel.getByTestId('tiktok-branded-private')).toBeVisible();
+    await panel.getByTestId('tiktok-branded').uncheck();
+    await expect(panel.getByTestId('tiktok-privacy').locator('option[value="SELF_ONLY"]')).toBeEnabled();
+  });
+
+  test('saved choices gate review; the final confirmation shows them; changing them withdraws approval', async ({ page }) => {
+    const { form, panel } = await openComposer(page);
+    await panel.getByTestId('tiktok-privacy').selectOption('FOLLOWER_OF_CREATOR');
+    await panel.getByTestId('tiktok-comment').check();
+    await panel.getByTestId('tiktok-consent').check();
+    await form.getByTestId('save-draft').click();
+    await expect(page.getByTestId('publishing-message')).toContainText('Saved as a draft');
+    const row = page.locator('[data-testid="pipeline-item"]', { hasText: 'Bissap on TikTok' });
+    await row.getByTestId('pipe-submit').click();
+    await expect(row).toHaveAttribute('data-status', 'IN_REVIEW');
+    await row.getByTestId('pipe-approve').click();
+    await expect(row).toHaveAttribute('data-status', 'APPROVED');
+    await row.getByTestId('pipe-publish-now').click();
+    const dialog = page.getByTestId('publish-now-dialog');
+    await expect(dialog.getByTestId('tiktok-summary-privacy')).toHaveText('Followers');
+    await expect(dialog.getByTestId('tiktok-summary-label')).toHaveText('No commercial content');
+    await expect(dialog).toContainText('I confirm the TikTok settings above');
+    await expect(dialog).toContainText('a few minutes');
+    await expect(dialog.getByTestId('now-confirm')).toBeDisabled();
+    await page.keyboard.press('Escape');
+    // Editing the settings changes the content: approval is withdrawn and it must be approved again.
+    await row.getByTestId('pipe-tiktok').click();
+    const settings = page.getByTestId('tiktok-settings-dialog');
+    await expect(settings.getByTestId('tiktok-privacy')).toHaveValue('FOLLOWER_OF_CREATOR');
+    await settings.getByTestId('tiktok-privacy').selectOption('SELF_ONLY');
+    await settings.getByTestId('tiktok-save').click();
+    await expect(row).toHaveAttribute('data-status', 'DRAFT');
+  });
+});
+
 test('accounts whose token can be renewed offer a renew action; the list shows how long authorizations last', async ({ page }) => {
   await setup(page);
   await simulatePlatform(page);

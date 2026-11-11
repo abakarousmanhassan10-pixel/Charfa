@@ -1,6 +1,6 @@
 import { ConflictException, Inject, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { Prisma, type Publication, type SocialAccount } from '@touma/database';
-import { PLATFORM_CAPABILITIES, roleHasPermission, type ContentKind, type SocialPlatformId, type VideoSurface } from '@touma/shared';
+import { PLATFORM_CAPABILITIES, roleHasPermission, type TikTokPostSettings, type ContentKind, type SocialPlatformId, type VideoSurface } from '@touma/shared';
 import { composeText, probeMedia, SocialApiError, type MediaItem, type PlatformAdapter, type PublishableContent, type PublishOutcome as AdapterOutcome } from '@touma/social-connectors';
 import { AuditService } from '../audit/audit.service';
 import type { PublishingOutcome, PublishingRequest } from '../calendar/publishing';
@@ -27,6 +27,7 @@ interface Payload {
   callToAction: string | null;
   mediaIds: string[];
   contentVersion: number;
+  tiktok?: TikTokPostSettings | null;
 }
 
 class RetryLater extends Error {
@@ -89,7 +90,7 @@ export class SocialPublisherService {
     const c = entry.content;
     const kind: ContentKind | null = c.type === 'TEXT' || c.type === 'IMAGE' || c.type === 'VIDEO' || c.type === 'CAROUSEL' ? c.type : null;
     if (!kind) return { status: 'REJECTED', code: 'CONTENT_INVALID', message: 'This content type cannot be published directly', retryable: false };
-    const payload: Payload = { kind, surface: 'FEED', title: c.title, caption: c.caption ?? '', hashtags: c.hashtags, callToAction: c.callToAction, mediaIds: c.media.map((m) => m.mediaId), contentVersion: req.contentVersion };
+    const payload: Payload = { kind, surface: 'FEED', title: c.title, caption: c.caption ?? '', hashtags: c.hashtags, callToAction: c.callToAction, mediaIds: c.media.map((m) => m.mediaId), contentVersion: req.contentVersion, tiktok: ((c.platformOptions ?? null) as { tiktok?: TikTokPostSettings } | null)?.tiktok ?? null };
     try {
       const pub = await this.prisma.publication.create({
         data: {
@@ -169,11 +170,14 @@ export class SocialPublisherService {
         throw e;
       });
       if (account.businessId !== pub.businessId) throw new Final('ACCOUNT_NOT_AUTHORIZED', 'The account does not belong to this business');
+      // A connection type that is disabled (LinkedIn organization publishing before LinkedIn's approval) is never used, even for an account stored earlier.
+      const variant = (adapter.variants?.() ?? []).find((v) => v.accountType === account.accountType);
+      if (variant && !variant.enabled) throw new Final('CONNECTION_TYPE_DISABLED', variant.reason ?? 'This kind of account cannot be published to at the moment');
 
       // 3. Content and media against the platform's rules.
       const media = await this.mediaItems(pub, platform, payload.mediaIds);
       const surface = this.surfaceFor(platform, payload.kind, media[0]);
-      const content: PublishableContent = { kind: payload.kind, surface, title: payload.title, caption: payload.caption, hashtags: payload.hashtags, callToAction: payload.callToAction, media };
+      const content: PublishableContent = { kind: payload.kind, surface, title: payload.title, caption: payload.caption, hashtags: payload.hashtags, callToAction: payload.callToAction, media, tiktok: payload.tiktok ?? null };
       const issues = adapter.validate(content);
       if (issues.length) {
         if (issues.some((i) => i.manual)) return await this.toManual(pub, issues.filter((i) => i.manual).map((i) => i.message).join(' '));
@@ -264,7 +268,7 @@ export class SocialPublisherService {
     if (out.status === 'PUBLISHED') {
       const res = await this.prisma.publication.updateMany({
         where: { id: pub.id, status: { notIn: ['PUBLISHED', 'CANCELLED'] } },
-        data: { status: 'PUBLISHED', externalPostId: out.externalPostId, externalUrl: out.url ?? null, publishedAt: new Date(), confirmedByProvider: true, lockedUntil: null, lastError: null, errorCode: null, submitStartedAt: null, nextCheckAt: null, providerResponse: (out.raw ?? undefined) as Prisma.InputJsonValue | undefined },
+        data: { status: 'PUBLISHED', externalPostId: out.externalPostId, externalUrl: out.url ?? null, publishedAt: new Date(), confirmedByProvider: true, visibilityNote: out.notice ?? null, lockedUntil: null, lastError: null, errorCode: null, submitStartedAt: null, nextCheckAt: null, providerResponse: (out.raw ?? undefined) as Prisma.InputJsonValue | undefined },
       });
       if (res.count && pub.calendarEventId) {
         await this.audit.record({ action: 'social.published', actorId: null, businessId: pub.businessId, entityType: 'Publication', entityId: pub.id, metadata: { platform: pub.platform, externalPostId: out.externalPostId, url: out.url ?? null } });
@@ -311,6 +315,8 @@ export class SocialPublisherService {
         case 'rate_limit':
           return this.retryOrFail(pub, err.opts.retryAfterMs ?? backoff, 'RATE_LIMITED', err.message);
         case 'validation':
+          // The platform refused, but said the content already exists (LinkedIn DUPLICATE_POST): it may be ours, so reconcile instead of calling it a plain failure.
+          if (err.outcome === 'unknown') return this.fail(pub, 'OUTCOME_UNKNOWN', `${err.message} It may be this very post: check the platform before trying again.`, true);
           return this.fail(pub, 'PLATFORM_REJECTED', err.message);
         case 'transient':
         case 'timeout':
@@ -443,6 +449,14 @@ export class SocialPublisherService {
         : outcome.result === 'AMBIGUOUS' ? `${outcome.candidates.length} posts on the platform match this text (${outcome.candidates.map((c) => c.url ?? c.id).join(', ')}). Open them and decide.`
         : outcome.reason;
       await this.prisma.publication.update({ where: { id: pub.id }, data: { ...base, reconcileNote: note.slice(0, 500) } });
+      // After the last automatic check the decision is a person's: tell the people who can act, once.
+      if (claimed.count && pub.reconcileAttempts + 1 >= 3 && !by.userId) {
+        const ev = pub.calendarEventId ? await this.prisma.calendarEvent.findUnique({ where: { id: pub.calendarEventId }, select: { title: true, authorizedById: true } }) : null;
+        await this.notifications.notify({
+          businessId: pub.businessId, permission: 'publication.schedule', userIds: ev?.authorizedById ? [ev.authorizedById] : [], type: 'social.reconcile_needs_decision', title: `Check on ${pub.platform}: ${ev?.title ?? 'a post'}`,
+          body: 'TOUMA could not tell whether this post was published. Open it on the platform, then mark it published or retry it.', data: { publicationId: pub.id, entryTitle: ev?.title ?? '', platform: pub.platform, result: outcome.result }, dedupeKey: `reconcile-decision:${pub.id}`,
+        });
+      }
       await this.audit.record({ action: 'social.reconciled_uncertain', actorId: by.userId, businessId: pub.businessId, entityType: 'Publication', entityId: pub.id, metadata: { platform: pub.platform, result: outcome.result } });
     }
     return this.prisma.publication.findUniqueOrThrow({ where: { id: pub.id }, include: { socialAccount: { select: { displayName: true, username: true, platform: true } }, calendarEvent: { select: { title: true } } } }).then((p) => this.dto(p, true));
@@ -479,7 +493,7 @@ export class SocialPublisherService {
     const out = {
       id: p.id, platform: p.platform, status: p.status, mode: p.mode, scheduledAt: p.scheduledAt.toISOString(), timezone: p.timezone, attempts: p.attempts, entryId: p.calendarEventId, entryTitle: p.calendarEvent?.title ?? null,
       accountId: p.socialAccountId, accountName: p.socialAccount?.displayName ?? p.socialAccount?.username ?? null, kind: payload.kind ?? null, errorCode: p.errorCode, error: p.lastError, outcomeUnknown: p.outcomeUnknown,
-      confirmedByProvider: p.confirmedByProvider, reconcile: p.reconcileResult ? { result: p.reconcileResult, note: p.reconcileNote, attempts: p.reconcileAttempts, at: p.reconciledAt?.toISOString() ?? null, foundOnPlatform: p.reconciledFound } : null, externalPostId: p.externalPostId, externalUrl: p.externalUrl, publishedAt: p.publishedAt?.toISOString() ?? null, nextCheckAt: p.nextCheckAt?.toISOString() ?? null, createdAt: p.createdAt.toISOString(),
+      confirmedByProvider: p.confirmedByProvider, visibilityNote: p.visibilityNote, reconcile: p.reconcileResult ? { result: p.reconcileResult, note: p.reconcileNote, attempts: p.reconcileAttempts, at: p.reconciledAt?.toISOString() ?? null, foundOnPlatform: p.reconciledFound } : null, externalPostId: p.externalPostId, externalUrl: p.externalUrl, publishedAt: p.publishedAt?.toISOString() ?? null, nextCheckAt: p.nextCheckAt?.toISOString() ?? null, createdAt: p.createdAt.toISOString(),
     };
     if (!detail || p.status !== 'MANUAL_REQUIRED') return out;
     const ids = payload.mediaIds ?? [];

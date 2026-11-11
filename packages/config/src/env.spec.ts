@@ -132,5 +132,12 @@ describe('Creative Studio settings', () => {
     expect(() => loadEnv({ ...valid, VIDEO_PROVIDER: 'fake' })).toThrow(/only allowed when APP_ENV=test/);
     expect(loadEnv({ ...valid, APP_ENV: 'test', IMAGE_PROVIDER: 'fake', VIDEO_PROVIDER: 'fake' }).IMAGE_PROVIDER).toBe('fake');
   });
+  it('LinkedIn organization publishing is off by default and cannot be enabled without recording the approval', () => {
+    const env = loadEnv(valid);
+    expect(env.LINKEDIN_ORG_ENABLED).toBe(false);
+    expect(env.LINKEDIN_PERSONAL_ENABLED).toBe(true);
+    expect(() => loadEnv({ ...valid, LINKEDIN_ORG_ENABLED: 'true' })).toThrow(/LINKEDIN_ORG_APPROVAL_REF/);
+    expect(() => loadEnv({ ...valid, LINKEDIN_ORG_ENABLED: 'true', LINKEDIN_ORG_APPROVAL_REF: '   ' })).toThrow(/LINKEDIN_ORG_APPROVAL_REF/);
+    expect(loadEnv({ ...valid, LINKEDIN_ORG_ENABLED: 'true', LINKEDIN_ORG_APPROVAL_REF: 'Community Management API approved 2027-01-15, ref CM-123' }).LINKEDIN_ORG_ENABLED).toBe(true);
+  });
 });
-

@@ -729,6 +729,8 @@ model Content {
   serviceId       String?
   campaignId      String? // parent CAMPAIGN content
   aiMetadata      Json? // prompt version, model, structured output; no secrets
+  /// Per-platform posting choices a person made (for example TikTok privacy, interaction and disclosure settings). Editing them is a content change.
+  platformOptions Json?
   version         Int              @default(1)
   createdById     String?
   approvedById    String?
@@ -889,6 +891,8 @@ model SocialConnectionSession {
   codeVerifierEnc    String?
   /// When set, this connection renews an existing account instead of adding one.
   reconnectAccountId String?
+  /// Which way of connecting the platform was chosen (LinkedIn: personal or organization). Null = the platform has one way only.
+  variant            String?
   /// PENDING_AUTH → AWAITING_SELECTION → COMPLETED, or FAILED / EXPIRED.
   status             String         @default("PENDING_AUTH")
   /// Accounts the person can connect: public details plus the encrypted tokens of each.
@@ -1007,6 +1011,8 @@ model Publication {
   /// True only when the platform itself confirmed the post.
   confirmedByProvider Boolean           @default(false)
   /// Last reconciliation against the platform for an unknown outcome: FOUND, NOT_FOUND, AMBIGUOUS, UNAVAILABLE.
+  /// The platform published with less visibility than requested (for example a YouTube upload locked to private). Shown to the person.
+  visibilityNote      String?
   reconcileResult     String?
   reconcileNote       String?
   reconcileAttempts   Int               @default(0)

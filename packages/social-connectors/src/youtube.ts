@@ -15,6 +15,9 @@ function mapGoogle(r: HttpResult): SocialApiError {
   const reason = typeof e === 'object' ? e.errors?.[0]?.reason : undefined;
   const msg = redact(typeof e === 'string' ? `${e}: ${r.json?.error_description ?? ''}` : (e.message ?? r.text));
   if (r.status === 401 || (typeof e === 'string' && e === 'invalid_grant')) return new SocialApiError('auth', `The access token is no longer valid: ${msg}`, { status: r.status, outcome: 'not_created' });
+  if (reason === 'uploadLimitExceeded') return new SocialApiError('rate_limit', `This YouTube channel reached its upload limit: ${msg}`, { status: r.status, code: reason, outcome: 'not_created', retryAfterMs: 6 * 3_600_000 });
+  if (reason === 'youtubeSignupRequired') return new SocialApiError('permission', 'The Google account has no YouTube channel. Create a channel on YouTube, then reconnect.', { status: r.status, code: reason, outcome: 'not_created' });
+  if (reason === 'authError' || reason === 'invalidCredentials') return new SocialApiError('auth', `The access token is no longer valid: ${msg}`, { status: r.status, code: reason, outcome: 'not_created' });
   if (reason === 'quotaExceeded' || reason === 'rateLimitExceeded' || reason === 'dailyLimitExceeded' || r.status === 429) return new SocialApiError('rate_limit', `The YouTube API quota is exhausted: ${msg}`, { status: r.status, code: reason, outcome: 'not_created', retryAfterMs: 3_600_000 });
   if (r.status === 403) return new SocialApiError('permission', `A required permission is missing: ${msg}`, { status: r.status, code: reason, outcome: 'not_created' });
   if (r.status >= 500) return new SocialApiError('transient', `The platform had a temporary problem: ${msg}`, { status: r.status, outcome: 'unknown' });
@@ -140,7 +143,10 @@ export class YouTubePublisher implements PlatformAdapter {
   private done(json: Record<string, any> | null, c: PublishableContent): PublishOutcome { // eslint-disable-line @typescript-eslint/no-explicit-any
     const id = json?.id as string | undefined;
     if (!id) throw new SocialApiError('transient', 'YouTube did not return a video id', { outcome: 'unknown' });
-    return { status: 'PUBLISHED', externalPostId: id, url: c.surface === 'SHORT' ? `https://www.youtube.com/shorts/${id}` : `https://www.youtube.com/watch?v=${id}`, raw: { privacyStatus: json?.status?.privacyStatus ?? null, uploadStatus: json?.status?.uploadStatus ?? null } };
+    const privacy = (json?.status?.privacyStatus as string | undefined) ?? null;
+    // TOUMA asks for a public video. A different answer is shown to the person as it is: it is the platform's restriction, not a public post.
+    const notice = privacy && privacy !== 'public' ? `YouTube published this video as "${privacy}", not public. YouTube locks uploads from API projects that have not passed Google's compliance audit to private. The video is on the channel but nobody else can see it until the project is approved or you change its visibility in YouTube Studio.` : null;
+    return { status: 'PUBLISHED', externalPostId: id, url: c.surface === 'SHORT' ? `https://www.youtube.com/shorts/${id}` : `https://www.youtube.com/watch?v=${id}`, notice, raw: { privacyStatus: privacy, uploadStatus: json?.status?.uploadStatus ?? null } };
   }
 
   async reconcile(a: AuthorizedAccount, q: ReconcileQuery): Promise<ReconcileOutcome> {

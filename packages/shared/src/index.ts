@@ -10,3 +10,4 @@ export * from './creative';
 export * from './timezone';
 export * from './calendar';
 export * from './social';
+export * from './tiktok';

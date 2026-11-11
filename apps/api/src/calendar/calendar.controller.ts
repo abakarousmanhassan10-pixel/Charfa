@@ -137,6 +137,13 @@ export class CalendarController {
     return this.calendar.setAccount(tenant, id, dto.socialAccountId);
   }
 
+  @Put('entries/:id/tiktok-settings')
+  @ApiOperation({ summary: "Save the person's TikTok posting choices (privacy, comment/duet/stitch, commercial disclosure, consent). Changing them withdraws approval" })
+  @RequireTenantPermission('content.write')
+  setTikTokSettings(@Tenant() tenant: TenantContext, @Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.calendar.setTikTokSettings(tenant, id, body);
+  }
+
   @Post('entries/:id/unschedule')
   @HttpCode(200)
   @RequireTenantPermission('publication.schedule')

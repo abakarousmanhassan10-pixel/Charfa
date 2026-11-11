@@ -20,6 +20,9 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useResource } from '@/lib/use-resource';
 import { PlatformLabel } from './platform';
+import { emptyTikTokDraft, TikTokPanel, TikTokSummary, type TikTokDraft } from './tiktok-panel';
+import { api } from '@/lib/api-client';
+import type { TikTokPostSettings } from '@touma/shared';
 import { useAccounts, useSocialStatus } from './use-social';
 
 type Kind = 'TEXT' | 'IMAGE' | 'CAROUSEL' | 'VIDEO';
@@ -50,6 +53,9 @@ export function PublishingView() {
   const [now, setNow] = useState<Entry | null>(null);
   const [authorize, setAuthorize] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
+  const [tt, setTt] = useState<TikTokDraft>(emptyTikTokDraft());
+  const [ttReady, setTtReady] = useState(false);
+  const [ttEntry, setTtEntry] = useState<{ entry: Entry; draft: TikTokDraft; media: MediaItem[]; ready: boolean } | null>(null);
 
   useEffect(() => {
     if (!f.platform && connected.length) setF((x) => ({ ...x, platform: connected[0]! }));
@@ -59,6 +65,9 @@ export function PublishingView() {
   const info = status.data?.platforms.find((p) => p.platform === f.platform);
   const unsupported = info && !info.capabilities.supports[f.kind];
   const needsMedia = f.kind !== 'TEXT';
+  const isTikTok = f.platform === 'TIKTOK';
+  const tiktokAccountId = (f.accountId || platformAccounts[0]?.id) ?? null;
+  const accountFor = (e: Entry) => e.socialAccountId ?? (accounts.data?.items.find((a) => a.platform === 'TIKTOK' && a.status === 'CONNECTED')?.id ?? null);
 
   const pipeline = (range.data?.items ?? []).filter((e) => ['DRAFT', 'IN_REVIEW', 'REJECTED', 'APPROVED', 'SCHEDULED', 'FAILED'].includes(e.status));
 
@@ -76,9 +85,11 @@ export function PublishingView() {
       const created = await send<Entry>('/entries', 'POST', body);
       if (created) {
         if (f.accountId) await send<Entry>(`/entries/${created.id}/account`, 'PUT', { socialAccountId: f.accountId });
+        if (isTikTok) await send<Entry>(`/entries/${created.id}/tiktok-settings`, 'PUT', { ...tt, privacyLevel: tt.privacyLevel || undefined });
         setMessage(t('social.publishing.saved'));
         setF((x) => ({ ...x, title: '', caption: '', hashtags: '' }));
         setMedia([]);
+        setTt(emptyTikTokDraft());
         void range.reload();
       }
     } catch (err) {
@@ -108,6 +119,28 @@ export function PublishingView() {
     },
     [send, errorText, range, t],
   );
+
+  async function openTikTok(entry: Entry) {
+    if (!active) return;
+    const ids = entry.content?.mediaIds ?? [];
+    const items = (await Promise.all(ids.map((id) => api<MediaItem>(`/media/${id}`, { businessId: active.id }).catch(() => null)))).filter((m): m is MediaItem => Boolean(m));
+    setTtEntry({ entry, draft: emptyTikTokDraft(entry.content?.platformOptions?.tiktok as Partial<TikTokPostSettings> | undefined), media: items, ready: false });
+  }
+  async function saveTikTok() {
+    if (!ttEntry) return;
+    setActing(ttEntry.entry.id);
+    setError(null);
+    try {
+      await send<Entry>(`/entries/${ttEntry.entry.id}/tiktok-settings`, 'PUT', { ...ttEntry.draft, privacyLevel: ttEntry.draft.privacyLevel || undefined });
+      setTtEntry(null);
+      setMessage(t('social.tiktok.saved'));
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setActing(null);
+      void range.reload();
+    }
+  }
 
   const accountLabel = (id: string | null) => accounts.data?.items.find((a) => a.id === id)?.displayName ?? null;
   const fmt = (iso: string, zone: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: zone }).format(new Date(iso));
@@ -166,13 +199,15 @@ export function PublishingView() {
                   {info && <p className="text-xs text-muted-foreground">{t('social.publishing.mediaRules', { images: info.capabilities.imageMimes.map((m) => m.replace('image/', '')).join(', ') || '—', carousel: `${info.capabilities.carouselMin}–${info.capabilities.carouselMax}` })}</p>}
                 </div>
               )}
+              {isTikTok && f.kind !== 'TEXT' && <TikTokPanel accountId={tiktokAccountId} kind={f.kind} media={media as MediaItem[]} draft={tt} onChange={setTt} onValidity={setTtReady} />}
+              {isTikTok && f.kind === 'TEXT' && <p className="rounded-md bg-amber-500/10 px-3 py-2 text-sm" data-testid="tiktok-needs-media">{t('social.publishing.manualWarning', { platform: t('calendar.platforms.TIKTOK'), kind: t('calendar.types.TEXT') })}</p>}
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field id="cp-date" label={t('calendar.entry.date')}><Input id="cp-date" type="date" min={today} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
                 <Field id="cp-time" label={t('calendar.entry.time')} hint={t('calendar.new.timeHint')}><Input id="cp-time" type="time" value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })} /></Field>
               </div>
               <p className="text-xs text-muted-foreground">{t('calendar.timezoneNote', { tz })} {t('social.publishing.estimateNote')}</p>
               <div className="flex flex-wrap gap-2">
-                <Button type="submit" disabled={busy || !f.title.trim() || !f.platform || (needsMedia && media.length === 0 && false)} data-testid="save-draft">{busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{t('social.publishing.saveDraft')}</Button>
+                <Button type="submit" disabled={busy || !f.title.trim() || !f.platform || (isTikTok && f.kind !== 'TEXT' && !ttReady)} data-testid="save-draft">{busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{t('social.publishing.saveDraft')}</Button>
               </div>
             </form>
           )}
@@ -193,6 +228,7 @@ export function PublishingView() {
                     {e.status === 'FAILED' && e.lastError && <p className="mt-1 text-xs text-destructive">{e.lastError}</p>}
                   </div>
                   <div className="flex flex-wrap gap-2 sm:justify-end">
+                    {e.platform === 'TIKTOK' && can('content.write') && !['PUBLISHED', 'PUBLISHING', 'CANCELLED'].includes(e.status) && <Button size="sm" variant="outline" onClick={() => void openTikTok(e)} data-testid="pipe-tiktok">{t('social.tiktok.editSettings')}</Button>}
                     {(e.status === 'DRAFT' || e.status === 'REJECTED') && can('content.write') && <Button size="sm" variant="outline" disabled={acting === e.id} onClick={() => void act(e, 'submit')} data-testid="pipe-submit">{t('calendar.actions.submit')}</Button>}
                     {e.status === 'IN_REVIEW' && can('content.approve') && <Button size="sm" disabled={acting === e.id} onClick={() => void act(e, 'approve')} data-testid="pipe-approve">{t('calendar.actions.approve')}</Button>}
                     {e.status === 'APPROVED' && can('publication.schedule') && <Button size="sm" onClick={() => { setNow(e); setAuthorize(false); }} data-testid="pipe-publish-now"><Send className="h-4 w-4" aria-hidden />{t('social.publishing.publishNow')}</Button>}
@@ -206,14 +242,27 @@ export function PublishingView() {
       </Card>
 
       <MediaPicker open={picker} onClose={() => setPicker(false)} businessId={active?.id ?? ''} multiple={f.kind === 'CAROUSEL'} initial={media} onSelect={setMedia} />
+      <Dialog open={ttEntry !== null} onClose={() => setTtEntry(null)} title={t('social.tiktok.settingsTitle')} description={t('social.tiktok.settingsText')} closeLabel={t('common.close')}>
+        {ttEntry && (
+          <div className="grid gap-4" data-testid="tiktok-settings-dialog">
+            <TikTokPanel accountId={accountFor(ttEntry.entry)} kind={(ttEntry.entry.content?.type ?? 'VIDEO') as 'IMAGE' | 'VIDEO' | 'CAROUSEL' | 'TEXT'} media={ttEntry.media} draft={ttEntry.draft} onChange={(d) => setTtEntry((x) => (x ? { ...x, draft: d } : x))} onValidity={(ok) => setTtEntry((x) => (x && x.ready !== ok ? { ...x, ready: ok } : x))} />
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={() => setTtEntry(null)}>{t('common.cancel')}</Button>
+              <Button disabled={!ttEntry.ready || acting === ttEntry.entry.id} onClick={() => void saveTikTok()} data-testid="tiktok-save">{acting === ttEntry.entry.id && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{t('social.tiktok.save')}</Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
       <Dialog open={now !== null} onClose={() => setNow(null)} title={t('social.publishing.nowTitle')} description={t('social.publishing.nowText')} closeLabel={t('common.close')}>
         {now && (
           <div className="grid gap-4" data-testid="publish-now-dialog">
             <p className="text-sm"><span className="font-medium">{now.title}</span> · {now.platform && t(`calendar.platforms.${now.platform}`)}</p>
-            <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={authorize} onChange={(e) => setAuthorize(e.target.checked)} data-testid="now-authorize" /><span>{t('social.publishing.authorizeNow')}</span></label>
+            {now.platform === 'TIKTOK' && <TikTokSummary settings={now.content?.platformOptions?.tiktok as Partial<TikTokPostSettings> | undefined} nickname={accountLabel(accountFor(now))} />}
+            <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={authorize} onChange={(e) => setAuthorize(e.target.checked)} data-testid="now-authorize" /><span>{now.platform === 'TIKTOK' ? t('social.tiktok.confirmNow') : t('social.publishing.authorizeNow')}</span></label>
+            {now.platform === 'TIKTOK' && <p className="text-xs text-muted-foreground">{t('social.tiktok.processing')}</p>}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button variant="outline" onClick={() => setNow(null)}>{t('common.cancel')}</Button>
-              <Button disabled={!authorize || acting === now.id} onClick={() => void act(now, 'publish-now')} data-testid="now-confirm">{acting === now.id && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{t('social.publishing.publishNow')}</Button>
+              <Button disabled={!authorize || acting === now.id || (now.platform === 'TIKTOK' && !now.content?.platformOptions?.tiktok)} onClick={() => void act(now, 'publish-now')} data-testid="now-confirm">{acting === now.id && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{t('social.publishing.publishNow')}</Button>
             </div>
           </div>
         )}

@@ -24,8 +24,14 @@ export function calendarHelpers(app: INestApplication) {
   const list = (c: Ctx, from: string, to: string, extra = '') => request(http).get(`/api/v1/calendar/entries?from=${from}&to=${to}${extra}`).set(as(c));
 
   /** Creates an entry and takes it all the way to SCHEDULED (editor writes, admin approves and authorizes). */
+  /** The choices a person makes on TikTok's posting screen (all required by TikTok's guidelines). */
+  const tiktokSettings = (o: Record<string, unknown> = {}) => ({ privacyLevel: 'PUBLIC_TO_EVERYONE', allowComment: true, allowDuet: false, allowStitch: false, commercial: { enabled: false, yourBrand: false, brandedContent: false }, consent: true, ...o });
+  const setTikTok = (c: Ctx, id: string, o: Record<string, unknown> = {}) => request(http).put(`/api/v1/calendar/entries/${id}/tiktok-settings`).set(as(c)).send(tiktokSettings(o));
+
   async function scheduled(editor: Ctx, admin: Ctx, body: Record<string, unknown> = {}) {
-    const e = await entry(editor, { localDate: day(5), localTime: '10:00', ...body });
+    const { withoutTikTokSettings, ...rest } = body as Record<string, unknown> & { withoutTikTokSettings?: boolean };
+    const e = await entry(editor, { localDate: day(5), localTime: '10:00', ...rest });
+    if (rest.platform === 'TIKTOK' && !withoutTikTokSettings) await setTikTok(editor, e.id).expect(200);
     await post(editor, e.id, 'submit').expect(200);
     await post(admin, e.id, 'approve').expect(200);
     return (await post(admin, e.id, 'authorize').expect(200)).body as Entry;
@@ -40,7 +46,7 @@ export function calendarHelpers(app: INestApplication) {
     return me.body.id as string;
   };
 
-  return { ...ai, day, setTimezone, create, entry, get, post, list, scheduled, makeDue, notifications, userIdOf };
+  return { ...ai, day, setTimezone, create, entry, get, post, list, scheduled, tiktokSettings, setTikTok, makeDue, notifications, userIdOf };
 }
 
 export interface Entry {

@@ -34,6 +34,8 @@ export interface PlatformInfo {
   supportsRefresh: boolean;
   redirectUri: string;
   mode: 'live' | 'fake';
+  /** Separately configured ways of connecting (LinkedIn: personal profile, organization). */
+  variants?: ConnectionVariantInfo[] | null;
   capabilities: {
     captionMax: number;
     hashtagsMax: number;
@@ -49,6 +51,16 @@ export interface PlatformInfo {
   };
 }
 
+export interface ConnectionVariantInfo {
+  id: string;
+  accountType: string;
+  enabled: boolean;
+  configured: boolean;
+  missingConfiguration: string[];
+  scopes: string[];
+  reason: string | null;
+}
+
 export interface SocialStatus {
   platforms: PlatformInfo[];
   publishing: { available: boolean };
@@ -59,6 +71,7 @@ export interface SocialStatus {
 export interface PendingConnection {
   id: string;
   platform: Platform;
+  variant?: string | null;
   reconnectAccountId: string | null;
   candidates: Array<{
     externalAccountId: string;
@@ -88,6 +101,7 @@ export interface Publication {
   errorCode: string | null;
   error: string | null;
   outcomeUnknown: boolean;
+  visibilityNote?: string | null;
   reconcile?: { result: "FOUND" | "NOT_FOUND" | "AMBIGUOUS" | "UNAVAILABLE"; note: string | null; attempts: number; at: string | null; foundOnPlatform: boolean } | null;
   confirmedByProvider: boolean;
   externalPostId: string | null;

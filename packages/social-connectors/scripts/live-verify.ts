@@ -30,7 +30,7 @@ const cfg: AdapterConfig = {
   metaAppId: env('META_APP_ID'), metaAppSecret: env('META_APP_SECRET'), metaGraphVersion: env('META_GRAPH_VERSION') ?? 'v21.0',
   tiktokClientKey: env('TIKTOK_CLIENT_KEY'), tiktokClientSecret: env('TIKTOK_CLIENT_SECRET'),
   googleClientId: env('GOOGLE_CLIENT_ID'), googleClientSecret: env('GOOGLE_CLIENT_SECRET'),
-  linkedinClientId: env('LINKEDIN_CLIENT_ID'), linkedinClientSecret: env('LINKEDIN_CLIENT_SECRET'), linkedinApiVersion: env('LINKEDIN_API_VERSION') ?? '202411', linkedinOrgScopes: env('LINKEDIN_ORG_SCOPES') === 'true',
+  linkedinClientId: env('LINKEDIN_CLIENT_ID'), linkedinClientSecret: env('LINKEDIN_CLIENT_SECRET'), linkedinApiVersion: env('LINKEDIN_API_VERSION') ?? '202411', linkedinPersonalEnabled: true, linkedinOrgEnabled: env('LINKEDIN_ORG_ENABLED') === 'true', linkedinOrgClientId: env('LINKEDIN_ORG_CLIENT_ID'), linkedinOrgClientSecret: env('LINKEDIN_ORG_CLIENT_SECRET'),
 };
 const adapters = createAdapters(cfg, fetchImpl);
 
@@ -91,6 +91,13 @@ async function verify(platform: Platform) {
   }
   if (platform === 'TIKTOK' && a.requiredScopes.length) record(platform, 'permissions.scopes', scopes.length ? (a.requiredScopes.every((s) => scopes.includes(s)) ? 'PASSED' : 'FAILED') : 'SKIPPED', scopes.length ? `granted: ${scopes.join(' ')}` : 'Set LIVE_TIKTOK_SCOPES to the scopes the creator granted.');
 
+  if (platform === 'TIKTOK' && a.creatorInfo) {
+    await step(platform, 'creator_info', async () => {
+      const i = await a.creatorInfo!({ externalAccountId: accounts[0]?.externalAccountId ?? 'me', accountType: 'CREATOR', tokens });
+      return `nickname ${i.nickname ?? '?'}, visibility options offered: ${i.privacyOptions.join(', ') || 'none'}${i.privacyOptions.length === 1 && i.privacyOptions[0] === 'SELF_ONLY' ? ' (private only: the application is not audited)' : ''}; max video ${i.maxVideoPostDurationSec ?? '?'} s`;
+    });
+  }
+
   // 3. Publishing: only on explicit request, only to the account named for the test.
   const target = accounts.find((x) => x.externalAccountId === env('LIVE_ACCOUNT_ID')) ?? (env('LIVE_ACCOUNT_ID') ? undefined : accounts[0]);
   if (!publish) return record(platform, 'publish', 'SKIPPED', 'Run with --publish to publish one REAL test post (it will be visible on the development account).');
@@ -99,9 +106,12 @@ async function verify(platform: Platform) {
   const videoUrl = env('LIVE_MEDIA_VIDEO_URL');
   const text = `TOUMA integration test ${new Date().toISOString()}`;
   const auth: AuthorizedAccount = { externalAccountId: target.externalAccountId, accountType: target.accountType, parentExternalId: target.parentExternalId, tokens: target.tokens };
+  // TikTok needs the creator's explicit choices: they are never defaulted here either.
+  const ttPrivacy = env('LIVE_TIKTOK_PRIVACY');
+  if (platform === 'TIKTOK' && !ttPrivacy) return record(platform, 'publish', 'SKIPPED', 'Set LIVE_TIKTOK_PRIVACY (for example SELF_ONLY) explicitly: TikTok requires the creator to choose the visibility.');
   const mk = (kind: 'IMAGE' | 'VIDEO'): PublishableContent => {
     const url = kind === 'IMAGE' ? imageUrl! : videoUrl!;
-    return { kind, surface: kind === 'VIDEO' && platform === 'INSTAGRAM' ? 'REEL' : 'FEED', caption: text, hashtags: [], title: text, media: [{ id: 'live', url, mimeType: kind === 'IMAGE' ? 'image/jpeg' : 'video/mp4', sizeBytes: 0, read: async () => Buffer.from(await (await fetch(url)).arrayBuffer()) }] };
+    return { kind, surface: kind === 'VIDEO' && platform === 'INSTAGRAM' ? 'REEL' : 'FEED', caption: text, hashtags: [], title: text, ...(platform === 'TIKTOK' ? { tiktok: { privacyLevel: ttPrivacy as never, allowComment: false, allowDuet: false, allowStitch: false, commercial: { enabled: false, yourBrand: false, brandedContent: false }, consent: true } } : {}), media: [{ id: 'live', url, mimeType: kind === 'IMAGE' ? 'image/jpeg' : 'video/mp4', sizeBytes: 0, read: async () => Buffer.from(await (await fetch(url)).arrayBuffer()) }] };
   };
   const kinds: Array<'IMAGE' | 'VIDEO'> = [];
   if (imageUrl && platform !== 'YOUTUBE') kinds.push('IMAGE');

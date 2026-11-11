@@ -10,6 +10,9 @@ const PLATFORMS = SOCIAL_PLATFORMS as unknown as string[];
 export class StartConnectionDto {
   @ApiPropertyOptional({ description: 'Renew this account instead of adding a new one' }) @IsOptional() @IsString() @Matches(ID_REGEX)
   reconnectAccountId?: string;
+
+  @ApiPropertyOptional({ description: 'LinkedIn: personal (default) or organization. Organization is disabled until LinkedIn approves the application' }) @IsOptional() @IsString() @Matches(/^[a-z]{3,20}$/)
+  variant?: string;
 }
 
 export class SelectAccountsDto {

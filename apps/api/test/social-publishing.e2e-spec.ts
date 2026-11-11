@@ -314,7 +314,7 @@ describe('Social publishing (e2e)', () => {
     it('fails with TOKEN_EXPIRED and asks for reconnection when the token cannot be renewed', async () => {
       const b = await newBiz();
       await prisma.socialAccount.update({ where: { id: b.accounts.FACEBOOK.id }, data: { tokenExpiresAt: new Date(Date.now() - 1000) } });
-      const { entry, pub } = await publish(b, { platform: 'FACEBOOK', title: 'Expired page token' });
+      const { entry, pub } = await publish(b, { platform: 'FACEBOOK', title: 'Expired page token' }, ['FAILED']);
       expect(pub).toMatchObject({ status: 'FAILED', errorCode: 'TOKEN_EXPIRED' });
       expect(h.hub.count('FACEBOOK', 'publish')).toBe(0);
       expect((await prisma.socialAccount.findUniqueOrThrow({ where: { id: b.accounts.FACEBOOK.id } })).status).toBe('TOKEN_EXPIRED');
@@ -336,7 +336,7 @@ describe('Social publishing (e2e)', () => {
     it('stops with PERMISSION_MISSING and does not retry', async () => {
       const b = await newBiz();
       h.hub.script('FACEBOOK', 'publish', new SocialApiError('permission', 'Requires pages_manage_posts', { outcome: 'not_created' }));
-      const { pub } = await publish(b, { platform: 'FACEBOOK', title: 'No permission' });
+      const { pub } = await publish(b, { platform: 'FACEBOOK', title: 'No permission' }, ['FAILED']);
       expect(pub).toMatchObject({ status: 'FAILED', errorCode: 'PERMISSION_MISSING' });
       expect((await prisma.socialAccount.findUniqueOrThrow({ where: { id: b.accounts.FACEBOOK.id } })).status).toBe('PERMISSION_MISSING');
       expect(h.hub.count('FACEBOOK', 'publish')).toBe(1);
@@ -545,6 +545,190 @@ describe('Social publishing (e2e)', () => {
       await prisma.publication.update({ where: { id: waiting.id }, data: { createdAt: new Date(Date.now() - 3 * 3_600_000), nextCheckAt: new Date() } });
       await h.socialWorker.tick();
       expect(await prisma.publication.findUniqueOrThrow({ where: { id: waiting.id } })).toMatchObject({ status: 'FAILED', outcomeUnknown: true, errorCode: 'OUTCOME_UNKNOWN' });
+    });
+  });
+
+  describe('production reliability: visibility, duplicates, notifications, isolation', () => {
+    it('shows the platform\'s reduced visibility instead of claiming a public post (YouTube locked to private)', async () => {
+      const b = await newBiz();
+      const v = await h.video(b.owner);
+      h.hub.restrictedVisibility.YOUTUBE = 'YouTube published this video as "private", not public.';
+      const { pub } = await publish(b, { platform: 'YOUTUBE', contentType: 'VIDEO', mediaIds: [v.id], title: 'Locked', caption: 'Cold bissap' }, ['PUBLISHED']);
+      expect(pub).toMatchObject({ status: 'PUBLISHED', confirmedByProvider: true, visibilityNote: expect.stringContaining('not public') });
+      const dto = (await h.get(b.viewer, `/publications/${pub!.id}`).expect(200)).body;
+      expect(dto.visibilityNote).toContain('not public');
+      const v2 = await h.video(b.owner);
+      h.hub.restrictedVisibility = {};
+      const ok = await publish(b, { platform: 'YOUTUBE', contentType: 'VIDEO', mediaIds: [v2.id], title: 'Open', caption: 'Cold bissap 2' }, ['PUBLISHED']);
+      expect(ok.pub!.visibilityNote).toBeNull();
+    });
+
+    it('a platform saying "duplicate" is an unknown outcome (never a plain failure, never retried automatically)', async () => {
+      const b = await newBiz();
+      h.hub.script('LINKEDIN', 'publish', new SocialApiError('validation', 'LinkedIn says a post with this content already exists', { status: 422, outcome: 'unknown' }));
+      const { pub } = await publish(b, { platform: 'LINKEDIN', contentType: 'TEXT', title: 'Dup', caption: 'Same text' }, ['FAILED']);
+      expect(pub).toMatchObject({ status: 'FAILED', errorCode: 'OUTCOME_UNKNOWN', outcomeUnknown: true });
+      expect((await h.post(b.admin, `/publications/${pub!.id}/retry`).expect(422)).body.code).toBe('OUTCOME_UNKNOWN');
+      expect(h.hub.count('LINKEDIN', 'publish')).toBe(1);
+    });
+
+    it('tells the authorizer once, after the automatic checks are used up, that a person must decide', async () => {
+      const b = await newBiz();
+      const photo = await h.jpeg(b.owner);
+      h.hub.script('INSTAGRAM', 'publish', { createThen: new SocialApiError('timeout', 'The platform did not answer in time', { outcome: 'unknown' }) });
+      const e = await h.scheduled(b.editor, b.admin, { platform: 'INSTAGRAM', contentType: 'IMAGE', mediaIds: [photo.id], ...slot(b), title: 'Undecided' });
+      await h.dispatch(e.id);
+      const pub = await waitUntil(e.id, (p) => p.status === 'FAILED');
+      h.hub.posts.length = 0;
+      await prisma.publication.update({ where: { id: pub.id }, data: { updatedAt: new Date(Date.now() - 120_000) } });
+      for (let i = 0; i < 5; i++) {
+        await h.socialWorker.tick();
+        await prisma.publication.update({ where: { id: pub.id }, data: { reconciledAt: new Date(Date.now() - 30 * 60_000) } });
+      }
+      const notes = (await h.notifications(b.admin.userId, 'social.reconcile_needs_decision')).filter((x) => (x.data as { publicationId: string }).publicationId === pub.id);
+      expect(notes).toHaveLength(1);
+      expect(notes[0]!.body ?? '').toMatch(/could not tell whether/);
+    });
+
+    it('another business can neither see, reconcile, retry nor complete a publication, or edit TikTok settings of an entry', async () => {
+      const a = await newBiz();
+      const z = await newBiz();
+      const photo = await h.jpeg(a.owner);
+      h.hub.script('FACEBOOK', 'publish', { createThen: new SocialApiError('timeout', 'The platform did not answer in time', { outcome: 'unknown' }) });
+      const e = await h.scheduled(a.editor, a.admin, { platform: 'FACEBOOK', contentType: 'IMAGE', mediaIds: [photo.id], ...slot(a), title: 'Isolated' });
+      await h.dispatch(e.id);
+      const pub = await waitUntil(e.id, (p) => p.status === 'FAILED');
+      await h.get(z.admin, `/publications/${pub.id}`).expect(404);
+      await h.post(z.admin, `/publications/${pub.id}/reconcile`).expect(404);
+      await h.post(z.admin, `/publications/${pub.id}/retry`, { confirmNotPublished: true }).expect(404);
+      await h.post(z.admin, `/publications/${pub.id}/manual-complete`, { confirmPublished: true }).expect(404);
+      await h.setTikTok(z.admin, e.id).expect(404);
+      expect((await prisma.publication.findUniqueOrThrow({ where: { id: pub.id } })).outcomeUnknown).toBe(true); // untouched
+    });
+
+    it('audit log records who did what for the whole life of a publication, without tokens', async () => {
+      const b = await newBiz();
+      const photo = await h.jpeg(b.owner);
+      h.hub.script('FACEBOOK', 'publish', { createThen: new SocialApiError('timeout', 'The platform did not answer in time', { outcome: 'unknown' }) });
+      const e = await h.scheduled(b.editor, b.admin, { platform: 'FACEBOOK', contentType: 'IMAGE', mediaIds: [photo.id], ...slot(b), title: 'Audited' });
+      await h.dispatch(e.id);
+      const pub = await waitUntil(e.id, (p) => p.status === 'FAILED');
+      await h.post(b.admin, `/publications/${pub.id}/reconcile`).expect(200);
+      const rows = await prisma.auditLog.findMany({ where: { businessId: b.owner.businessId, OR: [{ entityId: pub.id }, { entityId: e.id }] }, orderBy: { createdAt: 'asc' } });
+      const actions = rows.map((r) => r.action);
+      for (const a of ['calendar.entry_created', 'calendar.submitted', 'calendar.approved', 'calendar.authorized', 'social.outcome_unknown', 'social.reconciled_found']) expect(actions).toContain(a);
+      expect(rows.find((r) => r.action === 'social.reconciled_found')!.actorId).toBe(b.admin.userId);
+      expect(JSON.stringify(rows.map((r) => r.metadata))).not.toMatch(/secret-token|refresh|access_token|Bearer/i);
+    });
+  });
+
+  describe('LinkedIn organization publishing stays disabled until approved', () => {
+    it('never calls LinkedIn for an organization account while organization publishing is disabled; the personal account still publishes', async () => {
+      const b = await newBiz();
+      const org = await h.connect(b.owner, 'LINKEDIN', 2, { accountType: 'ORGANIZATION', externalAccountId: 'urn:li:organization:77', displayName: 'Maquis Page' });
+      const personal = b.accounts.LINKEDIN;
+      const through = async (accountId: string, title: string) => {
+        const e = await h.entry(b.editor, { platform: 'LINKEDIN', contentType: 'TEXT', ...slot(b), title, caption: `Caption ${title}` });
+        await request(h.http).put(`/api/v1/calendar/entries/${e.id}/account`).set(as(b.editor)).send({ socialAccountId: accountId }).expect(200);
+        await h.act(b.editor, e.id, 'submit').expect(200);
+        await h.act(b.admin, e.id, 'approve').expect(200);
+        await h.act(b.admin, e.id, 'authorize').expect(200);
+        await h.dispatch(e.id);
+        return e;
+      };
+      const ok = await through(personal.id, 'Personal post');
+      expect((await h.reach(ok.id, ['PUBLISHED'])).status).toBe('PUBLISHED');
+      h.hub.calls = [];
+      const blocked = await through(org.id, 'Page post');
+      const failed = await waitUntil(blocked.id, (p) => p.status === 'FAILED');
+      expect(failed).toMatchObject({ errorCode: 'CONNECTION_TYPE_DISABLED', outcomeUnknown: false });
+      expect(failed.lastError).toMatch(/disabled until LinkedIn approves/);
+      expect(h.hub.count('LINKEDIN', 'publish')).toBe(0);
+    });
+  });
+
+  describe('TikTok posting settings (audit readiness)', () => {
+    const entryFor = async (b: Biz, title: string) => {
+      const v = await h.video(b.owner);
+      return h.entry(b.editor, { platform: 'TIKTOK', contentType: 'VIDEO', mediaIds: [v.id], ...slot(b), title, caption: 'Cold bissap' });
+    };
+
+    it('is gated: no review, approval or publication without the creator\'s choices', async () => {
+      const b = await newBiz();
+      const e = await entryFor(b, 'No settings');
+      const r = await h.act(b.editor, e.id, 'submit').expect(422);
+      expect(r.body.code).toBe('TIKTOK_SETTINGS_REQUIRED');
+      expect(r.body.message).toMatch(/Choose who can view/);
+    });
+
+    it('rejects incomplete or policy-breaking settings with the reason', async () => {
+      const b = await newBiz();
+      const e = await entryFor(b, 'Bad settings');
+      const put = (o: Record<string, unknown>) => h.setTikTok(b.editor, e.id, o);
+      expect((await put({ privacyLevel: undefined }).expect(422)).body.message).toMatch(/Choose who can view/);
+      expect((await put({ consent: false }).expect(422)).body.message).toMatch(/Music Usage Confirmation/);
+      expect((await put({ commercial: { enabled: true, yourBrand: false, brandedContent: false } }).expect(422)).body.message).toMatch(/Your brand/);
+      expect((await put({ privacyLevel: 'SELF_ONLY', commercial: { enabled: true, yourBrand: false, brandedContent: true } }).expect(422)).body.message).toMatch(/cannot be set to private/);
+      expect((await put({ privacyLevel: 'NOBODY' }).expect(422)).body.code).toBe('TIKTOK_SETTINGS_INVALID');
+      const instagram = await h.entry(b.editor, { platform: 'INSTAGRAM', contentType: 'IMAGE', mediaIds: [(await h.jpeg(b.owner)).id], ...slot(b), title: 'IG', caption: 'x' });
+      expect((await put({}).expect(200)).body.content.platformOptions.tiktok.consent).toBe(true);
+      await h.setTikTok(b.editor, instagram.id).expect(409);
+      await h.setTikTok(b.viewer, e.id).expect(403);
+    });
+
+    it('saves the choices (interactions default off, duet/stitch only for video), records who confirmed, and a change withdraws approval', async () => {
+      const b = await newBiz();
+      const e = await entryFor(b, 'Settings');
+      const saved = (await h.setTikTok(b.editor, e.id, { allowComment: undefined, allowDuet: true }).expect(200)).body;
+      expect(saved.content.platformOptions.tiktok).toMatchObject({ privacyLevel: 'PUBLIC_TO_EVERYONE', allowComment: false, allowDuet: true, allowStitch: false, consent: true, confirmedById: b.editor.userId });
+      await h.act(b.editor, e.id, 'submit').expect(200);
+      await h.act(b.admin, e.id, 'approve').expect(200);
+      const changed = (await h.setTikTok(b.editor, e.id, { privacyLevel: 'SELF_ONLY' }).expect(200)).body;
+      expect(changed.status).toBe('DRAFT');
+      expect(changed.content.approvedVersion).toBeNull();
+      expect((await h.act(b.admin, e.id, 'authorize', {})).status).toBe(409); // approval was withdrawn by the change
+      const log = await prisma.auditLog.findMany({ where: { entityId: e.id, action: 'calendar.tiktok_settings_saved' } });
+      expect(log.length).toBe(2);
+    });
+
+    it('creator info is queried live per account, only for TikTok accounts of this business', async () => {
+      const b = await newBiz();
+      h.hub.creatorInfo = { ...h.hub.creatorInfo, nickname: 'Awa Maquis', privacyOptions: ['SELF_ONLY'], duetDisabled: true };
+      const info = (await h.get(b.editor, `/accounts/${b.accounts.TIKTOK.id}/tiktok/creator-info`).expect(200)).body;
+      expect(info).toMatchObject({ nickname: 'Awa Maquis', privacyOptions: ['SELF_ONLY'], duetDisabled: true, accountId: b.accounts.TIKTOK.id });
+      await h.get(b.editor, `/accounts/${b.accounts.TIKTOK.id}/tiktok/creator-info`).expect(200);
+      expect(h.hub.count('TIKTOK', 'creator_info')).toBe(2); // never cached
+      expect((await h.get(b.editor, `/accounts/${b.accounts.INSTAGRAM.id}/tiktok/creator-info`).expect(422)).body.code).toBe('NOT_TIKTOK');
+      const other = await newBiz();
+      await h.get(other.editor, `/accounts/${b.accounts.TIKTOK.id}/tiktok/creator-info`).expect(422); // another business's account is not visible
+      await h.get(b.viewer, `/accounts/${b.accounts.TIKTOK.id}/tiktok/creator-info`).expect(403);
+    });
+
+    it('publishes with exactly the confirmed choices; if the account no longer offers that visibility nothing is created', async () => {
+      const b = await newBiz();
+      const v = await h.video(b.owner);
+      const { pub } = await publish(b, { platform: 'TIKTOK', contentType: 'VIDEO', mediaIds: [v.id], title: 'Confirmed', caption: 'Cold bissap' }, ['PUBLISHED']);
+      expect(pub!.status).toBe('PUBLISHED');
+      expect(h.hub.calls.find((c) => c.op === 'publish')!.detail).toMatchObject({ tiktok: { privacyLevel: 'PUBLIC_TO_EVERYONE', allowComment: true, consent: true } });
+
+      h.hub.reset();
+      h.hub.creatorInfo = { ...h.hub.creatorInfo, privacyOptions: ['SELF_ONLY'] }; // e.g. the app is not audited
+      const v2 = await h.video(b.owner);
+      const r = await publish(b, { platform: 'TIKTOK', contentType: 'VIDEO', mediaIds: [v2.id], title: 'Visibility gone', caption: 'Cold bissap 2' }, ['FAILED']);
+      expect(r.pub).toMatchObject({ status: 'FAILED', errorCode: 'PLATFORM_REJECTED', outcomeUnknown: false });
+      expect(h.hub.posts).toHaveLength(0);
+    });
+
+    it('a TikTok entry whose settings were removed at the database level is refused at publication', async () => {
+      const b = await newBiz();
+      const v = await h.video(b.owner);
+      const e = await h.scheduled(b.editor, b.admin, { platform: 'TIKTOK', contentType: 'VIDEO', mediaIds: [v.id], ...slot(b), title: 'Stripped', caption: 'x' });
+      await prisma.content.update({ where: { id: e.content!.id }, data: { platformOptions: {} } });
+      await h.dispatch(e.id);
+      const pub = await waitUntil(e.id, (p) => p.status === 'FAILED');
+      expect(pub.errorCode).toBe('CONTENT_INVALID');
+      expect(pub.lastError).toMatch(/TikTok posting settings/);
+      expect(h.hub.count('TIKTOK', 'publish')).toBe(0);
     });
   });
 

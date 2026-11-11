@@ -4,6 +4,7 @@ import { Prisma, type CalendarEvent, type Content, type SocialPlatform } from '@
 import {
   AI_LANGUAGES, CALENDAR_LIMITS, PLATFORM_RULES, addDays, diffDays, isValidDate, localDayRange, roleHasPermission, todayIn, utcToZoned, zonedToUtc,
   type AiPlatform, type ContentPillar, type TimeSource,
+  checkTikTokSettings,
 } from '@touma/shared';
 import { Inject } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
@@ -221,6 +222,7 @@ export class CalendarService {
         productId: c.productId,
         serviceId: c.serviceId,
         mediaIds: c.media.map((m) => m.mediaId),
+        platformOptions: (c.platformOptions ?? null) as Record<string, unknown> | null,
       },
       conflicts: extra.conflicts ?? [],
     };
@@ -463,6 +465,46 @@ export class CalendarService {
 
   // ─── Approval workflow ──────────────────────────────────────────────────────
 
+  /** TikTok's guidelines: the creator chooses privacy, interactions and disclosure and confirms before anything is posted. Nothing is assumed for them. */
+  private assertPlatformReady(e: EventWithContent) {
+    if (e.platform !== 'TIKTOK') return;
+    const c = e.content!;
+    const check = checkTikTokSettings((c.platformOptions as { tiktok?: unknown } | null)?.tiktok, c.type as never);
+    if (!check.ok) throw new UnprocessableEntityException({ code: 'TIKTOK_SETTINGS_REQUIRED', message: `Complete the TikTok posting settings first: ${check.errors.map((x) => x.message).join(' ')}`, errors: check.errors });
+  }
+
+  /** Saves the person's TikTok posting choices. They are part of the content: changing them withdraws approval and authorization like a text edit. */
+  async setTikTokSettings(tenant: TenantContext, id: string, input: unknown) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const e = await this.load(tenant, id, tx);
+      if (e.platform !== 'TIKTOK') throw new ConflictException({ code: 'NOT_TIKTOK', message: 'TikTok settings exist for TikTok entries only' });
+      const status = CalendarService.status(e);
+      if (FINAL_STATUSES.includes(status)) throw new ConflictException({ code: 'INVALID_STATE', message: `A ${status} entry cannot be edited` });
+      const c = e.content!;
+      const check = checkTikTokSettings(input, c.type as never);
+      if (!check.ok) throw new UnprocessableEntityException({ code: 'TIKTOK_SETTINGS_INVALID', message: check.errors.map((x) => x.message).join(' '), errors: check.errors });
+      const value = { ...check.value, confirmedAt: new Date().toISOString(), confirmedById: tenant.userId };
+      const wasApproved = ['IN_REVIEW', 'APPROVED', 'SCHEDULED'].includes(status);
+      if (status === 'SCHEDULED') this.requirePermission(tenant, 'publication.schedule', 'Editing scheduled content cancels its authorization, which needs the permission to schedule publications');
+      const unchanged = JSON.stringify({ ...((c.platformOptions as { tiktok?: object } | null)?.tiktok ?? {}), confirmedAt: 0, confirmedById: 0 }) === JSON.stringify({ ...value, confirmedAt: 0, confirmedById: 0 });
+      if (unchanged) return { changed: false, reverted: false };
+      await tx.content.update({
+        where: { id: c.id },
+        data: {
+          platformOptions: { ...((c.platformOptions as object | null) ?? {}), tiktok: value } as Prisma.InputJsonValue, version: { increment: 1 },
+          ...(wasApproved || status === 'REJECTED' ? { status: 'DRAFT' as const, approvedById: null, approvedAt: null, approvedVersion: null, rejectionReason: null } : {}),
+        },
+      });
+      if (wasApproved) {
+        await tx.calendarEvent.update({ where: { id: e.id }, data: { authorizedById: null, authorizedAt: null, authorizedVersion: null, dispatchState: 'NONE', dispatchKey: null, lockedUntil: null } });
+        await tx.approvalRecord.create({ data: { businessId: tenant.businessId, contentId: c.id, calendarEventId: e.id, version: c.version, decision: 'REVOKED', actorId: tenant.userId, note: 'TikTok posting settings were changed; approval and authorization were withdrawn' } });
+      }
+      return { changed: true, reverted: wasApproved };
+    });
+    await this.audit.record({ action: 'calendar.tiktok_settings_saved', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id, metadata: { changed: result.changed, approvalWithdrawn: result.reverted } });
+    return this.get(tenant, id);
+  }
+
   async submit(tenant: TenantContext, id: string) {
     const e = await this.prisma.$transaction(async (tx) => {
       const e = await this.load(tenant, id, tx);
@@ -472,6 +514,7 @@ export class CalendarService {
       const missing: string[] = [];
       if (!c.caption?.trim()) missing.push('caption');
       if (c.type !== 'TEXT' && !c.media.length) missing.push('media');
+      this.assertPlatformReady(e);
       if (missing.length) throw new UnprocessableEntityException({ code: 'CONTENT_INCOMPLETE', message: `Complete the content before submitting it: ${missing.join(', ')}`, missing });
       const res = await tx.content.updateMany({ where: { id: c.id, status: { in: ['DRAFT', 'REJECTED'] } }, data: { status: 'IN_REVIEW', rejectionReason: null } });
       if (!res.count) throw new ConflictException({ code: 'INVALID_STATE', message: 'This entry was changed by someone else' });
@@ -531,6 +574,7 @@ export class CalendarService {
       const c = e.content!;
       if (['SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'CANCELLED'].includes(c.status)) throw new ConflictException({ code: 'INVALID_STATE', message: `A ${c.status} entry cannot be scheduled` });
       if (c.status !== 'APPROVED' || c.approvedVersion !== c.version || !c.approvedById) throw new ConflictException({ code: 'APPROVAL_REQUIRED', message: 'This content must be approved (in its current version) before it can be scheduled' });
+      this.assertPlatformReady(e);
       const conflicts = await this.scheduling.detect(tx, { businessId: tenant.businessId, platform: e.platform!, scheduledAt: e.scheduledAt, timezone: bt.timezone, contentId: e.contentId, excludeEventId: e.id });
       this.enforce(conflicts.filter((x) => x.code !== 'ACCOUNT_NOT_CONNECTED'), acknowledge);
       if (e.scheduledAt.getTime() < Date.now() + CALENDAR_LIMITS.minLeadMinutes * 60_000) throw new ConflictException({ code: 'CALENDAR_CONFLICT', message: 'This time is too close or in the past. Move the entry first.', conflicts: [{ code: 'PAST_TIME', severity: 'hard', message: 'This time is too close or in the past.' }] });
@@ -649,6 +693,7 @@ export class CalendarService {
       const c = e.content!;
       if (['SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'CANCELLED'].includes(c.status)) throw new ConflictException({ code: 'INVALID_STATE', message: `A ${c.status} entry cannot be published now` });
       if (c.status !== 'APPROVED' || c.approvedVersion !== c.version || !c.approvedById) throw new ConflictException({ code: 'APPROVAL_REQUIRED', message: 'This content must be approved (in its current version) before it can be published' });
+      this.assertPlatformReady(e);
       const res = await tx.content.updateMany({ where: { id: c.id, status: 'APPROVED', version: c.version, approvedVersion: c.version }, data: { status: 'SCHEDULED' } });
       if (!res.count) throw new ConflictException({ code: 'INVALID_STATE', message: 'This entry was changed by someone else' });
       const updated = await tx.calendarEvent.update({

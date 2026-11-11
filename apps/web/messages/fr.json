@@ -1689,7 +1689,8 @@
       "openPost": "Ouvrir la publication",
       "retry": "Réessayer",
       "iPublished": "Je l’ai publié",
-      "metrics": "Statistiques"
+      "metrics": "Statistiques",
+      "limitedVisibility": "Pas public :"
     },
     "manual": {
       "title": "Publier manuellement",
@@ -1756,6 +1757,76 @@
       "AMBIGUOUS": "Plusieurs publications de la plateforme correspondent.",
       "UNAVAILABLE": "La plateforme n’a pas pu être vérifiée.",
       "foundNote": "Retrouvée sur la plateforme après une réponse peu claire : confirmée par la plateforme, publiée une seule fois."
+    },
+    "tiktok": {
+      "title": "Réglages de publication TikTok",
+      "refresh": "Actualiser depuis TikTok",
+      "loadingCreator": "Lecture de votre compte TikTok…",
+      "noAccount": "Choisissez d’abord un compte TikTok connecté.",
+      "creatorError": "Les informations du compte TikTok n’ont pas pu être lues.",
+      "maxDuration": "Ce compte peut publier des vidéos de {seconds} secondes maximum.",
+      "preview": "Aperçu de ce qui sera publié",
+      "privacy": "Qui peut voir cette publication",
+      "privacyPlaceholder": "Choisissez qui peut voir…",
+      "privacyHint": "Vous choisissez la visibilité. Seules les options proposées par TikTok pour ce compte sont listées.",
+      "onlyPrivate": "TikTok ne propose actuellement que la publication privée pour ce compte. TOUMA ne change pas cela : la publication publique dépend de l’approbation de l’application TOUMA par TikTok.",
+      "privacyLevels": {
+        "PUBLIC_TO_EVERYONE": "Tout le monde",
+        "MUTUAL_FOLLOW_FRIENDS": "Amis (abonnés mutuels)",
+        "FOLLOWER_OF_CREATOR": "Abonnés",
+        "SELF_ONLY": "Moi uniquement"
+      },
+      "interactions": "Autoriser les personnes à",
+      "allow": {
+        "comment": "Commenter",
+        "duet": "Faire un duo",
+        "stitch": "Faire un stitch"
+      },
+      "disabledByCreator": "désactivé dans vos réglages TikTok",
+      "photoNote": "Duo et Stitch sont disponibles pour les vidéos uniquement.",
+      "disclosure": "Déclaration de contenu commercial",
+      "disclosureToggle": "Cette publication promeut une marque, un produit ou un service",
+      "disclosureHint": "Activez-le si vous vous promouvez, si vous promouvez un tiers, ou les deux. Désactivé tant que vous ne l’activez pas.",
+      "yourBrand": "Votre marque — vous promouvez votre propre activité",
+      "brandedContent": "Contenu de marque — vous promouvez une autre marque ou un tiers",
+      "disclosureIncomplete": "Sélectionnez au moins une option : Votre marque ou Contenu de marque.",
+      "brandedNotPrivate": "La visibilité d’un contenu de marque ne peut pas être privée.",
+      "label": {
+        "PROMOTIONAL": "Votre publication portera la mention « Contenu promotionnel ».",
+        "PAID_PARTNERSHIP": "Votre publication portera la mention « Partenariat payant »."
+      },
+      "consentMusic": "En publiant, vous acceptez la",
+      "consentBranded": "En publiant, vous acceptez la Politique relative au contenu de marque de TikTok et la",
+      "musicLink": "Confirmation d’utilisation de la musique de TikTok",
+      "brandedLink": "Politique relative au contenu de marque",
+      "processing": "Après la publication, quelques minutes peuvent être nécessaires pour que la publication apparaisse sur votre profil TikTok.",
+      "summaryMissing": "Les réglages de publication TikTok ne sont pas complétés. Complétez-les et confirmez-les avant de publier.",
+      "summaryAccount": "Compte",
+      "summaryOn": "Autorisé",
+      "summaryOff": "Non autorisé",
+      "summaryNone": "Aucun contenu commercial",
+      "editSettings": "Réglages TikTok",
+      "settingsTitle": "Réglages de publication TikTok",
+      "settingsText": "Vérifiez chaque choix. Les enregistrer modifie le contenu, qui devra être approuvé à nouveau.",
+      "save": "Enregistrer et confirmer les réglages",
+      "saved": "Réglages TikTok enregistrés.",
+      "confirmNow": "Je confirme les réglages TikTok ci-dessus et je veux publier maintenant cette publication sur mon compte TikTok."
+    },
+    "variants": {
+      "LINKEDIN": {
+        "personal": {
+          "title": "Profil personnel",
+          "note": "Publier en votre nom. Disponible avec le produit « Share on LinkedIn » de LinkedIn.",
+          "connect": "Connecter un profil personnel",
+          "disabled": "La publication LinkedIn personnelle est désactivée sur ce serveur."
+        },
+        "organization": {
+          "title": "Page entreprise (organisation)",
+          "note": "Publier au nom d’une Page entreprise que vous administrez.",
+          "connect": "Connecter une Page entreprise",
+          "disabled": "Pas encore disponible. LinkedIn doit d’abord approuver l’application TOUMA pour son Community Management API. D’ici là, TOUMA publie uniquement sur des profils personnels."
+        }
+      }
     }
   }
 }

@@ -11,7 +11,8 @@ export function adapterConfig(env: AppEnv): AdapterConfig {
     metaAppId: env.META_APP_ID, metaAppSecret: env.META_APP_SECRET, metaGraphVersion: env.META_GRAPH_VERSION,
     tiktokClientKey: env.TIKTOK_CLIENT_KEY, tiktokClientSecret: env.TIKTOK_CLIENT_SECRET,
     googleClientId: env.GOOGLE_CLIENT_ID, googleClientSecret: env.GOOGLE_CLIENT_SECRET,
-    linkedinClientId: env.LINKEDIN_CLIENT_ID, linkedinClientSecret: env.LINKEDIN_CLIENT_SECRET, linkedinApiVersion: env.LINKEDIN_API_VERSION, linkedinOrgScopes: env.LINKEDIN_ORG_SCOPES,
+    linkedinClientId: env.LINKEDIN_CLIENT_ID, linkedinClientSecret: env.LINKEDIN_CLIENT_SECRET, linkedinApiVersion: env.LINKEDIN_API_VERSION,
+    linkedinPersonalEnabled: env.LINKEDIN_PERSONAL_ENABLED, linkedinOrgEnabled: env.LINKEDIN_ORG_ENABLED, linkedinOrgClientId: env.LINKEDIN_ORG_CLIENT_ID, linkedinOrgClientSecret: env.LINKEDIN_ORG_CLIENT_SECRET,
   };
 }
 

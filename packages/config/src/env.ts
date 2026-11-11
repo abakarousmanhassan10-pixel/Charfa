@@ -138,8 +138,17 @@ export const appEnvSchema = z.object({
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
   /** LinkedIn REST API version header (YYYYMM). */
   LINKEDIN_API_VERSION: z.string().regex(/^\d{6}$/).default('202411'),
-  /** Ask LinkedIn for the Company Page scopes (needs the Community Management API product). */
-  LINKEDIN_ORG_SCOPES: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
+  /** Personal profile publishing (Share on LinkedIn, w_member_social). On by default; it is self-serve. */
+  LINKEDIN_PERSONAL_ENABLED: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
+  /**
+   * Company Page (organization) publishing. OFF until LinkedIn approves the Community Management API for the application.
+   * Turning it on requires LINKEDIN_ORG_APPROVAL_REF (who/when/what LinkedIn approved) so it cannot be enabled by accident.
+   */
+  LINKEDIN_ORG_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  /** The approved Community Management application. When empty, the personal application's credentials are used. */
+  LINKEDIN_ORG_CLIENT_ID: z.string().optional(),
+  LINKEDIN_ORG_CLIENT_SECRET: z.string().optional(),
+  LINKEDIN_ORG_APPROVAL_REF: z.string().max(300).optional(),
   SOCIAL_STATE_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
   /** Tokens that expire within this many hours are refreshed in the background. */
   SOCIAL_TOKEN_REFRESH_AHEAD_HOURS: z.coerce.number().int().min(1).max(720).default(24),
@@ -252,6 +261,9 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
   }
   if (env.AI_PROVIDER === 'fake' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['AI_PROVIDER=fake is only allowed when APP_ENV=test']);
+  }
+  if (env.LINKEDIN_ORG_ENABLED && !env.LINKEDIN_ORG_APPROVAL_REF?.trim()) {
+    throw new EnvValidationError(['LINKEDIN_ORG_ENABLED=true requires LINKEDIN_ORG_APPROVAL_REF: record what LinkedIn approved (product, date, reference) before enabling organization publishing']);
   }
   if (env.SOCIAL_PROVIDER_MODE === 'fake' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['SOCIAL_PROVIDER_MODE=fake is only allowed when APP_ENV=test']);

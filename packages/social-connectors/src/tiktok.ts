@@ -1,3 +1,4 @@
+import { checkTikTokSettings, TIKTOK_PRIVACY_LEVELS, type TikTokCreatorInfo, type TikTokPostSettings, type TikTokPrivacyLevel } from '@touma/shared';
 import { Http, FORM_HEADERS, JSON_HEADERS, form, redact, type FetchLike, type HttpResult } from './http';
 import { composeText, validateAgainstLimits } from './validate';
 import { matchCandidates, unavailable } from './reconcile';
@@ -12,6 +13,12 @@ function mapTikTok(r: HttpResult): SocialApiError {
   const raw = (r.json ?? {}) as { error?: string | { code?: string; message?: string }; error_description?: string; message?: string };
   const code = typeof raw.error === 'string' ? raw.error : raw.error?.code;
   const msg = redact((typeof raw.error === 'object' ? raw.error?.message : undefined) ?? raw.error_description ?? raw.message ?? r.text);
+  // TikTok's documented Content Posting errors that need a specific explanation.
+  if (code === 'unaudited_client_can_only_post_to_private_accounts') return new SocialApiError('validation', 'TikTok only lets applications that have passed its audit post publicly. Until the TOUMA application is approved, only private posting to a private account is possible.', { status: r.status, code, outcome: 'not_created' });
+  if (code === 'url_ownership_unverified') return new SocialApiError('validation', 'TikTok has not verified ownership of the media address. Verify the TOUMA media domain (URL prefix) in the TikTok developer portal.', { status: r.status, code, outcome: 'not_created' });
+  if (code === 'privacy_level_option_mismatch') return new SocialApiError('validation', 'The chosen visibility is not available for this TikTok account. Open the post, choose the visibility again and confirm.', { status: r.status, code, outcome: 'not_created' });
+  if (code === 'spam_risk_too_many_posts' || code === 'reached_active_user_cap') return new SocialApiError('rate_limit', `TikTok limits how many posts this account or application can publish: ${msg}`, { status: r.status, code, outcome: 'not_created', retryAfterMs: 6 * 3_600_000 });
+  if (code === 'spam_risk_user_banned_from_posting' || code === 'spam_risk') return new SocialApiError('permission', `TikTok blocked posting for this account: ${msg}`, { status: r.status, code, outcome: 'not_created' });
   if (code === 'access_token_invalid' || code === 'invalid_grant' || r.status === 401) return new SocialApiError('auth', `The access token is no longer valid: ${msg}`, { status: r.status, code, outcome: 'not_created' });
   if (code === 'scope_not_authorized' || code === 'scope_permission_missed' || r.status === 403) return new SocialApiError('permission', `A required permission is missing: ${msg}`, { status: r.status, code, outcome: 'not_created' });
   if (code === 'rate_limit_exceeded' || r.status === 429) return new SocialApiError('rate_limit', `The platform is rate limiting requests: ${msg}`, { status: r.status, code, outcome: 'not_created', retryAfterMs: 60_000 });
@@ -81,28 +88,58 @@ export class TikTokPublisher implements PlatformAdapter {
   }
 
   validate(c: PublishableContent) {
-    return validateAgainstLimits('TIKTOK', c);
+    const issues = validateAgainstLimits('TIKTOK', c);
+    // TikTok's guidelines: the creator must choose privacy, interactions and disclosure and confirm. Nothing is assumed for them.
+    const check = checkTikTokSettings(c.tiktok, c.kind);
+    if (!check.ok) for (const e of check.errors) issues.push({ code: 'CONTENT_INVALID', message: `TikTok posting settings: ${e.message}` });
+    return issues;
   }
 
   private headers(a: AuthorizedAccount) {
     return { ...JSON_HEADERS, authorization: `Bearer ${a.tokens.accessToken}` };
   }
 
-  private async privacy(a: AuthorizedAccount): Promise<string> {
+  /** creator_info/query: what this creator may do right now. TikTok requires showing it to the person before every post. */
+  async creatorInfo(a: AuthorizedAccount): Promise<TikTokCreatorInfo> {
     const r = await this.http.ok(`${API}/v2/post/publish/creator_info/query/`, { method: 'POST', headers: this.headers(a), body: '{}' }, mapTikTok);
-    const options = (r.json?.data?.privacy_level_options ?? []) as string[];
-    // Public when the app and the creator allow it. Unaudited apps are limited to SELF_ONLY: that is a platform restriction, not hidden by TOUMA.
-    return options.includes('PUBLIC_TO_EVERYONE') ? 'PUBLIC_TO_EVERYONE' : (options[0] ?? 'SELF_ONLY');
+    if (r.json?.error?.code && r.json.error.code !== 'ok') throw mapTikTok(r);
+    const d = (r.json?.data ?? {}) as { creator_nickname?: string; creator_username?: string; creator_avatar_url?: string; privacy_level_options?: string[]; comment_disabled?: boolean; duet_disabled?: boolean; stitch_disabled?: boolean; max_video_post_duration_sec?: number };
+    const known = new Set<string>(TIKTOK_PRIVACY_LEVELS);
+    return {
+      nickname: d.creator_nickname ?? null, username: d.creator_username ?? null, avatarUrl: d.creator_avatar_url ?? null,
+      privacyOptions: (d.privacy_level_options ?? []).filter((o): o is TikTokPrivacyLevel => known.has(o)),
+      commentDisabled: d.comment_disabled === true, duetDisabled: d.duet_disabled === true, stitchDisabled: d.stitch_disabled === true,
+      maxVideoPostDurationSec: typeof d.max_video_post_duration_sec === 'number' ? d.max_video_post_duration_sec : null,
+    };
+  }
+
+  /** The settings the person confirmed, checked against what the creator's account allows right now. Throws before anything is created. */
+  private async effective(a: AuthorizedAccount, c: PublishableContent): Promise<{ s: TikTokPostSettings; info: TikTokCreatorInfo }> {
+    const check = checkTikTokSettings(c.tiktok, c.kind);
+    if (!check.ok) throw new SocialApiError('validation', `TikTok posting settings are incomplete: ${check.errors.map((e) => e.message).join(' ')}`, { outcome: 'not_created' });
+    const info = await this.creatorInfo(a);
+    const s = check.value;
+    if (!info.privacyOptions.includes(s.privacyLevel)) {
+      throw new SocialApiError('validation', `The visibility "${s.privacyLevel}" is not available for this TikTok account any more (available: ${info.privacyOptions.join(', ') || 'none'}). Open the post, choose the visibility again and confirm.`, { outcome: 'not_created' });
+    }
+    const dur = c.media[0]?.durationSeconds;
+    if (c.kind === 'VIDEO' && info.maxVideoPostDurationSec && dur != null && dur > info.maxVideoPostDurationSec) {
+      throw new SocialApiError('validation', `This TikTok account can post videos of at most ${info.maxVideoPostDurationSec} s (this one lasts ${Math.round(dur)} s).`, { outcome: 'not_created' });
+    }
+    return { s, info };
   }
 
   async publish(a: AuthorizedAccount, c: PublishableContent, ctx: PublishContext): Promise<PublishOutcome> {
     if (ctx.resume?.stage === 'PUBLISH_INIT') return { status: 'PROCESSING', ref: ctx.resume.ref, stage: 'PUBLISH_INIT', retryAfterMs: 0 };
-    const privacy = await this.privacy(a);
+    const { s, info } = await this.effective(a, c);
     const title = composeText(c).slice(0, 2200);
+    // Interactions the creator switched off in TikTok stay off whatever was chosen here.
+    const disableComment = !s.allowComment || info.commentDisabled;
+    const disclosure = { brand_content_toggle: s.commercial.enabled && s.commercial.brandedContent, brand_organic_toggle: s.commercial.enabled && s.commercial.yourBrand };
     await ctx.beforeCreate();
     const body = c.kind === 'VIDEO'
-      ? { post_info: { title, privacy_level: privacy }, source_info: { source: 'PULL_FROM_URL', video_url: c.media[0]!.url } }
-      : { post_info: { title: (c.title ?? c.caption).slice(0, 90), description: title, privacy_level: privacy }, source_info: { source: 'PULL_FROM_URL', photo_cover_index: 0, photo_images: c.media.map((m) => m.url) }, post_mode: 'DIRECT_POST', media_type: 'PHOTO' };
+      ? { post_info: { title, privacy_level: s.privacyLevel, disable_comment: disableComment, disable_duet: !s.allowDuet || info.duetDisabled, disable_stitch: !s.allowStitch || info.stitchDisabled, ...disclosure }, source_info: { source: 'PULL_FROM_URL', video_url: c.media[0]!.url } }
+      : { post_info: { title: (c.title ?? c.caption).slice(0, 90), description: title, privacy_level: s.privacyLevel, disable_comment: disableComment, auto_add_music: false, ...disclosure }, source_info: { source: 'PULL_FROM_URL', photo_cover_index: 0, photo_images: c.media.map((m) => m.url) }, post_mode: 'DIRECT_POST', media_type: 'PHOTO' };
     const path = c.kind === 'VIDEO' ? '/v2/post/publish/video/init/' : '/v2/post/publish/content/init/';
     const r = await this.http.ok(`${API}${path}`, { method: 'POST', headers: this.headers(a), body: JSON.stringify(body) }, mapTikTok);
     if (r.json?.error?.code && r.json.error.code !== 'ok') throw mapTikTok(r);

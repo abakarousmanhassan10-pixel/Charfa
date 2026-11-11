@@ -131,6 +131,7 @@ describe('Meta adapters', () => {
 
   it('publishes to Instagram through containers: checkpoint, wait for the video, publish once, resume without a second container', async () => {
     const n = net([
+      ['GET /content_publishing_limit', { json: { data: [{ quota_usage: 3, config: { quota_total: 50 } }] } }],
       ['POST /acc-1/media', { json: { id: 'c1' } }],
       ['GET /c1', { json: { status_code: 'IN_PROGRESS' } }],
       ['GET /c1', { json: { status_code: 'FINISHED' } }],
@@ -143,8 +144,8 @@ describe('Meta adapters', () => {
     const r1 = await ig.publish(account(), video, first.c);
     expect(r1).toMatchObject({ status: 'PROCESSING', ref: 'c1', stage: 'CONTAINER' });
     expect(first.log).toEqual(['checkpoint:CONTAINER:c1']); // nothing was published yet
-    expect(body(n.requests[0]).get('media_type')).toBe('REELS');
-    expect(body(n.requests[0]).get('video_url')).toBe('https://api.example.com/media/m1');
+    expect(body(n.requests[1]).get('media_type')).toBe('REELS');
+    expect(body(n.requests[1]).get('video_url')).toBe('https://api.example.com/media/m1');
     // A retry resumes the same container.
     const second = ctx({ resume: { stage: 'CONTAINER', ref: 'c1' } });
     const r2 = await ig.publish(account(), video, second.c);
@@ -155,13 +156,32 @@ describe('Meta adapters', () => {
 
   it('publishes an Instagram carousel with child containers', async () => {
     const n = net([
+      ['GET /content_publishing_limit', { json: { data: [{ quota_usage: 3, config: { quota_total: 50 } }] } }],
       ['POST /acc-1/media', { json: { id: 'k1' } }], ['POST /acc-1/media', { json: { id: 'k2' } }], ['POST /acc-1/media', { json: { id: 'parent' } }],
       ['GET /parent', { json: { status_code: 'FINISHED' } }], ['POST /acc-1/media_publish', { json: { id: 'media-5' } }], ['GET /media-5', { status: 400, json: { error: { message: 'x', code: 100 } } }],
     ]);
     const r = await adapters(n.fetchImpl).INSTAGRAM.publish(account(), content({ kind: 'CAROUSEL', media: [media(), media({ id: 'm2' })] }), ctx().c);
     expect(r).toMatchObject({ status: 'PUBLISHED', externalPostId: 'media-5', url: null }); // the post exists even though its link could not be read
-    expect(body(n.requests[2]).get('children')).toBe('k1,k2');
-    expect(body(n.requests[0]).get('is_carousel_item')).toBe('true');
+    expect(body(n.requests[3]).get('children')).toBe('k1,k2');
+    expect(body(n.requests[1]).get('is_carousel_item')).toBe('true');
+  });
+
+  it('Instagram: a full publishing quota is a retryable rate limit decided BEFORE any container is created; an unreadable quota does not block', async () => {
+    const full = net([['GET /content_publishing_limit', { json: { data: [{ quota_usage: 50, config: { quota_total: 50 } }] } }]]);
+    const { c, log } = ctx();
+    await expect(adapters(full.fetchImpl).INSTAGRAM.publish(account(), content(), c)).rejects.toMatchObject({ kind: 'rate_limit', outcome: 'not_created', opts: expect.objectContaining({ retryAfterMs: 3_600_000 }) });
+    expect(log).toEqual([]);
+    expect(full.requests).toHaveLength(1);
+    const unreadable = net([['GET /content_publishing_limit', { status: 500, json: {} }], ['POST /acc-1/media', { json: { id: 'c9' } }], ['GET /c9', { json: { status_code: 'IN_PROGRESS' } }]]);
+    expect(await adapters(unreadable.fetchImpl).INSTAGRAM.publish(account(), content(), ctx().c)).toMatchObject({ status: 'PROCESSING', ref: 'c9' });
+  });
+
+  it('maps Meta quota and media errors to specific, actionable outcomes', async () => {
+    const run = (error: object) => adapters(net([['POST /acc-1/feed', { status: 400, json: { error } }]]).fetchImpl).FACEBOOK.publish(account(), content({ kind: 'TEXT', media: [] }), ctx().c).catch((e) => e as SocialApiError);
+    expect(await run({ message: 'limit', code: 9, error_subcode: 2207042 })).toMatchObject({ kind: 'rate_limit', outcome: 'not_created' });
+    expect(await run({ message: 'BUC', code: 80002 })).toMatchObject({ kind: 'rate_limit' });
+    expect(await run({ message: 'x', code: 100, error_subcode: 2207026 })).toMatchObject({ kind: 'validation', message: expect.stringContaining('H.264') });
+    expect(await run({ message: 'expired', code: 190, error_subcode: 463 })).toMatchObject({ kind: 'auth' });
   });
 
   it('maps Graph errors, keeps tokens out of messages, and says whether a post may exist', async () => {
@@ -192,6 +212,8 @@ describe('Meta adapters', () => {
   });
 });
 
+const tkSettings = (o: Record<string, unknown> = {}) => ({ privacyLevel: 'PUBLIC_TO_EVERYONE', allowComment: false, allowDuet: false, allowStitch: false, commercial: { enabled: false, yourBrand: false, brandedContent: false }, consent: true, ...o }) as never;
+
 describe('TikTok adapter', () => {
   it('builds the URL, exchanges and refreshes tokens', async () => {
     const n = net([
@@ -220,12 +242,12 @@ describe('TikTok adapter', () => {
     ]);
     const tk = adapters(n.fetchImpl).TIKTOK;
     const { c, log } = ctx();
-    const r = await tk.publish(account({ accountType: 'CREATOR' }), content({ kind: 'VIDEO', media: [media({ mimeType: 'video/mp4', durationSeconds: 15 })] }), c);
+    const r = await tk.publish(account({ accountType: 'CREATOR' }), content({ kind: 'VIDEO', tiktok: tkSettings({ allowComment: true }), media: [media({ mimeType: 'video/mp4', durationSeconds: 15 })] }), c);
     expect(r).toMatchObject({ status: 'PROCESSING', ref: 'pub1' });
     expect(log).toEqual(['beforeCreate', 'checkpoint:PUBLISH_INIT:pub1']);
     const sent = JSON.parse(String(n.requests[1]!.body));
     expect(sent.source_info).toEqual({ source: 'PULL_FROM_URL', video_url: 'https://api.example.com/media/m1' });
-    expect(sent.post_info.privacy_level).toBe('PUBLIC_TO_EVERYONE');
+    expect(sent.post_info).toMatchObject({ privacy_level: 'PUBLIC_TO_EVERYONE', disable_comment: false, disable_duet: true, disable_stitch: true, brand_content_toggle: false, brand_organic_toggle: false });
     expect(await tk.status(account(), 'pub1', 'PUBLISH_INIT')).toMatchObject({ status: 'PROCESSING' });
     expect(await tk.status(account(), 'pub1', 'PUBLISH_INIT')).toMatchObject({ status: 'PUBLISHED', externalPostId: '7123' });
   });
@@ -237,15 +259,63 @@ describe('TikTok adapter', () => {
       ['POST /status/fetch/', { json: { data: { status: 'FAILED', fail_reason: 'file_format_check_failed' } } }],
     ]);
     const tk = adapters(n.fetchImpl).TIKTOK;
-    await tk.publish(account(), content({ kind: 'CAROUSEL', media: [media(), media({ id: 'm2' })] }), ctx().c);
+    await tk.publish(account(), content({ kind: 'CAROUSEL', tiktok: tkSettings({ privacyLevel: 'SELF_ONLY' }), media: [media(), media({ id: 'm2' })] }), ctx().c);
     const sent = JSON.parse(String(n.requests[1]!.body));
     expect(sent.post_info.privacy_level).toBe('SELF_ONLY');
     expect(sent.media_type).toBe('PHOTO');
+    expect(sent.post_info.disable_comment).toBe(true);
     expect(sent.source_info.photo_images).toHaveLength(2);
     expect(await tk.status(account(), 'p2', 'PUBLISH_INIT')).toMatchObject({ status: 'FAILED', code: 'PLATFORM_REJECTED' });
     const resumed = await tk.publish(account(), content(), ctx({ resume: { stage: 'PUBLISH_INIT', ref: 'p2' } }).c);
     expect(resumed).toMatchObject({ status: 'PROCESSING', ref: 'p2' });
     expect(n.requests).toHaveLength(3); // no new init request
+  });
+
+  describe('TikTok posting rules (Content Sharing Guidelines)', () => {
+    const info = (o: Record<string, unknown> = {}) => ['POST /creator_info/query/', { json: { error: { code: 'ok' }, data: { creator_nickname: 'Awa', creator_username: 'awa_maquis', creator_avatar_url: 'https://a/p.png', privacy_level_options: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'], comment_disabled: false, duet_disabled: false, stitch_disabled: false, max_video_post_duration_sec: 300, ...o } } }] as [string, Reply];
+    const vid = (t: Record<string, unknown> = {}) => content({ kind: 'VIDEO', tiktok: tkSettings(t), media: [media({ mimeType: 'video/mp4', durationSeconds: 20, width: 1080, height: 1920, videoCodec: 'avc1' })] });
+
+    it('reads the creator info to show: nickname, options, disabled interactions, maximum duration', async () => {
+      const n = net([info({ comment_disabled: true })]);
+      expect(await adapters(n.fetchImpl).TIKTOK.creatorInfo!(account())).toEqual({ nickname: 'Awa', username: 'awa_maquis', avatarUrl: 'https://a/p.png', privacyOptions: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'], commentDisabled: true, duetDisabled: false, stitchDisabled: false, maxVideoPostDurationSec: 300 });
+    });
+
+    it('refuses to send anything when the person has not chosen privacy, confirmed, or completed the disclosure', () => {
+      const tk = adapters(net([]).fetchImpl).TIKTOK;
+      const msgs = (c: PublishableContent) => tk.validate(c).map((i) => i.message).join(' | ');
+      expect(msgs(content({ kind: 'VIDEO', media: [media({ mimeType: 'video/mp4', durationSeconds: 20 })] }))).toMatch(/Choose who can view/);
+      expect(msgs(vid({ privacyLevel: undefined }))).toMatch(/Choose who can view/);
+      expect(msgs(vid({ consent: false }))).toMatch(/Music Usage Confirmation/);
+      expect(msgs(vid({ commercial: { enabled: true, yourBrand: false, brandedContent: false } }))).toMatch(/select "Your brand"/);
+      expect(msgs(vid({ privacyLevel: 'SELF_ONLY', commercial: { enabled: true, yourBrand: false, brandedContent: true } }))).toMatch(/Branded content visibility cannot be set to private/);
+      expect(msgs(content({ kind: 'IMAGE', tiktok: tkSettings({ allowDuet: true }), media: [media()] }))).toMatch(/Duet and Stitch exist for videos only/);
+      expect(msgs(vid({ commercial: { enabled: true, yourBrand: true, brandedContent: false } }))).toBe('');
+    });
+
+    it('sends exactly what the person chose, including the commercial disclosure, and never forces a privacy default', async () => {
+      const n = net([info(), ['POST /video/init/', { json: { data: { publish_id: 'p1' }, error: { code: 'ok' } } }]]);
+      await adapters(n.fetchImpl).TIKTOK.publish(account(), vid({ privacyLevel: 'SELF_ONLY', allowComment: true, allowDuet: true, commercial: { enabled: true, yourBrand: true, brandedContent: false } }), ctx().c);
+      expect(JSON.parse(String(n.requests[1]!.body)).post_info).toMatchObject({ privacy_level: 'SELF_ONLY', disable_comment: false, disable_duet: false, disable_stitch: true, brand_organic_toggle: true, brand_content_toggle: false });
+    });
+
+    it('keeps interactions off that the creator disabled in TikTok, even if they were chosen earlier', async () => {
+      const n = net([info({ comment_disabled: true, duet_disabled: true }), ['POST /video/init/', { json: { data: { publish_id: 'p1' }, error: { code: 'ok' } } }]]);
+      await adapters(n.fetchImpl).TIKTOK.publish(account(), vid({ allowComment: true, allowDuet: true, allowStitch: true }), ctx().c);
+      expect(JSON.parse(String(n.requests[1]!.body)).post_info).toMatchObject({ disable_comment: true, disable_duet: true, disable_stitch: false });
+    });
+
+    it('does not post when the chosen visibility is no longer offered (for example the app is still unaudited), and says what to do', async () => {
+      const n = net([info({ privacy_level_options: ['SELF_ONLY'] })]);
+      const { c, log } = ctx();
+      await expect(adapters(n.fetchImpl).TIKTOK.publish(account(), vid({ privacyLevel: 'PUBLIC_TO_EVERYONE' }), c)).rejects.toMatchObject({ kind: 'validation', outcome: 'not_created', message: expect.stringContaining('choose the visibility again') });
+      expect(log).toEqual([]);
+      expect(n.requests).toHaveLength(1); // only the creator query: nothing was created
+    });
+
+    it('does not post a video longer than the creator may post', async () => {
+      const n = net([info({ max_video_post_duration_sec: 10 })]);
+      await expect(adapters(n.fetchImpl).TIKTOK.publish(account(), vid(), ctx().c)).rejects.toMatchObject({ kind: 'validation', message: expect.stringContaining('at most 10 s') });
+    });
   });
 });
 
@@ -308,17 +378,69 @@ describe('LinkedIn adapter', () => {
   it('escapes reserved characters so text is posted exactly as written', () => {
     expect(escapeLinkedIn('50% (new) #tag @you [x] *bold* a_b')).toBe('50% \\(new\\) \\#tag \\@you \\[x\\] \\*bold\\* a\\_b');
   });
-  it('lists the person and Company Pages when approved', async () => {
-    const n = net([
-      ['GET /v2/userinfo', { json: { sub: 'abc', name: 'Awa M' } }],
-      ['GET /rest/organizationAcls', { json: { elements: [{ organization: 'urn:li:organization:55' }] } }],
-      ['GET /rest/organizations/55', { json: { localizedName: 'Maquis Awa' } }],
-    ]);
-    const list = await adapters(n.fetchImpl).LINKEDIN.listAccounts({ accessToken: 't', scopes: ['w_member_social', 'w_organization_social'] });
-    expect(list.map((a) => [a.externalAccountId, a.accountType])).toEqual([['urn:li:person:abc', 'PROFILE'], ['urn:li:organization:55', 'ORGANIZATION']]);
-    expect(n.requests[1]!.headers['linkedin-version']).toBe('202411');
-    const personalOnly = await adapters(net([['GET /v2/userinfo', { json: { sub: 'abc' } }], ['GET /rest/organizationAcls', { status: 403, json: { message: 'not enough permissions' } }]]).fetchImpl).LINKEDIN.listAccounts({ accessToken: 't', scopes: ['w_member_social'] });
-    expect(personalOnly).toHaveLength(1);
+  describe('personal and organization connections are separate', () => {
+    const orgCfg = { ...cfg, linkedinOrgEnabled: true, linkedinOrgClientId: 'org-app', linkedinOrgClientSecret: 'org-secret' };
+    const li = (fetchImpl: FetchLike, c: Record<string, unknown> = {}) => createAdapters({ ...cfg, ...c } as typeof cfg, fetchImpl).LINKEDIN;
+
+    it('lists variants: personal on, organization OFF by default with the reason and what unlocks it', () => {
+      const v = li(net([]).fetchImpl).variants!();
+      expect(v.find((x) => x.id === 'personal')).toMatchObject({ enabled: true, configured: true, accountType: 'PROFILE', scopes: ['openid', 'profile', 'w_member_social'] });
+      const org = v.find((x) => x.id === 'organization')!;
+      expect(org).toMatchObject({ enabled: false, accountType: 'ORGANIZATION' });
+      expect(org.reason).toMatch(/Community Management API.*LINKEDIN_ORG_ENABLED=true.*LINKEDIN_ORG_APPROVAL_REF/);
+      expect(org.scopes).toContain('w_organization_social');
+    });
+
+    it('personal authorization asks for personal scopes only (never organization scopes), with the personal application', () => {
+      const u = new URL(li(net([]).fetchImpl, orgCfg).buildAuthorizationUrl({ state: 's', redirectUri: 'x' }).url);
+      expect(u.searchParams.get('client_id')).toBe('li');
+      expect(u.searchParams.get('scope')).toBe('openid profile w_member_social');
+    });
+
+    it('organization authorization is refused while disabled, and uses its own scopes and application once enabled', () => {
+      expect(() => li(net([]).fetchImpl).buildAuthorizationUrl({ state: 's', redirectUri: 'x', variant: 'organization' })).toThrow(/disabled until LinkedIn approves/);
+      const u = new URL(li(net([]).fetchImpl, orgCfg).buildAuthorizationUrl({ state: 's', redirectUri: 'x', variant: 'organization' }).url);
+      expect(u.searchParams.get('client_id')).toBe('org-app');
+      expect(u.searchParams.get('scope')).toBe('w_organization_social r_organization_social rw_organization_admin');
+    });
+
+    it('exchanges and refreshes with the application that issued the token', async () => {
+      const n = net([
+        ['POST /oauth/v2/accessToken', { json: { access_token: 'a', refresh_token: 'r', expires_in: 100, scope: 'w_organization_social' } }],
+        ['POST /oauth/v2/accessToken', { json: { access_token: 'a2', refresh_token: 'r2', expires_in: 100, scope: 'w_organization_social' } }],
+        ['POST /oauth/v2/accessToken', { json: { access_token: 'p', refresh_token: 'pr', expires_in: 100, scope: 'w_member_social' } }],
+        ['POST /oauth/v2/accessToken', { json: { access_token: 'p2', expires_in: 100, scope: 'w_member_social' } }],
+      ]);
+      const a = li(n.fetchImpl, orgCfg);
+      const t = await a.exchangeCode({ code: 'c', redirectUri: 'x', variant: 'organization' });
+      await a.refresh(t);
+      const pt = await a.exchangeCode({ code: 'c', redirectUri: 'x' });
+      await a.refresh(pt);
+      expect(n.requests.map((r) => body(r).get('client_id'))).toEqual(['org-app', 'org-app', 'li', 'li']);
+      await expect(li(net([]).fetchImpl).exchangeCode({ code: 'c', redirectUri: 'x', variant: 'organization' })).rejects.toMatchObject({ kind: 'unsupported' });
+    });
+
+    it('a personal connection lists only the profile and never asks LinkedIn about organizations', async () => {
+      const n = net([['GET /v2/userinfo', { json: { sub: 'abc', name: 'Awa M' } }]]);
+      const list = await li(n.fetchImpl, orgCfg).listAccounts({ accessToken: 't', scopes: ['w_member_social'] });
+      expect(list.map((a) => [a.externalAccountId, a.accountType])).toEqual([['urn:li:person:abc', 'PROFILE']]);
+      expect(n.requests).toHaveLength(1);
+    });
+
+    it('an organization connection lists the Company Pages the member administers; a LinkedIn refusal is an error, not "no pages"', async () => {
+      const n = net([['GET /rest/organizationAcls', { json: { elements: [{ organization: 'urn:li:organization:55' }] } }], ['GET /rest/organizations/55', { json: { localizedName: 'Maquis Awa' } }]]);
+      const list = await li(n.fetchImpl, orgCfg).listAccounts({ accessToken: 't', scopes: ['w_organization_social'] }, { variant: 'organization' });
+      expect(list.map((a) => [a.externalAccountId, a.accountType, a.permissionsMissing])).toEqual([['urn:li:organization:55', 'ORGANIZATION', []]]);
+      expect(n.requests[0]!.headers['linkedin-version']).toBe('202411');
+      await expect(li(net([['GET /rest/organizationAcls', { status: 403, json: {} }]]).fetchImpl, orgCfg).listAccounts({ accessToken: 't', scopes: [] }, { variant: 'organization' })).rejects.toMatchObject({ kind: 'permission' });
+      await expect(li(net([]).fetchImpl).listAccounts({ accessToken: 't', scopes: [] }, { variant: 'organization' })).rejects.toMatchObject({ kind: 'unsupported' });
+    });
+
+    it('never publishes to an organization while organization publishing is disabled, even for a stored organization account', async () => {
+      const n = net([]);
+      await expect(li(n.fetchImpl).publish(account({ accountType: 'ORGANIZATION', externalAccountId: 'urn:li:organization:55' }), content({ kind: 'TEXT', media: [] }), ctx().c)).rejects.toMatchObject({ kind: 'unsupported', outcome: 'not_created' });
+      expect(n.requests).toHaveLength(0);
+    });
   });
   it('publishes text, an image after upload, and a video in parts; the post id comes from the response header', async () => {
     const n = net([
@@ -356,5 +478,47 @@ describe('LinkedIn adapter', () => {
 describe('redact', () => {
   it('removes credentials from text', () => {
     expect(redact('access_token=abc123&x=1 Bearer abcDEF.123 client_secret: "s3cret"')).not.toMatch(/abc123|abcDEF|s3cret/);
+  });
+});
+
+describe('platform error mapping (rate limits, restrictions, duplicates)', () => {
+  const failing = (platform: 'TIKTOK' | 'YOUTUBE' | 'LINKEDIN', route: string, status: number, json: unknown, content_: PublishableContent) => {
+    const n = net([platform === 'TIKTOK' ? ['POST /creator_info/query/', { json: { error: { code: 'ok' }, data: { privacy_level_options: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'] } } }] : ['GET /none', {}], [route, { status, json }]] as never);
+    return adapters(n.fetchImpl)[platform].publish(account(), content_, ctx().c).catch((e) => e as SocialApiError);
+  };
+  const tkVideo = () => content({ kind: 'VIDEO', tiktok: tkSettings(), media: [media({ mimeType: 'video/mp4', durationSeconds: 15 })] });
+
+  it('TikTok: explains the audit restriction, domain verification and visibility mismatch, and treats posting caps as rate limits', async () => {
+    const run = (code: string) => failing('TIKTOK', 'POST /video/init/', 400, { error: { code, message: 'm' } }, tkVideo());
+    expect(await run('unaudited_client_can_only_post_to_private_accounts')).toMatchObject({ kind: 'validation', outcome: 'not_created', message: expect.stringContaining('passed its audit') });
+    expect(await run('url_ownership_unverified')).toMatchObject({ kind: 'validation', message: expect.stringContaining('Verify the TOUMA media domain') });
+    expect(await run('privacy_level_option_mismatch')).toMatchObject({ kind: 'validation', message: expect.stringContaining('choose the visibility again') });
+    expect(await run('spam_risk_too_many_posts')).toMatchObject({ kind: 'rate_limit', opts: expect.objectContaining({ retryAfterMs: 6 * 3_600_000 }) });
+    expect(await run('spam_risk_user_banned_from_posting')).toMatchObject({ kind: 'permission' });
+  });
+
+  it('YouTube: upload limit is a rate limit, a missing channel is a permission problem with the fix', async () => {
+    const vid = content({ kind: 'VIDEO', media: [media({ mimeType: 'video/mp4', sizeBytes: 5, durationSeconds: 30 })] });
+    const run = (reason: string, status = 403) => failing('YOUTUBE', 'POST /upload/youtube/v3/videos', status, { error: { message: 'm', errors: [{ reason }] } }, vid);
+    expect(await run('uploadLimitExceeded')).toMatchObject({ kind: 'rate_limit', outcome: 'not_created' });
+    expect(await run('youtubeSignupRequired')).toMatchObject({ kind: 'permission', message: expect.stringContaining('no YouTube channel') });
+    expect(await run('authError', 401)).toMatchObject({ kind: 'auth' });
+    expect(await run('quotaExceeded')).toMatchObject({ kind: 'rate_limit', opts: expect.objectContaining({ retryAfterMs: 3_600_000 }) });
+  });
+
+  it('YouTube: a video published as private is reported as such, never as public', async () => {
+    const n = net([
+      ['POST /upload/youtube/v3/videos', { headers: { location: 'https://upload.youtube.test/session1' } }],
+      ['PUT https://upload.youtube.test/session1', { json: { id: 'vid9', status: { privacyStatus: 'private', uploadStatus: 'uploaded' } } }],
+    ]);
+    const out = await adapters(n.fetchImpl).YOUTUBE.publish(account(), content({ kind: 'VIDEO', media: [media({ mimeType: 'video/mp4', sizeBytes: 5, durationSeconds: 30 })] }), ctx().c);
+    expect(out).toMatchObject({ status: 'PUBLISHED', externalPostId: 'vid9', notice: expect.stringContaining('not public') });
+    const pub = net([['POST /upload/youtube/v3/videos', { headers: { location: 'https://upload.youtube.test/s2' } }], ['PUT https://upload.youtube.test/s2', { json: { id: 'vid10', status: { privacyStatus: 'public' } } }]]);
+    expect(await adapters(pub.fetchImpl).YOUTUBE.publish(account(), content({ kind: 'VIDEO', media: [media({ mimeType: 'video/mp4', sizeBytes: 5, durationSeconds: 30 })] }), ctx().c)).toMatchObject({ status: 'PUBLISHED', notice: null });
+  });
+
+  it('LinkedIn: DUPLICATE_POST means the post probably exists, so the outcome is unknown (reconcile), not a plain failure', async () => {
+    const err = await failing('LINKEDIN', 'POST /rest/posts', 422, { code: 'DUPLICATE_POST', message: 'Content is a duplicate of urn:li:share:1' }, content({ kind: 'TEXT', media: [] }));
+    expect(err).toMatchObject({ kind: 'validation', outcome: 'unknown' });
   });
 });

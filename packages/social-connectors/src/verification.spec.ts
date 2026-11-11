@@ -97,18 +97,19 @@ describe('YouTube and LinkedIn listings are complete too', () => {
       if (url.includes('/rest/organizationAcls')) return { json: { elements: new URL(url).searchParams.get('start') === '0' ? els(0, 100) : els(100, 7) } };
       return { json: { localizedName: 'Org' } };
     });
-    const out = await createAdapters(cfg, n.fetchImpl).LINKEDIN.listAccounts({ accessToken: 't', scopes: ['w_member_social'] });
-    expect(out.filter((x) => x.accountType === 'PROFILE')).toHaveLength(1);
-    const orgs = out.filter((x) => x.accountType === 'ORGANIZATION');
+    const li = createAdapters({ ...cfg, linkedinOrgEnabled: true } as typeof cfg, n.fetchImpl).LINKEDIN;
+    const orgs = await li.listAccounts({ accessToken: 't', scopes: ['w_member_social'] }, { variant: 'organization' });
     expect(orgs).toHaveLength(107);
+    expect(orgs.every((x) => x.accountType === 'ORGANIZATION')).toBe(true);
     expect(orgs[0]!.permissionsMissing).toContain('w_organization_social'); // org publishing needs its own scope and approval
-    expect(out[0]!.permissionsMissing).toEqual([]);
+    const profile = await li.listAccounts({ accessToken: 't', scopes: ['w_member_social'] });
+    expect(profile.map((x) => x.accountType)).toEqual(['PROFILE']);
+    expect(profile[0]!.permissionsMissing).toEqual([]);
   });
 
-  it('returns only the personal profile when LinkedIn has not approved organization access', async () => {
-    const n = net((url) => (url.includes('/v2/userinfo') ? { json: { sub: 'me' } } : { status: 403, json: { message: 'not enough permissions' } }));
-    const out = await createAdapters(cfg, n.fetchImpl).LINKEDIN.listAccounts({ accessToken: 't', scopes: ['w_member_social'] });
-    expect(out.map((x) => x.accountType)).toEqual(['PROFILE']);
+  it('reports a LinkedIn refusal of organization access as a permission error, not as an empty list', async () => {
+    const n = net(() => ({ status: 403, json: { message: 'not enough permissions' } }));
+    await expect(createAdapters({ ...cfg, linkedinOrgEnabled: true } as typeof cfg, n.fetchImpl).LINKEDIN.listAccounts({ accessToken: 't', scopes: [] }, { variant: 'organization' })).rejects.toMatchObject({ kind: 'permission' });
   });
 });
 

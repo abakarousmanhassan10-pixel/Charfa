@@ -1,4 +1,4 @@
-import type { ContentKind, SocialPlatformId, VideoSurface } from '@touma/shared';
+import type { ContentKind, SocialPlatformId, TikTokCreatorInfo, TikTokPostSettings, VideoSurface } from '@touma/shared';
 
 /**
  * Provider-independent contracts of the TOUMA social publishing architecture.
@@ -39,6 +39,18 @@ export interface CandidateAccount {
   metadata?: Record<string, unknown>;
 }
 
+export interface ConnectionVariant {
+  id: string;
+  /** The account type this variant connects (PROFILE, ORGANIZATION). */
+  accountType: string;
+  enabled: boolean;
+  configured: boolean;
+  missingConfiguration: string[];
+  scopes: string[];
+  /** Why it is disabled, and what is required to enable it. */
+  reason: string | null;
+}
+
 export interface OAuthStart {
   url: string;
   /** PKCE verifier, when the platform supports PKCE. Stored encrypted until the callback. */
@@ -70,6 +82,8 @@ export interface PublishableContent {
   hashtags: string[];
   callToAction?: string | null;
   media: MediaItem[];
+  /** TikTok only: what the person chose on the TikTok posting screen (privacy, interactions, disclosure, consent). */
+  tiktok?: TikTokPostSettings | null;
 }
 
 export interface AuthorizedAccount {
@@ -87,7 +101,7 @@ export interface ValidationIssue {
 }
 
 export type PublishOutcome =
-  | { status: 'PUBLISHED'; externalPostId: string; url?: string | null; raw?: unknown }
+  | { status: 'PUBLISHED'; externalPostId: string; url?: string | null; raw?: unknown; /** The platform published it with less visibility than requested (for example a YouTube upload locked to private). Shown to the person, never hidden. */ notice?: string | null }
   /** Accepted, still being processed by the platform. Poll status() with `ref`. */
   | { status: 'PROCESSING'; ref: string; stage: string; retryAfterMs?: number; raw?: unknown };
 
@@ -162,12 +176,19 @@ export interface PlatformAdapter {
   readonly refreshLeadMs: number;
   readonly supportsRefresh: boolean;
 
-  buildAuthorizationUrl(p: { state: string; redirectUri: string; reconnect?: boolean }): OAuthStart;
-  exchangeCode(p: { code: string; redirectUri: string; codeVerifier?: string | null }): Promise<TokenSet>;
+  buildAuthorizationUrl(p: { state: string; redirectUri: string; reconnect?: boolean; variant?: string }): OAuthStart;
+  exchangeCode(p: { code: string; redirectUri: string; codeVerifier?: string | null; variant?: string }): Promise<TokenSet>;
   refresh(tokens: TokenSet): Promise<TokenSet>;
   /** The accounts this authorization can publish to. */
-  listAccounts(tokens: TokenSet): Promise<CandidateAccount[]>;
+  listAccounts(tokens: TokenSet, opts?: { variant?: string }): Promise<CandidateAccount[]>;
+  /**
+   * Separately configured ways to connect this platform (LinkedIn: personal profile vs organization). Absent = one way only.
+   * A disabled variant cannot be connected or published to; `reason` says why and what unlocks it.
+   */
+  variants?(): ConnectionVariant[];
   inspectToken?(tokens: TokenSet): Promise<TokenInspection>;
+  /** TikTok: the creator's current posting options, to be shown to the person right before posting. */
+  creatorInfo?(account: AuthorizedAccount): Promise<TikTokCreatorInfo>;
   revoke?(tokens: TokenSet): Promise<void>;
 
   /** Format and media checks against the platform's rules, before anything is sent. */
@@ -218,7 +239,12 @@ export interface AdapterConfig {
   linkedinClientId?: string;
   linkedinClientSecret?: string;
   linkedinApiVersion: string;
-  /** Ask for the Company Page scopes too (needs LinkedIn's Community Management API product). */
-  linkedinOrgScopes?: boolean;
+  /** LinkedIn personal profile publishing (default on). */
+  linkedinPersonalEnabled?: boolean;
+  /** LinkedIn Company Page publishing: off until LinkedIn approves the Community Management API. */
+  linkedinOrgEnabled?: boolean;
+  /** Credentials of the application approved for Community Management; the personal application's are used when absent. */
+  linkedinOrgClientId?: string;
+  linkedinOrgClientSecret?: string;
   timeoutMs?: number;
 }

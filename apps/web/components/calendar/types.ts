@@ -47,6 +47,7 @@ export interface Entry {
     approvedVersion: number | null;
     rejectionReason: string | null;
     mediaIds: string[];
+    platformOptions?: { tiktok?: Record<string, unknown> } | null;
   } | null;
   conflicts: Conflict[];
 }

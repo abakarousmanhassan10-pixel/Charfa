@@ -71,3 +71,15 @@ When a create request may have reached the platform but the answer was lost (tim
 Sources: Facebook `published_posts`; Instagram `/{ig}/media`; TikTok `status/fetch` by publish id, then `video/list` (needs `video.list`); YouTube uploads playlist (1 quota unit); LinkedIn `GET /rest/posts?q=author` (needs a restricted read permission, otherwise UNAVAILABLE). Matching uses the exact composed text and the time window since the attempt began.
 
 Triggers: `POST /api/v1/social/publications/:id/reconcile` (permission `publication.schedule`), the dashboard's **Check the platform** button, and the social worker (at most 3 attempts, 15 minutes apart, only while the result is NOT_FOUND/UNAVAILABLE). Fields: `reconcileResult`, `reconcileNote`, `reconcileAttempts`, `reconciledAt`, `reconciledFound`. Audit events: `social.reconciled_found`, `social.reconciled_uncertain`.
+
+## TikTok posting settings and gating
+
+TikTok posts need the creator's own choices before anything is sent (see `SOCIAL-INTEGRATIONS.md`). They are stored with the content (`PUT /calendar/entries/:id/tiktok-settings`, permission `content.write`; body: `privacyLevel`, `allowComment`, `allowDuet`, `allowStitch`, `commercial {enabled, yourBrand, brandedContent}`, `consent`). The server stamps `confirmedAt`/`confirmedById`. Rules (`checkTikTokSettings`, shared by the screen, the API and the adapter): visibility required with no default; branded content cannot be private; a disclosure needs a type; duet/stitch are video only; consent required. A change is a content change: approval and authorization are withdrawn (`REVOKED` approval record) and the content returns to DRAFT. `submit`, `authorize` and `publish-now` answer `422 TIKTOK_SETTINGS_REQUIRED` while the settings are incomplete, and the adapter's validation fails a publication whose settings were removed afterwards (`CONTENT_INVALID`, nothing sent). `GET /social/accounts/:id/tiktok/creator-info` returns the live creator information for the screen.
+
+## Visibility reported by the platform
+When a platform publishes with less visibility than requested, the outcome carries a `notice` stored as `Publication.visibilityNote` and shown in *Social → History* ("Not public: …"). Today: YouTube uploads returned as `private` (API project not audited). The publication is still recorded as published (the platform created it and issued an id) but it is never presented as public.
+
+## Unknown outcomes: additional rules
+- A platform answer that says the content **already exists** (LinkedIn `DUPLICATE_POST`) is an unknown outcome, not a failure: reconcile, never auto-retry.
+- After the worker's third automatic reconciliation (NOT_FOUND/UNAVAILABLE), the authorizer is notified once (`social.reconcile_needs_decision`, dedupe key per publication) that a person must decide.
+- Instagram's publishing quota is read before a container is created; a full quota is a `RATE_LIMITED` retry (not a failed attempt).

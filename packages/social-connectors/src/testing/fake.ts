@@ -2,10 +2,10 @@ import { randomBytes } from 'crypto';
 import { validateAgainstLimits, composeText } from '../validate';
 import { matchCandidates, unavailable } from '../reconcile';
 import {
-  EMPTY_METRICS, SocialApiError, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type Platform, type PlatformAdapter, type PublishableContent, type PublishContext,
+  EMPTY_METRICS, SocialApiError, type ConnectionVariant, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type Platform, type PlatformAdapter, type PublishableContent, type PublishContext,
   type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenInspection, type TokenSet,
 } from '../types';
-import { SOCIAL_PLATFORMS, PLATFORM_CAPABILITIES } from '@touma/shared';
+import { SOCIAL_PLATFORMS, PLATFORM_CAPABILITIES, checkTikTokSettings, type TikTokCreatorInfo } from '@touma/shared';
 
 /**
  * TEST-ONLY platform simulator (SOCIAL_PROVIDER_MODE=fake, refused unless APP_ENV=test).
@@ -33,7 +33,13 @@ export class FakeSocialHub {
   tokenLifetimeMs: number | null = 3_600_000;
   /** Access tokens the platform rejects (expired or revoked). */
   rejectedTokens = new Set<string>();
+  /** Platforms that publish with less visibility than requested, with the notice they report (for example an unaudited YouTube project). */
+  restrictedVisibility: Partial<Record<Platform, string>> = {};
+  /** Simulated LinkedIn approval state: organization publishing is off until a test switches it on. */
+  linkedinOrgEnabled = false;
   metrics = new Map<string, Metrics>();
+  /** What the simulated TikTok creator_info/query returns (an unaudited app typically offers only SELF_ONLY). */
+  creatorInfo: TikTokCreatorInfo = { nickname: 'Test Creator', username: 'testcreator', avatarUrl: null, privacyOptions: ['PUBLIC_TO_EVERYONE', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'], commentDisabled: false, duetDisabled: false, stitchDisabled: false, maxVideoPostDurationSec: 600 };
   private scripts = new Map<string, Scripted[]>();
   private seq = 0;
   /** Resume state per idempotency key, like a platform-side container. */
@@ -46,6 +52,9 @@ export class FakeSocialHub {
     this.tokenLifetimeMs = 3_600_000;
     this.rejectedTokens.clear();
     this.metrics.clear();
+    this.linkedinOrgEnabled = false;
+    this.restrictedVisibility = {};
+    this.creatorInfo = { nickname: 'Test Creator', username: 'testcreator', avatarUrl: null, privacyOptions: ['PUBLIC_TO_EVERYONE', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'], commentDisabled: false, duetDisabled: false, stitchDisabled: false, maxVideoPostDurationSec: 600 };
     this.scripts.clear();
     this.containers.clear();
   }
@@ -120,9 +129,20 @@ export class FakeAdapter implements PlatformAdapter {
     return { accessToken: this.hub.id('fresh-token-'), refreshToken: t.refreshToken, expiresAt: this.hub.tokenLifetimeMs ? new Date(Date.now() + this.hub.tokenLifetimeMs) : null, scopes: t.scopes };
   }
 
-  async listAccounts(t: TokenSet): Promise<CandidateAccount[]> {
-    this.hub.calls.push({ platform: this.platform, op: 'list', accessToken: t.accessToken });
+  variants(): ConnectionVariant[] {
+    if (this.platform !== 'LINKEDIN') return undefined as unknown as ConnectionVariant[];
+    return [
+      { id: 'personal', accountType: 'PROFILE', enabled: true, configured: true, missingConfiguration: [], scopes: ['w_member_social'], reason: null },
+      { id: 'organization', accountType: 'ORGANIZATION', enabled: this.hub.linkedinOrgEnabled, configured: true, missingConfiguration: [], scopes: ['w_organization_social'], reason: this.hub.linkedinOrgEnabled ? null : 'Organization (Company Page) publishing is disabled until LinkedIn approves the Community Management API for the TOUMA application.' },
+    ];
+  }
+
+  async listAccounts(t: TokenSet, opts: { variant?: string } = {}): Promise<CandidateAccount[]> {
+    this.hub.calls.push({ platform: this.platform, op: 'list', accessToken: t.accessToken, detail: { variant: opts.variant ?? null } });
     this.fail('list');
+    if (this.platform === 'LINKEDIN' && opts.variant === 'organization') {
+      return [1, 2].map((i) => ({ externalAccountId: `urn:li:organization:${i}`, displayName: `Company Page ${i}`, username: null, avatarUrl: null, accountType: 'ORGANIZATION', tokens: { accessToken: `org-token-${i}`, refreshToken: `org-refresh-${i}`, expiresAt: null, scopes: ['w_organization_social'] }, scopesGranted: ['w_organization_social'], permissionsMissing: [], metadata: {} }));
+    }
     return (this.hub.accounts[this.platform] ?? this.hub.defaultAccounts(this.platform)).map((a) => ({ ...a, tokens: { ...a.tokens, expiresAt: a.tokens.expiresAt ?? (this.supportsRefresh && this.hub.tokenLifetimeMs ? new Date(Date.now() + this.hub.tokenLifetimeMs) : null) } }));
   }
 
@@ -135,7 +155,18 @@ export class FakeAdapter implements PlatformAdapter {
   }
 
   validate(c: PublishableContent) {
-    return validateAgainstLimits(this.platform, c);
+    const issues = validateAgainstLimits(this.platform, c);
+    if (this.platform === 'TIKTOK') {
+      const check = checkTikTokSettings(c.tiktok, c.kind);
+      if (!check.ok) for (const e of check.errors) issues.push({ code: 'CONTENT_INVALID', message: `TikTok posting settings: ${e.message}` });
+    }
+    return issues;
+  }
+
+  async creatorInfo(a: AuthorizedAccount): Promise<TikTokCreatorInfo> {
+    this.hub.calls.push({ platform: this.platform, op: 'creator_info', accessToken: a.tokens.accessToken });
+    this.guard(a);
+    return this.hub.creatorInfo;
   }
 
   private guard(a: AuthorizedAccount) {
@@ -143,10 +174,13 @@ export class FakeAdapter implements PlatformAdapter {
   }
 
   async publish(a: AuthorizedAccount, c: PublishableContent, ctx: PublishContext): Promise<PublishOutcome> {
-    this.hub.calls.push({ platform: this.platform, op: 'publish', idempotencyKey: ctx.idempotencyKey, kind: c.kind, mediaUrls: c.media.map((m) => m.url), accessToken: a.tokens.accessToken, detail: { resume: ctx.resume ?? null, caption: c.caption, surface: c.surface, accountId: a.externalAccountId, hashtags: c.hashtags } });
+    this.hub.calls.push({ platform: this.platform, op: 'publish', idempotencyKey: ctx.idempotencyKey, kind: c.kind, mediaUrls: c.media.map((m) => m.url), accessToken: a.tokens.accessToken, detail: { resume: ctx.resume ?? null, caption: c.caption, surface: c.surface, accountId: a.externalAccountId, hashtags: c.hashtags, tiktok: c.tiktok ?? null } });
     this.guard(a);
     const first = this.hub.next(this.platform, 'publish');
     if (first instanceof SocialApiError) throw first; // refused before anything was created
+    if (this.platform === 'TIKTOK' && c.tiktok && !this.hub.creatorInfo.privacyOptions.includes(c.tiktok.privacyLevel)) {
+      throw new SocialApiError('validation', `The visibility "${c.tiktok.privacyLevel}" is not available for this TikTok account any more.`, { outcome: 'not_created' });
+    }
     const needsContainer = this.platform === 'INSTAGRAM' || this.platform === 'TIKTOK';
     if (needsContainer && !ctx.resume) {
       const ref = this.hub.id('container-');
@@ -161,7 +195,7 @@ export class FakeAdapter implements PlatformAdapter {
     this.hub.posts.push({ platform: this.platform, id, key: ctx.idempotencyKey, accountId: a.externalAccountId, content: c, at: new Date() });
     void existing;
     if (typeof first === 'object' && 'createThen' in first) throw first.createThen; // created, but the answer was lost
-    return { status: 'PUBLISHED', externalPostId: id, url: `https://fake-platform.test/${this.platform}/${id}` };
+    return { status: 'PUBLISHED', externalPostId: id, url: `https://fake-platform.test/${this.platform}/${id}`, notice: this.hub.restrictedVisibility[this.platform] ?? null };
   }
 
   async status(a: AuthorizedAccount, ref: string): Promise<StatusOutcome> {

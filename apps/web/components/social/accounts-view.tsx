@@ -55,12 +55,12 @@ export function AccountsView() {
     };
   }, [connectId, active, t]);
 
-  async function start(platform: Platform, reconnectAccountId?: string) {
+  async function start(platform: Platform, reconnectAccountId?: string, variant?: string) {
     if (!active) return;
     setBusy(platform);
     setError(null);
     try {
-      const res = await api<{ authorizationUrl: string }>(`/social/connections/${platform.toLowerCase()}/start`, { method: 'POST', json: reconnectAccountId ? { reconnectAccountId } : {}, businessId: active.id });
+      const res = await api<{ authorizationUrl: string }>(`/social/connections/${platform.toLowerCase()}/start`, { method: 'POST', json: { ...(reconnectAccountId ? { reconnectAccountId } : {}), ...(variant ? { variant } : {}) }, businessId: active.id });
       window.location.assign(res.authorizationUrl);
     } catch (e) {
       setBusy(null);
@@ -131,7 +131,23 @@ export function AccountsView() {
                       <p className="flex items-center justify-between font-semibold"><PlatformLabel platform={p} />{count > 0 && <Badge variant="success">{t('social.accounts.connectedCount', { count })}</Badge>}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{t(`social.platformNote.${p}`)}</p>
                     </div>
-                    {info?.configured ? (
+                    {info?.variants ? (
+                      <div className="grid gap-3" data-testid="variants">
+                        {info.variants.map((v) => (
+                          <div key={v.id} className="grid gap-1 rounded-lg border p-3" data-testid="variant" data-variant={v.id} data-enabled={v.enabled ? 'true' : 'false'}>
+                            <p className="text-sm font-medium">{t(`social.variants.${p}.${v.id}.title`)}</p>
+                            <p className="text-xs text-muted-foreground">{t(`social.variants.${p}.${v.id}.note`)}</p>
+                            {!v.enabled ? (
+                              <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs" data-testid="variant-disabled">{t(`social.variants.${p}.${v.id}.disabled`)}</p>
+                            ) : !v.configured ? (
+                              <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs" data-testid="not-configured">{t('social.accounts.notConfigured')}{manage && v.missingConfiguration.length > 0 && <span className="mt-1 block font-mono text-[11px]">{v.missingConfiguration.join(', ')}</span>}</p>
+                            ) : manage ? (
+                              <Button size="sm" onClick={() => void start(p, undefined, v.id)} disabled={busy === p} data-testid="connect-button" data-variant={v.id}>{busy === p ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Plug className="h-4 w-4" aria-hidden />}{t(`social.variants.${p}.${v.id}.connect`)}</Button>
+                            ) : <p className="text-xs text-muted-foreground">{t('social.accounts.needsManager')}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    ) : info?.configured ? (
                       manage ? <Button onClick={() => void start(p)} disabled={busy === p} data-testid="connect-button">{busy === p ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Plug className="h-4 w-4" aria-hidden />}{count > 0 ? t('social.accounts.addAnother') : t('social.accounts.connect')}</Button>
                         : <p className="text-xs text-muted-foreground">{t('social.accounts.needsManager')}</p>
                     ) : (
@@ -172,7 +188,7 @@ export function AccountsView() {
                   </div>
                   {manage && (
                     <div className="flex flex-wrap gap-2 sm:justify-end">
-                      {(a.status !== 'CONNECTED' || a.tokenState === 'EXPIRING') && <Button size="sm" onClick={() => void start(a.platform, a.id)} disabled={busy === a.platform} data-testid="reconnect-button"><Plug className="h-4 w-4" aria-hidden />{t('social.accounts.reconnect')}</Button>}
+                      {(a.status !== 'CONNECTED' || a.tokenState === 'EXPIRING') && <Button size="sm" onClick={() => void start(a.platform, a.id, a.accountType === 'ORGANIZATION' ? 'organization' : undefined)} disabled={busy === a.platform} data-testid="reconnect-button"><Plug className="h-4 w-4" aria-hidden />{t('social.accounts.reconnect')}</Button>}
                       {a.canRefresh && a.status === 'CONNECTED' && <Button size="sm" variant="outline" onClick={() => void act(a, 'refresh')} disabled={busy === a.id} data-testid="refresh-button">{busy === a.id ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}{t('social.accounts.refresh')}</Button>}
                       {a.status !== 'DISCONNECTED' && <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDisconnecting(a)} data-testid="disconnect-button">{t('social.accounts.disconnect')}</Button>}
                     </div>
