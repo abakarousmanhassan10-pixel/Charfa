@@ -9,6 +9,8 @@ import { AiCoreModule } from './ai/ai.module';
 import { AiWorkerService } from './ai/ai-worker.service';
 import { CalendarCoreModule } from './calendar/calendar.module';
 import { CalendarWorkerService } from './calendar/calendar-worker.service';
+import { SocialCoreModule } from './social/social.module';
+import { SocialWorkerService } from './social/social-worker.service';
 import { CreativeCoreModule } from './creative/creative.module';
 import { CreativeWorkerService } from './creative/creative-worker.service';
 import { StorageModule } from './storage/storage.module';
@@ -22,7 +24,7 @@ import { PrismaModule } from './prisma/prisma.module';
  */
 async function main() {
   const env = loadEnv();
-  @Module({ imports: [EnvModule.forRoot(env), PrismaModule, AuditModule, StorageModule, AiCoreModule, CreativeCoreModule, CalendarCoreModule] })
+  @Module({ imports: [EnvModule.forRoot(env), PrismaModule, AuditModule, StorageModule, AiCoreModule, CreativeCoreModule, CalendarCoreModule, SocialCoreModule] })
   class AiWorkerRootModule {}
 
   const app = await NestFactory.createApplicationContext(AiWorkerRootModule, { logger: ['log', 'warn', 'error'] });
@@ -30,12 +32,14 @@ async function main() {
   const worker = app.get(AiWorkerService);
   const creativeWorker = app.get(CreativeWorkerService);
   const calendarWorker = app.get(CalendarWorkerService);
+  const socialWorker = app.get(SocialWorkerService);
   // Both workers run in this process, whatever AI_WORKER_INLINE says (start() is idempotent).
   await worker.start();
   await creativeWorker.start();
   await calendarWorker.start();
+  await socialWorker.start();
   const health = createServer((req, res) => {
-    const ok = worker.running && creativeWorker.running && calendarWorker.running;
+    const ok = worker.running && creativeWorker.running && calendarWorker.running && socialWorker.running;
     res.writeHead(req.url === '/health' ? (ok ? 200 : 503) : 404, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ status: ok ? 'ok' : 'degraded' }));
   }).listen(env.AI_WORKER_HEALTH_PORT);

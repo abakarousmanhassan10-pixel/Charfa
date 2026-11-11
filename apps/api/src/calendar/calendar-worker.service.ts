@@ -7,6 +7,7 @@ import { bullConnection } from '../ai/ai-queue';
 import { AppEnv, InjectEnv } from '../config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { CalendarResultsService } from './calendar-results.service';
 import { CALENDAR_QUEUE, CALENDAR_WORKER_HEARTBEAT_KEY, CalendarQueueService, type CalendarJobData } from './calendar-queue';
 import { PUBLISHING_GATEWAY, type PublishingGateway } from './publishing';
 
@@ -36,6 +37,7 @@ export class CalendarWorkerService implements OnApplicationBootstrap, OnApplicat
     private readonly queue: CalendarQueueService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    private readonly results: CalendarResultsService,
     @Inject(PUBLISHING_GATEWAY) private readonly gateway: PublishingGateway,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
@@ -195,9 +197,10 @@ export class CalendarWorkerService implements OnApplicationBootstrap, OnApplicat
       outcome = { status: 'REJECTED' as const, code: 'PUBLISHER_ERROR', message: (err as Error).message.slice(0, 300), retryable: true };
     }
     if (outcome.status === 'ACCEPTED') {
+      // Conditional: the publisher may already have finished (published or failed) before this runs. Never overwrite its result.
       await this.prisma.$transaction([
-        this.prisma.calendarEvent.updateMany({ where: { id: e.id, dispatchKey: job.data.dispatchKey }, data: { dispatchState: 'DISPATCHED', dispatchedAt: new Date(), lockedUntil: null, lastError: null } }),
-        this.prisma.content.update({ where: { id: c.id }, data: { status: 'PUBLISHING' } }),
+        this.prisma.calendarEvent.updateMany({ where: { id: e.id, dispatchKey: job.data.dispatchKey, dispatchState: 'DISPATCHING' }, data: { dispatchState: 'DISPATCHED', dispatchedAt: new Date(), lockedUntil: null, lastError: null } }),
+        this.prisma.content.updateMany({ where: { id: c.id, status: 'SCHEDULED' }, data: { status: 'PUBLISHING' } }),
       ]);
       await this.audit.record({ action: 'calendar.dispatched', actorId: null, businessId: e.businessId, entityType: 'CalendarEvent', entityId: e.id, metadata: { dispatchKey: job.data.dispatchKey, publisher: this.gateway.name, reference: outcome.reference } });
       return;
@@ -224,35 +227,16 @@ export class CalendarWorkerService implements OnApplicationBootstrap, OnApplicat
 
   /** Final failure: the entry becomes FAILED and the people who can reschedule it are told. */
   private async fail(entryId: string, code: string, message: string) {
-    const e = await this.prisma.calendarEvent.findUnique({ where: { id: entryId }, select: { id: true, businessId: true, title: true, contentId: true, authorizedById: true, platform: true, scheduledAt: true } });
-    if (!e) return;
-    const res = await this.prisma.calendarEvent.updateMany({ where: { id: e.id, dispatchState: { in: ['QUEUED', 'DISPATCHING', 'DISPATCHED'] } }, data: { dispatchState: 'FAILED', lastError: `${code}: ${message}`.slice(0, 500), lockedUntil: null } });
-    if (!res.count) return;
-    if (e.contentId) await this.prisma.content.updateMany({ where: { id: e.contentId, status: { in: ['SCHEDULED', 'PUBLISHING'] } }, data: { status: 'FAILED' } });
-    await this.audit.record({ action: 'calendar.dispatch_failed', actorId: null, businessId: e.businessId, entityType: 'CalendarEvent', entityId: e.id, metadata: { code, message: message.slice(0, 300) } });
-    await this.notifications.notify({
-      businessId: e.businessId, permission: 'publication.schedule', userIds: e.authorizedById ? [e.authorizedById] : [], type: 'calendar.failed', title: `Publication failed: ${e.title}`, body: message.slice(0, 300),
-      data: { entryId: e.id, entryTitle: e.title, platform: e.platform, code }, dedupeKey: `failed:${e.id}:${e.scheduledAt.getTime()}:${code}`,
-    });
+    await this.results.recordFailed(entryId, { code, message });
   }
 
-  // ─── Results reported by the publisher (Phase 6) ────────────────────────────
+  // ─── Results reported by the publisher ─────────────────────────────────────
 
-  /** The publisher confirms, from a provider response, that the post exists. Idempotent. */
-  async recordPublished(entryId: string, r: { publishedAt?: Date; externalUrl?: string; publicationId?: string }) {
-    const e = await this.prisma.calendarEvent.findUnique({ where: { id: entryId }, select: { id: true, businessId: true, contentId: true, dispatchState: true } });
-    if (!e?.contentId) return { ok: false as const, reason: 'NOT_FOUND' };
-    const res = await this.prisma.content.updateMany({ where: { id: e.contentId, status: { in: ['PUBLISHING', 'SCHEDULED'] } }, data: { status: 'PUBLISHED' } });
-    if (res.count) {
-      await this.prisma.calendarEvent.update({ where: { id: e.id }, data: { dispatchState: 'DISPATCHED', status: 'DONE', lastError: null } });
-      await this.audit.record({ action: 'calendar.published', actorId: null, businessId: e.businessId, entityType: 'CalendarEvent', entityId: e.id, metadata: { publishedAt: (r.publishedAt ?? new Date()).toISOString(), externalUrl: r.externalUrl, publicationId: r.publicationId } });
-    }
-    return { ok: true as const, changed: res.count > 0 };
+  recordPublished(entryId: string, r: { publishedAt?: Date; externalUrl?: string | null; publicationId?: string; manual?: boolean }) {
+    return this.results.recordPublished(entryId, r);
   }
 
-  /** The publisher reports a final failure. Idempotent. */
-  async recordFailed(entryId: string, f: { code: string; message: string }) {
-    await this.fail(entryId, f.code, f.message);
-    return { ok: true as const };
+  recordFailed(entryId: string, f: { code: string; message: string }) {
+    return this.results.recordFailed(entryId, f);
   }
 }

@@ -1,6 +1,7 @@
 import { AI_WORKER_HEARTBEAT_KEY } from '../ai/ai-queue';
 import { CREATIVE_WORKER_HEARTBEAT_KEY } from '../creative/creative-queue';
 import { CALENDAR_WORKER_HEARTBEAT_KEY } from '../calendar/calendar-queue';
+import { SOCIAL_WORKER_HEARTBEAT_KEY } from '../social/social-queue';
 import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
 import { StorageHealthService } from '../storage/storage.module';
 import { EmailService } from '../email/email.service';
@@ -78,7 +79,7 @@ export class HealthController {
       return beat ? { state: Date.now() - Number(beat) < 90_000 ? 'up' : 'stale', lastHeartbeat: new Date(Number(beat)).toISOString() } : { state: 'unknown', lastHeartbeat: null };
     };
     // The AI worker consumes generation jobs; without it accepted jobs wait in the queue.
-    const [worker, aiWorker, creativeWorker, calendarWorker] = await Promise.all([read('touma:worker:heartbeat'), read(AI_WORKER_HEARTBEAT_KEY), read(CREATIVE_WORKER_HEARTBEAT_KEY), read(CALENDAR_WORKER_HEARTBEAT_KEY)]);
-    return { storage, email: smtp, malwareScanner: scanner, worker, aiWorker, creativeWorker, calendarWorker };
+    const [worker, aiWorker, creativeWorker, calendarWorker, socialWorker] = await Promise.all([read('touma:worker:heartbeat'), read(AI_WORKER_HEARTBEAT_KEY), read(CREATIVE_WORKER_HEARTBEAT_KEY), read(CALENDAR_WORKER_HEARTBEAT_KEY), read(SOCIAL_WORKER_HEARTBEAT_KEY)]);
+    return { storage, email: smtp, malwareScanner: scanner, worker, aiWorker, creativeWorker, calendarWorker, socialWorker };
   }
 }

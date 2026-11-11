@@ -442,7 +442,7 @@ describe('Calendar (e2e)', () => {
       const res = await request(h.http).get('/api/v1/calendar/overview').set(as(owner)).expect(200);
       expect(res.body.timezone).toBe('Africa/Ndjamena');
       expect(res.body.counts.total).toBeGreaterThan(0);
-      expect(res.body.publishing).toEqual({ available: false });
+      expect(res.body.publishing).toEqual({ available: true }); // the platform simulator is configured in tests
       expect(res.body.pendingApprovals).toBeGreaterThanOrEqual(1);
       const approvals = await request(h.http).get('/api/v1/calendar/approvals').set(as(admin)).expect(200);
       expect(approvals.body.items.every((i: Entry) => i.status === 'IN_REVIEW')).toBe(true);

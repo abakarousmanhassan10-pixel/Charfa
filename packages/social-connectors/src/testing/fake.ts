@@ -1,0 +1,187 @@
+import { randomBytes } from 'crypto';
+import { validateAgainstLimits } from '../validate';
+import {
+  EMPTY_METRICS, SocialApiError, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type Platform, type PlatformAdapter, type PublishableContent, type PublishContext,
+  type PublishOutcome, type StatusOutcome, type TokenInspection, type TokenSet,
+} from '../types';
+import { SOCIAL_PLATFORMS, PLATFORM_CAPABILITIES } from '@touma/shared';
+
+/**
+ * TEST-ONLY platform simulator (SOCIAL_PROVIDER_MODE=fake, refused unless APP_ENV=test).
+ * It never talks to a network. Tests script its behavior and read back what was "sent"; nothing it does is evidence
+ * about a real platform.
+ */
+export type Step = 'exchange' | 'refresh' | 'list' | 'publish' | 'status' | 'metrics';
+export type Scripted = SocialApiError | 'ok' | 'processing' | { createThen: SocialApiError };
+
+export interface FakeCall {
+  platform: Platform;
+  op: string;
+  idempotencyKey?: string;
+  kind?: string;
+  mediaUrls?: string[];
+  accessToken?: string;
+  detail?: Record<string, unknown>;
+}
+
+export class FakeSocialHub {
+  calls: FakeCall[] = [];
+  /** Posts that exist on the "platform". */
+  posts: Array<{ platform: Platform; id: string; key: string; accountId: string; content: PublishableContent; at: Date }> = [];
+  accounts: Partial<Record<Platform, CandidateAccount[]>> = {};
+  tokenLifetimeMs: number | null = 3_600_000;
+  /** Access tokens the platform rejects (expired or revoked). */
+  rejectedTokens = new Set<string>();
+  metrics = new Map<string, Metrics>();
+  private scripts = new Map<string, Scripted[]>();
+  private seq = 0;
+  /** Resume state per idempotency key, like a platform-side container. */
+  containers = new Map<string, string>();
+
+  reset() {
+    this.calls = [];
+    this.posts = [];
+    this.accounts = {};
+    this.tokenLifetimeMs = 3_600_000;
+    this.rejectedTokens.clear();
+    this.metrics.clear();
+    this.scripts.clear();
+    this.containers.clear();
+  }
+
+  script(platform: Platform | '*', step: Step, ...outcomes: Scripted[]) {
+    const k = `${platform}:${step}`;
+    this.scripts.set(k, [...(this.scripts.get(k) ?? []), ...outcomes]);
+  }
+
+  next(platform: Platform, step: Step): Scripted {
+    return this.scripts.get(`${platform}:${step}`)?.shift() ?? this.scripts.get(`*:${step}`)?.shift() ?? 'ok';
+  }
+
+  id(prefix: string) {
+    this.seq += 1;
+    return `${prefix}${this.seq}${randomBytes(2).toString('hex')}`;
+  }
+
+  count(platform: Platform, op: string) {
+    return this.calls.filter((c) => c.platform === platform && c.op === op).length;
+  }
+
+  defaultAccounts(platform: Platform): CandidateAccount[] {
+    const type = { FACEBOOK: 'PAGE', INSTAGRAM: 'INSTAGRAM_BUSINESS', TIKTOK: 'CREATOR', YOUTUBE: 'CHANNEL', LINKEDIN: 'PROFILE' }[platform];
+    return [1, 2].map((i) => ({
+      externalAccountId: `${platform.toLowerCase()}-acc-${i}`, displayName: `${PLATFORM_CAPABILITIES[platform].label} account ${i}`, username: `acc${i}`, avatarUrl: null, accountType: type,
+      parentExternalId: platform === 'INSTAGRAM' ? `page-${i}` : null, tokens: { accessToken: `${platform}-token-${i}`, refreshToken: platform === 'FACEBOOK' || platform === 'INSTAGRAM' ? null : `${platform}-refresh-${i}`, expiresAt: null, scopes: ['all'] },
+      scopesGranted: ['all'], permissionsMissing: [], metadata: {},
+    }));
+  }
+}
+
+export class FakeAdapter implements PlatformAdapter {
+  readonly requiredScopes = ['all'] as const;
+  readonly refreshLeadMs: number;
+  readonly supportsRefresh: boolean;
+  constructor(readonly platform: Platform, private readonly hub: FakeSocialHub) {
+    this.supportsRefresh = platform !== 'FACEBOOK' && platform !== 'INSTAGRAM';
+    this.refreshLeadMs = platform === 'YOUTUBE' ? 10 * 60_000 : 2 * 3_600_000;
+  }
+
+  missingConfiguration() {
+    return [];
+  }
+  isConfigured() {
+    return true;
+  }
+
+  private fail(step: Step) {
+    const s = this.hub.next(this.platform, step);
+    if (s instanceof SocialApiError) throw s;
+    return s;
+  }
+
+  buildAuthorizationUrl(p: { state: string; redirectUri: string }): OAuthStart {
+    this.hub.calls.push({ platform: this.platform, op: 'authorize', detail: { redirectUri: p.redirectUri } });
+    return { url: `https://fake-platform.test/${this.platform}/authorize?state=${p.state}`, codeVerifier: 'fake-verifier' };
+  }
+
+  async exchangeCode(p: { code: string; codeVerifier?: string | null }): Promise<TokenSet> {
+    this.hub.calls.push({ platform: this.platform, op: 'exchange', detail: { code: p.code, verifier: p.codeVerifier ?? null } });
+    this.fail('exchange');
+    if (p.code !== 'valid-code') throw new SocialApiError('validation', 'The authorization code is invalid or was already used', { outcome: 'not_created' });
+    return { accessToken: this.hub.id('user-token-'), refreshToken: this.supportsRefresh ? this.hub.id('user-refresh-') : null, expiresAt: this.hub.tokenLifetimeMs ? new Date(Date.now() + this.hub.tokenLifetimeMs) : null, scopes: ['all'] };
+  }
+
+  async refresh(t: TokenSet): Promise<TokenSet> {
+    this.hub.calls.push({ platform: this.platform, op: 'refresh', accessToken: t.accessToken });
+    if (!this.supportsRefresh) throw new SocialApiError('unsupported', 'This platform cannot refresh tokens', { outcome: 'not_created' });
+    this.fail('refresh');
+    if (!t.refreshToken) throw new SocialApiError('auth', 'no refresh token', { outcome: 'not_created' });
+    return { accessToken: this.hub.id('fresh-token-'), refreshToken: t.refreshToken, expiresAt: this.hub.tokenLifetimeMs ? new Date(Date.now() + this.hub.tokenLifetimeMs) : null, scopes: t.scopes };
+  }
+
+  async listAccounts(t: TokenSet): Promise<CandidateAccount[]> {
+    this.hub.calls.push({ platform: this.platform, op: 'list', accessToken: t.accessToken });
+    this.fail('list');
+    return (this.hub.accounts[this.platform] ?? this.hub.defaultAccounts(this.platform)).map((a) => ({ ...a, tokens: { ...a.tokens, expiresAt: a.tokens.expiresAt ?? (this.supportsRefresh && this.hub.tokenLifetimeMs ? new Date(Date.now() + this.hub.tokenLifetimeMs) : null) } }));
+  }
+
+  async inspectToken(t: TokenSet): Promise<TokenInspection> {
+    return { valid: !this.hub.rejectedTokens.has(t.accessToken), expiresAt: t.expiresAt ?? null };
+  }
+
+  async revoke(t: TokenSet) {
+    this.hub.calls.push({ platform: this.platform, op: 'revoke', accessToken: t.accessToken });
+  }
+
+  validate(c: PublishableContent) {
+    return validateAgainstLimits(this.platform, c);
+  }
+
+  private guard(a: AuthorizedAccount) {
+    if (this.hub.rejectedTokens.has(a.tokens.accessToken)) throw new SocialApiError('auth', 'The access token is no longer valid', { status: 401, outcome: 'not_created' });
+  }
+
+  async publish(a: AuthorizedAccount, c: PublishableContent, ctx: PublishContext): Promise<PublishOutcome> {
+    this.hub.calls.push({ platform: this.platform, op: 'publish', idempotencyKey: ctx.idempotencyKey, kind: c.kind, mediaUrls: c.media.map((m) => m.url), accessToken: a.tokens.accessToken, detail: { resume: ctx.resume ?? null, caption: c.caption, surface: c.surface, accountId: a.externalAccountId, hashtags: c.hashtags } });
+    this.guard(a);
+    const first = this.hub.next(this.platform, 'publish');
+    if (first instanceof SocialApiError) throw first; // refused before anything was created
+    const needsContainer = this.platform === 'INSTAGRAM' || this.platform === 'TIKTOK';
+    if (needsContainer && !ctx.resume) {
+      const ref = this.hub.id('container-');
+      this.hub.containers.set(ctx.idempotencyKey, ref);
+      await ctx.checkpoint('CONTAINER', ref);
+      if (first === 'processing') return { status: 'PROCESSING', ref, stage: 'CONTAINER', retryAfterMs: 1 };
+    }
+    await ctx.beforeCreate();
+    const existing = this.hub.posts.find((p) => p.key === ctx.idempotencyKey);
+    // A real platform would happily create a second post; the simulator does too, so tests can detect duplicates.
+    const id = this.hub.id(`${this.platform.toLowerCase()}-post-`);
+    this.hub.posts.push({ platform: this.platform, id, key: ctx.idempotencyKey, accountId: a.externalAccountId, content: c, at: new Date() });
+    void existing;
+    if (typeof first === 'object' && 'createThen' in first) throw first.createThen; // created, but the answer was lost
+    return { status: 'PUBLISHED', externalPostId: id, url: `https://fake-platform.test/${this.platform}/${id}` };
+  }
+
+  async status(a: AuthorizedAccount, ref: string): Promise<StatusOutcome> {
+    this.hub.calls.push({ platform: this.platform, op: 'status', accessToken: a.tokens.accessToken, detail: { ref } });
+    this.guard(a);
+    const s = this.hub.next(this.platform, 'status');
+    if (s instanceof SocialApiError) throw s;
+    if (s === 'processing') return { status: 'PROCESSING', ref, stage: 'CONTAINER', retryAfterMs: 1 };
+    // ready: the engine continues with publish()
+    return { status: 'PROCESSING', ref, stage: 'CONTAINER', retryAfterMs: 0 };
+  }
+
+  async fetchMetrics(a: AuthorizedAccount, postId: string): Promise<Metrics> {
+    this.hub.calls.push({ platform: this.platform, op: 'metrics', accessToken: a.tokens.accessToken, detail: { postId } });
+    this.guard(a);
+    const s = this.hub.next(this.platform, 'metrics');
+    if (s instanceof SocialApiError) throw s;
+    return this.hub.metrics.get(postId) ?? { ...EMPTY_METRICS, likes: 0, comments: 2, unavailableReason: 'Reach and impressions are not provided for this post.' };
+  }
+}
+
+export function createFakeAdapters(hub: FakeSocialHub): Record<Platform, PlatformAdapter> {
+  return Object.fromEntries(SOCIAL_PLATFORMS.map((p) => [p, new FakeAdapter(p, hub)])) as unknown as Record<Platform, PlatformAdapter>;
+}

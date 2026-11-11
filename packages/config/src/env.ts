@@ -121,6 +121,38 @@ export const appEnvSchema = z.object({
   /** A dispatch claim older than this is considered abandoned (worker crash) and is released. */
   CALENDAR_LOCK_SECONDS: z.coerce.number().int().min(1).default(120),
   CALENDAR_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
+  // ── Social platforms. Credentials come from each platform's developer portal and are server-side secrets. ──
+  /** live (default): official platform APIs. fake: deterministic TEST-ONLY providers, refused unless APP_ENV=test. */
+  SOCIAL_PROVIDER_MODE: z.enum(['live', 'fake']).default('live'),
+  /** The public https base URL of this API, used for OAuth redirect URIs, webhooks and media URLs that platforms download from. */
+  PUBLIC_API_URL: z.string().url().optional(),
+  META_APP_ID: z.string().optional(),
+  META_APP_SECRET: z.string().optional(),
+  META_GRAPH_VERSION: z.string().regex(/^v\d+\.\d+$/).default('v21.0'),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().min(16).optional(),
+  TIKTOK_CLIENT_KEY: z.string().optional(),
+  TIKTOK_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  LINKEDIN_CLIENT_ID: z.string().optional(),
+  LINKEDIN_CLIENT_SECRET: z.string().optional(),
+  /** LinkedIn REST API version header (YYYYMM). */
+  LINKEDIN_API_VERSION: z.string().regex(/^\d{6}$/).default('202411'),
+  /** Ask LinkedIn for the Company Page scopes (needs the Community Management API product). */
+  LINKEDIN_ORG_SCOPES: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
+  SOCIAL_STATE_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
+  /** Tokens that expire within this many hours are refreshed in the background. */
+  SOCIAL_TOKEN_REFRESH_AHEAD_HOURS: z.coerce.number().int().min(1).max(720).default(24),
+  /** People are warned this many days before a token that cannot be refreshed expires. */
+  SOCIAL_TOKEN_WARN_DAYS: z.coerce.number().int().min(1).max(60).default(7),
+  SOCIAL_PUBLISH_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  SOCIAL_PUBLISH_BACKOFF_MS: z.coerce.number().int().min(10).default(10_000),
+  SOCIAL_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(3),
+  /** How often the social worker refreshes tokens, polls in-flight publications and collects metrics, in ms. */
+  SOCIAL_TICK_MS: z.coerce.number().int().min(20).default(30_000),
+  /** An in-flight publication that the platform has not finished after this many minutes is failed (its outcome stays unknown if it may exist). */
+  SOCIAL_PROCESSING_TIMEOUT_MINUTES: z.coerce.number().int().min(1).max(240).default(30),
+  SOCIAL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   /** Per-model prices (JSON, USD): {"gpt-image-1":{"perImageUsd":0.04},"sora-2":{"perSecondUsd":0.1}}. Unset = cost reported as unknown. */
   CREATIVE_MODEL_PRICING: z
     .string()
@@ -221,6 +253,9 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
   if (env.AI_PROVIDER === 'fake' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['AI_PROVIDER=fake is only allowed when APP_ENV=test']);
   }
+  if (env.SOCIAL_PROVIDER_MODE === 'fake' && env.APP_ENV !== 'test') {
+    throw new EnvValidationError(['SOCIAL_PROVIDER_MODE=fake is only allowed when APP_ENV=test']);
+  }
   if ((env.IMAGE_PROVIDER === 'fake' || env.VIDEO_PROVIDER === 'fake') && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['IMAGE_PROVIDER=fake and VIDEO_PROVIDER=fake are only allowed when APP_ENV=test']);
   }
@@ -263,6 +298,10 @@ export function productionProblems(env: AppEnv): string[] {
   if (env.MALWARE_SCANNER === 'none' && !env.ALLOW_UNSCANNED_UPLOADS) p.push('MALWARE_SCANNER must be clamav (or set ALLOW_UNSCANNED_UPLOADS=true to accept the risk explicitly)');
   if (env.RATE_LIMIT_STORE !== 'redis') p.push('RATE_LIMIT_STORE must be redis');
   if (env.AI_PROVIDER === 'fake') p.push('AI_PROVIDER=fake is test-only');
+  if (env.SOCIAL_PROVIDER_MODE === 'fake') p.push('SOCIAL_PROVIDER_MODE=fake is test-only');
+  const socialConfigured = Boolean(env.META_APP_ID || env.TIKTOK_CLIENT_KEY || env.GOOGLE_CLIENT_ID || env.LINKEDIN_CLIENT_ID);
+  if (socialConfigured && !env.PUBLIC_API_URL) p.push('PUBLIC_API_URL is required when a social platform is configured (OAuth redirect URIs, webhooks and media URLs)');
+  if (env.PUBLIC_API_URL && !https(env.PUBLIC_API_URL)) p.push('PUBLIC_API_URL must use https');
   if (env.IMAGE_PROVIDER === 'fake' || env.VIDEO_PROVIDER === 'fake') p.push('IMAGE_PROVIDER/VIDEO_PROVIDER=fake are test-only');
   return p;
 }

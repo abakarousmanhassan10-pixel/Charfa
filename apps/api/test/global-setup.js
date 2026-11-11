@@ -9,7 +9,7 @@ module.exports = async () => {
   const keys = await redis.keys('touma:rl:*');
   if (keys.length) await redis.del(...keys);
   // Jobs left in the AI queue by an interrupted run must not leak into this one.
-  const queued = [...(await redis.keys('bull:touma.ai:*')), ...(await redis.keys('bull:touma.creative:*')), ...(await redis.keys('bull:touma.calendar:*'))];
+  const queued = [...(await redis.keys('bull:touma.ai:*')), ...(await redis.keys('bull:touma.creative:*')), ...(await redis.keys('bull:touma.calendar:*')), ...(await redis.keys('bull:touma.social:*'))];
   if (queued.length) await redis.del(...queued);
   await redis.quit();
   // Apply migrations exactly as production would (migrate deploy), against the test database.

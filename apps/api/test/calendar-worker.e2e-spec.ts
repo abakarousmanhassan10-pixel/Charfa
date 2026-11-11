@@ -7,6 +7,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { as, type Ctx } from './ai-helpers';
 import { calendarHelpers, type Entry } from './calendar-helpers';
 import { CalendarQueueService } from '../src/calendar/calendar-queue';
+import { CalendarResultsService } from '../src/calendar/calendar-results.service';
 import { CalendarWorkerService } from '../src/calendar/calendar-worker.service';
 import { PUBLISHING_GATEWAY, type PublishingGateway, type PublishingOutcome, type PublishingRequest } from '../src/calendar/publishing';
 import { prisma, resetDb, startApp } from './helpers';
@@ -114,7 +115,7 @@ describe('Calendar scheduler (e2e)', () => {
     await settle(e.id, ['DISPATCHED']);
     expect(calls.filter((c) => c.entryId === e.id)).toHaveLength(1);
     // A second worker process: same database, same queue.
-    const other = new CalendarWorkerService(app.get(PrismaService), queue, app.get(NotificationsService), app.get(AuditService), gateway, loadEnv());
+    const other = new CalendarWorkerService(app.get(PrismaService), queue, app.get(NotificationsService), app.get(AuditService), app.get(CalendarResultsService), gateway, loadEnv());
     const e2 = await due();
     const more = await Promise.all([worker.tick(), other.tick(), worker.tick(), other.tick()]);
     expect(more.reduce((a, r) => a + r.handed, 0)).toBe(1);

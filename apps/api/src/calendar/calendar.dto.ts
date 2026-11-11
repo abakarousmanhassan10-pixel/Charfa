@@ -1,11 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
-import { AI_LANGUAGES, AI_PLATFORMS, AI_TONES, CALENDAR_LIMITS, CONTENT_PILLARS, DATE_RE, ENTRY_STATUSES, RECURRENCE_FREQUENCIES, TIME_RE } from '@touma/shared';
+import { AI_LANGUAGES, AI_PLATFORMS, AI_TONES, SOCIAL_PLATFORMS, CALENDAR_LIMITS, CONTENT_PILLARS, DATE_RE, ENTRY_STATUSES, RECURRENCE_FREQUENCIES, TIME_RE } from '@touma/shared';
 import { ID_REGEX } from '../common/validators';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() || undefined : value);
-const PLATFORMS = AI_PLATFORMS as unknown as string[];
+const PLATFORMS = SOCIAL_PLATFORMS as unknown as string[];
+const AI_PLATFORM_LIST = AI_PLATFORMS as unknown as string[];
 const CONTENT_TYPES = ['TEXT', 'IMAGE', 'VIDEO', 'CAROUSEL'];
 
 class TimeFields {
@@ -23,7 +24,7 @@ export class CreateEntryDto extends TimeFields {
   @ApiProperty({ maxLength: CALENDAR_LIMITS.titleMax }) @Transform(trim) @IsString() @MinLength(1) @MaxLength(CALENDAR_LIMITS.titleMax)
   title: string;
 
-  @ApiProperty({ enum: AI_PLATFORMS }) @IsIn(PLATFORMS)
+  @ApiProperty({ enum: SOCIAL_PLATFORMS }) @IsIn(PLATFORMS)
   platform: string;
 
   @ApiPropertyOptional({ enum: CONTENT_PILLARS }) @IsOptional() @IsIn(CONTENT_PILLARS as unknown as string[])
@@ -132,7 +133,7 @@ export class RangeQueryDto {
 }
 
 export class RecommendQueryDto {
-  @ApiProperty({ enum: AI_PLATFORMS }) @IsIn(PLATFORMS)
+  @ApiProperty({ enum: SOCIAL_PLATFORMS }) @IsIn(PLATFORMS)
   platform: string;
 
   @ApiProperty({ example: '2026-12-01' }) @Matches(DATE_RE)
@@ -168,7 +169,7 @@ export class CreatePlanDto {
   @ApiPropertyOptional({ default: 5 }) @IsOptional() @Type(() => Number) @IsInt() @Min(CALENDAR_LIMITS.postsPerWeekMin) @Max(CALENDAR_LIMITS.postsPerWeekMax)
   postsPerWeek: number = 5;
 
-  @ApiProperty({ enum: AI_PLATFORMS, isArray: true }) @IsArray() @ArrayMinSize(1) @ArrayUnique() @ArrayMaxSize(4) @IsIn(PLATFORMS, { each: true })
+  @ApiProperty({ enum: AI_PLATFORMS, isArray: true }) @IsArray() @ArrayMinSize(1) @ArrayUnique() @ArrayMaxSize(4) @IsIn(AI_PLATFORM_LIST, { each: true })
   platforms: string[];
 
   @ApiPropertyOptional({ enum: AI_LANGUAGES, description: 'Default: the business language' }) @IsOptional() @IsIn(AI_LANGUAGES as unknown as string[])
@@ -197,7 +198,7 @@ export class CreateRecurrenceDto {
   @ApiProperty() @Transform(trim) @IsString() @MinLength(1) @MaxLength(CALENDAR_LIMITS.titleMax)
   title: string;
 
-  @ApiProperty({ enum: AI_PLATFORMS }) @IsIn(PLATFORMS)
+  @ApiProperty({ enum: SOCIAL_PLATFORMS }) @IsIn(PLATFORMS)
   platform: string;
 
   @ApiPropertyOptional() @IsOptional() @Transform(trim) @IsString() @MaxLength(CALENDAR_LIMITS.briefMax)

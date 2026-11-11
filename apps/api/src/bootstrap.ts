@@ -29,6 +29,8 @@ export async function createApp(env: AppEnv, opts: { logger?: false } = {}): Pro
   const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(env), {
     logger: opts.logger === false ? false : ['error', 'warn', 'log'],
     bufferLogs: false,
+    // Webhook signatures are computed over the exact bytes the platform sent.
+    rawBody: true,
   });
 
   app.set('trust proxy', 1);

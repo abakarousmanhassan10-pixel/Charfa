@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { SocialPlatform } from '@touma/database';
@@ -11,6 +11,8 @@ import {
   ApplyPlanDto, ApprovalsQueryDto, AuthorizeDto, CreateEntryDto, CreatePlanDto, CreateRecurrenceDto, DecisionDto, RangeQueryDto, RecommendQueryDto, RejectDto, RescheduleDto, UpdateEntryDto, UseContentDto,
 } from './calendar.dto';
 import { CalendarService } from './calendar.service';
+import { CalendarWorkerService } from './calendar-worker.service';
+import { SetEntryAccountDto } from '../social/social.dto';
 import { PlanService } from './plan.service';
 import { RecurrenceService } from './recurrence.service';
 
@@ -25,6 +27,7 @@ export class CalendarController {
     private readonly calendar: CalendarService,
     private readonly plans: PlanService,
     private readonly recurrences: RecurrenceService,
+    private readonly worker: CalendarWorkerService,
   ) {}
 
   @Get('overview')
@@ -115,6 +118,23 @@ export class CalendarController {
   @RequireTenantPermission('publication.schedule')
   authorize(@Tenant() tenant: TenantContext, @Param('id') id: string, @Body() dto: AuthorizeDto) {
     return this.calendar.authorize(tenant, id, dto.acknowledgeConflicts);
+  }
+
+  @Post('entries/:id/publish-now')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Publish immediately: explicit authorization of the approved version, handed to the publisher straight away' })
+  @RequireTenantPermission('publication.schedule')
+  async publishNow(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    const entry = await this.calendar.publishNow(tenant, id);
+    void this.worker.tick().catch(() => undefined);
+    return entry;
+  }
+
+  @Put('entries/:id/account')
+  @ApiOperation({ summary: 'Choose the connected account this entry publishes to' })
+  @RequireTenantPermission('content.write')
+  setAccount(@Tenant() tenant: TenantContext, @Param('id') id: string, @Body() dto: SetEntryAccountDto) {
+    return this.calendar.setAccount(tenant, id, dto.socialAccountId);
   }
 
   @Post('entries/:id/unschedule')

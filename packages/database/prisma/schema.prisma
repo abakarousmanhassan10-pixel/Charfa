@@ -97,6 +97,7 @@ enum SocialPlatform {
   FACEBOOK
   TIKTOK
   YOUTUBE
+  LINKEDIN
 }
 
 enum SocialAccountStatus {
@@ -477,13 +478,13 @@ model Business {
   updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
   deletedAt         DateTime?    @db.Timestamptz(3)
 
-  logo                MediaAsset?          @relation("BusinessLogo", fields: [logoMediaId], references: [id], onDelete: SetNull)
+  logo                MediaAsset?               @relation("BusinessLogo", fields: [logoMediaId], references: [id], onDelete: SetNull)
   memberships         Membership[]
   products            Product[]
   services            Service[]
   socialAccounts      SocialAccount[]
   contents            Content[]
-  mediaAssets         MediaAsset[]         @relation("BusinessMedia")
+  mediaAssets         MediaAsset[]              @relation("BusinessMedia")
   calendarEvents      CalendarEvent[]
   publications        Publication[]
   conversations       Conversation[]
@@ -503,6 +504,7 @@ model Business {
   contentPlans        ContentPlan[]
   recurrenceRules     RecurrenceRule[]
   approvalRecords     ApprovalRecord[]
+  socialSessions      SocialConnectionSession[]
   creativeGenerations CreativeGeneration[]
 
   @@index([deletedAt])
@@ -680,6 +682,18 @@ model SocialAccount {
   capabilities      Json? // provider-reported capabilities, e.g. { canPublishVideo: true }
   lastSyncedAt      DateTime?           @db.Timestamptz(3)
   lastError         String?
+  /// PAGE, INSTAGRAM_BUSINESS, CHANNEL, PROFILE, ORGANIZATION, CREATOR. Not a secret.
+  accountType       String?
+  /// The parent object when there is one (for example the Facebook Page an Instagram account is linked to).
+  parentExternalId  String?
+  connectedAt       DateTime?           @db.Timestamptz(3)
+  tokenRefreshedAt  DateTime?           @db.Timestamptz(3)
+  refreshFailures   Int                 @default(0)
+  lastRefreshError  String?
+  /// Set when the "token is about to expire" warning was sent for the current expiry.
+  expiryWarnedFor   DateTime?           @db.Timestamptz(3)
+  /// Non-secret provider details (permissions the platform reported as granted or declined).
+  metadata          Json?
   connectedById     String?
   createdAt         DateTime            @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime            @updatedAt @db.Timestamptz(3)
@@ -690,6 +704,7 @@ model SocialAccount {
   conversations      Conversation[]
   comments           Comment[]
   analyticsSnapshots AnalyticsSnapshot[]
+  calendarEvents     CalendarEvent[]
 
   @@unique([businessId, platform, externalAccountId])
   @@index([businessId, platform])
@@ -822,6 +837,8 @@ model CalendarEvent {
   occasion          String?
   planId            String?
   recurrenceId      String?
+  /// The connected account this entry publishes to (default: the only connected account of the platform).
+  socialAccountId   String?
   /// Local date (YYYY-MM-DD) of a recurrence occurrence; unique per rule so materialising twice is harmless.
   occurrenceDate    String?
   timeSource        TimeSource          @default(MANUAL)
@@ -845,12 +862,13 @@ model CalendarEvent {
   updatedAt         DateTime            @updatedAt @db.Timestamptz(3)
   deletedAt         DateTime?           @db.Timestamptz(3)
 
-  business     Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  content      Content?         @relation(fields: [contentId], references: [id], onDelete: SetNull)
-  plan         ContentPlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
-  recurrence   RecurrenceRule?  @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
-  publications Publication[]
-  approvals    ApprovalRecord[]
+  business      Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  content       Content?         @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  plan          ContentPlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  recurrence    RecurrenceRule?  @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+  socialAccount SocialAccount?   @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  publications  Publication[]
+  approvals     ApprovalRecord[]
 
   @@unique([recurrenceId, occurrenceDate])
   @@index([businessId, scheduledAt])
@@ -860,6 +878,32 @@ model CalendarEvent {
 }
 
 /// A reviewed AI 30-day plan that was applied to the calendar.
+/// A pending OAuth connection: from the redirect to the platform until the person has chosen which accounts to connect.
+/// Only a hash of the state is stored; tokens and the PKCE verifier are encrypted.
+model SocialConnectionSession {
+  id                 String         @id @default(cuid())
+  businessId         String
+  userId             String
+  platform           SocialPlatform
+  stateHash          String         @unique
+  codeVerifierEnc    String?
+  /// When set, this connection renews an existing account instead of adding one.
+  reconnectAccountId String?
+  /// PENDING_AUTH → AWAITING_SELECTION → COMPLETED, or FAILED / EXPIRED.
+  status             String         @default("PENDING_AUTH")
+  /// Accounts the person can connect: public details plus the encrypted tokens of each.
+  candidates         Json?
+  error              String?
+  expiresAt          DateTime       @db.Timestamptz(3)
+  createdAt          DateTime       @default(now()) @db.Timestamptz(3)
+  completedAt        DateTime?      @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, status])
+  @@index([expiresAt])
+}
+
 model ContentPlan {
   id           String   @id @default(cuid())
   businessId   String
@@ -932,29 +976,44 @@ model ApprovalRecord {
 /// One publication attempt-set of a content item to one social account.
 /// idempotencyKey guarantees the same content is never published twice to the same account for the same slot.
 model Publication {
-  id               String            @id @default(cuid())
-  businessId       String
-  contentId        String
-  socialAccountId  String
-  calendarEventId  String?
-  platform         SocialPlatform
-  mode             PublishMode       @default(API)
-  status           PublicationStatus @default(PENDING)
-  scheduledAt      DateTime          @db.Timestamptz(3)
-  timezone         String
-  idempotencyKey   String            @unique
-  jobId            String?
-  attempts         Int               @default(0)
-  lockedUntil      DateTime?         @db.Timestamptz(3)
+  id                  String            @id @default(cuid())
+  businessId          String
+  contentId           String
+  socialAccountId     String
+  calendarEventId     String?
+  platform            SocialPlatform
+  mode                PublishMode       @default(API)
+  status              PublicationStatus @default(PENDING)
+  scheduledAt         DateTime          @db.Timestamptz(3)
+  timezone            String
+  idempotencyKey      String            @unique
+  jobId               String?
+  attempts            Int               @default(0)
+  lockedUntil         DateTime?         @db.Timestamptz(3)
   /// Set only from a provider response. Presence = provider confirmed the post exists.
-  externalPostId   String?
-  externalUrl      String?
-  providerResponse Json?
-  lastError        String?
-  publishedAt      DateTime?         @db.Timestamptz(3)
-  cancelledAt      DateTime?         @db.Timestamptz(3)
-  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  externalPostId      String?
+  externalUrl         String?
+  providerResponse    Json?
+  lastError           String?
+  errorCode           String?
+  /// Provider-side handle of an in-flight step (media container id, upload session id, publish id).
+  providerRef         String?
+  /// The last step that was completed at the provider; a retry resumes after it instead of starting over.
+  providerStage       String?
+  /// Set just before the request that creates the post is sent. A crash after this point with no external id means the outcome is unknown.
+  submitStartedAt     DateTime?         @db.Timestamptz(3)
+  /// True when the post may or may not exist on the platform. Never retried automatically.
+  outcomeUnknown      Boolean           @default(false)
+  /// True only when the platform itself confirmed the post.
+  confirmedByProvider Boolean           @default(false)
+  manualCompletedById String?
+  /// What was sent: caption, hashtags, format and media ids at the time of publication.
+  payload             Json?
+  nextCheckAt         DateTime?         @db.Timestamptz(3)
+  publishedAt         DateTime?         @db.Timestamptz(3)
+  cancelledAt         DateTime?         @db.Timestamptz(3)
+  createdAt           DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime          @updatedAt @db.Timestamptz(3)
 
   business           Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
   content            Content             @relation(fields: [contentId], references: [id], onDelete: Cascade)
@@ -967,6 +1026,7 @@ model Publication {
   @@index([businessId, status])
   @@index([status, scheduledAt])
   @@index([contentId])
+  @@index([status, nextCheckAt])
 }
 
 // ─────────────────────────────── Inbox ───────────────────────────────

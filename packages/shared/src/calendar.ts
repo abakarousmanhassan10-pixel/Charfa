@@ -1,4 +1,4 @@
-import type { AiPlatform } from './ai';
+import type { SocialPlatformId } from './social';
 
 /** Content calendar vocabularies and scheduling rules, shared by the API and the web app. */
 export const CONTENT_PILLARS = ['PROMOTIONAL', 'EDUCATIONAL', 'PRODUCT_SHOWCASE', 'ENGAGEMENT', 'BRAND_AWARENESS', 'SEASONAL'] as const;
@@ -44,11 +44,12 @@ interface PlatformRule {
   estimate: { weekday: string[]; weekend: string[] };
 }
 
-export const PLATFORM_RULES: Record<AiPlatform, PlatformRule> = {
+export const PLATFORM_RULES: Record<SocialPlatformId, PlatformRule> = {
   INSTAGRAM: { minGapMinutes: 180, maxPerDay: 2, estimate: { weekday: ['12:00', '18:00', '20:00'], weekend: ['10:00', '19:00'] } },
   FACEBOOK: { minGapMinutes: 180, maxPerDay: 2, estimate: { weekday: ['09:00', '13:00', '19:00'], weekend: ['10:00', '18:00'] } },
   TIKTOK: { minGapMinutes: 120, maxPerDay: 3, estimate: { weekday: ['18:00', '20:00', '21:00'], weekend: ['11:00', '19:00'] } },
   YOUTUBE: { minGapMinutes: 360, maxPerDay: 1, estimate: { weekday: ['15:00', '17:00'], weekend: ['11:00', '16:00'] } },
+  LINKEDIN: { minGapMinutes: 240, maxPerDay: 1, estimate: { weekday: ['08:00', '12:00', '17:00'], weekend: ['10:00'] } },
 };
 
 /** Minimum number of published posts with measured engagement before analytics drive a recommendation. */

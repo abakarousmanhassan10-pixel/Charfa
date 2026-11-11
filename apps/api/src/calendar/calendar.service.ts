@@ -1,16 +1,18 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { checkGrounding, type BusinessContext } from '@touma/ai-engine';
 import { Prisma, type CalendarEvent, type Content, type SocialPlatform } from '@touma/database';
 import {
   AI_LANGUAGES, CALENDAR_LIMITS, PLATFORM_RULES, addDays, diffDays, isValidDate, localDayRange, roleHasPermission, todayIn, utcToZoned, zonedToUtc,
   type AiPlatform, type ContentPillar, type TimeSource,
 } from '@touma/shared';
+import { Inject } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TenantContext } from '../tenancy/tenant-context';
 import type { CreateEntryDto, RangeQueryDto, UpdateEntryDto } from './calendar.dto';
+import { PUBLISHING_GATEWAY, type PublishingGateway } from './publishing';
 import { SchedulingService, type Conflict } from './scheduling.service';
 
 type EventWithContent = CalendarEvent & { content: (Content & { media: Array<{ mediaId: string; position: number }> }) | null };
@@ -72,6 +74,7 @@ export class CalendarService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly knowledge: KnowledgeService,
+    @Inject(PUBLISHING_GATEWAY) private readonly gateway: PublishingGateway,
   ) {}
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -196,6 +199,7 @@ export class CalendarService {
       timeNote: e.timeNote,
       planId: e.planId,
       recurrenceId: e.recurrenceId,
+      socialAccountId: e.socialAccountId,
       authorizedAt: e.authorizedAt?.toISOString() ?? null,
       authorizedById: e.authorizedById,
       dispatchState: e.dispatchState,
@@ -586,9 +590,10 @@ export class CalendarService {
       if (c.status !== 'FAILED') throw new ConflictException({ code: 'INVALID_STATE', message: 'Only a failed entry can be retried' });
       if (c.approvedVersion !== c.version) throw new ConflictException({ code: 'APPROVAL_REQUIRED', message: 'The content changed after approval' });
       const hasTime = dto.scheduledAt || dto.localDate;
-      const time = hasTime ? await this.resolveTime(tx, { businessId: tenant.businessId, platform: e.platform!, timezone: bt.timezone, ...dto }) : { at: e.scheduledAt, source: e.timeSource as TimeSource, note: e.timeNote };
+      // Without a new time the retry is immediate ("try again now"); with one, the usual rules apply.
+      const time = hasTime ? await this.resolveTime(tx, { businessId: tenant.businessId, platform: e.platform!, timezone: bt.timezone, ...dto }) : { at: new Date(), source: 'MANUAL' as TimeSource, note: 'Retry' };
       const conflicts = await this.scheduling.detect(tx, { businessId: tenant.businessId, platform: e.platform!, scheduledAt: time.at, timezone: bt.timezone, contentId: e.contentId, excludeEventId: e.id });
-      this.enforce(conflicts.filter((x) => x.code !== 'ACCOUNT_NOT_CONNECTED'), dto.acknowledgeConflicts);
+      this.enforce(conflicts.filter((x) => x.code !== 'ACCOUNT_NOT_CONNECTED' && (hasTime || (x.code !== 'PAST_TIME' && x.code !== 'SLOT_TOO_CLOSE' && x.code !== 'DAILY_LIMIT'))), dto.acknowledgeConflicts);
       await tx.content.update({ where: { id: c.id }, data: { status: 'SCHEDULED' } });
       const updated = await tx.calendarEvent.update({
         where: { id: e.id },
@@ -613,6 +618,49 @@ export class CalendarService {
     });
     await this.audit.record({ action: 'calendar.entry_deleted', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id });
     return { deleted: true };
+  }
+
+
+  /** Chooses which connected account an entry publishes to (when a business has several for a platform). */
+  async setAccount(tenant: TenantContext, id: string, socialAccountId: string | null) {
+    const e = await this.load(tenant, id);
+    const status = CalendarService.status(e);
+    if (FINAL_STATUSES.includes(status)) throw new ConflictException({ code: 'INVALID_STATE', message: `A ${status} entry cannot change account` });
+    if (status === 'SCHEDULED') this.requirePermission(tenant, 'publication.schedule', 'Changing the account of an authorized publication needs the permission to schedule publications');
+    if (socialAccountId) {
+      const acc = await this.prisma.socialAccount.findFirst({ where: { id: socialAccountId, businessId: tenant.businessId, platform: e.platform ?? undefined, deletedAt: null, status: { not: 'DISCONNECTED' } } });
+      if (!acc) throw new NotFoundException({ code: 'ACCOUNT_NOT_FOUND', message: 'That account is not connected for this platform' });
+    }
+    await this.prisma.calendarEvent.update({ where: { id }, data: { socialAccountId } });
+    await this.audit.record({ action: 'calendar.account_set', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id, metadata: { socialAccountId } });
+    return this.get(tenant, id);
+  }
+
+  /**
+   * Publish immediately: the explicit authorization and the due time are the same moment. The content must already be approved in its
+   * current version. The scheduler hands it to the publisher on its next tick (the controller triggers one straight away).
+   */
+  async publishNow(tenant: TenantContext, id: string) {
+    if (!(await this.gateway.isAvailable())) throw new ServiceUnavailableException({ code: 'PUBLISHER_NOT_AVAILABLE', message: 'No social platform is configured for publishing on this server' });
+    const first = await this.load(tenant, id);
+    const out = await this.prisma.$transaction(async (tx) => {
+      await this.scheduling.lock(tx, tenant.businessId, first.platform ?? 'NONE');
+      const e = await this.load(tenant, id, tx);
+      const c = e.content!;
+      if (['SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'CANCELLED'].includes(c.status)) throw new ConflictException({ code: 'INVALID_STATE', message: `A ${c.status} entry cannot be published now` });
+      if (c.status !== 'APPROVED' || c.approvedVersion !== c.version || !c.approvedById) throw new ConflictException({ code: 'APPROVAL_REQUIRED', message: 'This content must be approved (in its current version) before it can be published' });
+      const res = await tx.content.updateMany({ where: { id: c.id, status: 'APPROVED', version: c.version, approvedVersion: c.version }, data: { status: 'SCHEDULED' } });
+      if (!res.count) throw new ConflictException({ code: 'INVALID_STATE', message: 'This entry was changed by someone else' });
+      const updated = await tx.calendarEvent.update({
+        where: { id: e.id },
+        data: { scheduledAt: new Date(), timeSource: 'MANUAL', timeNote: 'Publish now', authorizedById: tenant.userId, authorizedAt: new Date(), authorizedVersion: c.version, dispatchState: 'NONE', dispatchAttempts: 0, dispatchKey: null, lockedUntil: null, lastError: null, reminderSentAt: new Date() },
+        include: EVENT_INCLUDE,
+      });
+      await this.record(tx, tenant, e, 'AUTHORIZED', 'Publish now');
+      return updated as EventWithContent;
+    });
+    await this.audit.record({ action: 'calendar.authorized', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id, metadata: { version: out.authorizedVersion, publishNow: true } });
+    return this.toDto(out);
   }
 
   async recommendations(tenant: TenantContext, platform: SocialPlatform, date: string) {
@@ -648,7 +696,7 @@ export class CalendarService {
       conflicts: this.rangeConflicts(events).length,
       upcoming: events.filter((e) => e.scheduledAt.getTime() >= now && !['CANCELLED', 'REJECTED'].includes(CalendarService.status(e))).slice(0, 5).map((e) => this.toDto(e)),
       connectedPlatforms: [...new Set(accounts.map((a) => a.platform))],
-      publishing: { available: false },
+      publishing: { available: await this.gateway.isAvailable() },
     };
   }
 }

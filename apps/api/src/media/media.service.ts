@@ -531,6 +531,30 @@ export class MediaService {
     }
   }
 
+
+  /**
+   * Media of this business prepared for publishing: metadata plus a reader for platforms that need the bytes. Videos and images
+   * only, READY and not deleted. The public URL is built by the caller (it depends on the public API address).
+   */
+  async publishable(businessId: string, mediaIds: string[]) {
+    this.requireStorage();
+    const rows = await this.prisma.mediaAsset.findMany({ where: { id: { in: mediaIds }, businessId, deletedAt: null, status: 'READY', type: { in: ['IMAGE', 'VIDEO'] } } });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    return mediaIds.map((id) => {
+      const m = byId.get(id);
+      if (!m) throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'A media item is missing, deleted or not ready' });
+      return {
+        id: m.id, mimeType: m.mimeType, sizeBytes: Number(m.sizeBytes ?? 0), width: m.width, height: m.height, durationSeconds: m.durationSec === null ? null : Number(m.durationSec), altText: m.altText, relativeUrl: this.signer.url(m.id),
+        read: async () => {
+          const obj = await this.storage.get(m.storageKey);
+          const chunks: Buffer[] = [];
+          for await (const c of obj.body as AsyncIterable<Buffer>) chunks.push(Buffer.from(c));
+          return Buffer.concat(chunks);
+        },
+      };
+    });
+  }
+
   /** Removes AI-generated media of a business (failed or deleted generations): soft delete, then the durable deletion queue. */
   async removeGenerated(businessId: string, mediaIds: string[], reason: string) {
     if (!mediaIds.length) return;
