@@ -52,6 +52,11 @@ WebhookEvent (global, unique per provider + externalEventId)
 | AIGeneration | One AI request: task, params, user instructions, validated output, human-edited output, error, provider/model/prompt version, context hash, injection flags, tokens, cost, latency, attempts, regeneration parent, saved draft (`contentId`) | per-tenant indexes; reuse lookup `(businessId, task, itemId, contextHash)` |
 | AIUsage | One row per provider call (initial / provider-retry / repair) with tokens, cost, latency, success | linked to `AIGeneration` |
 | Notification, AuditLog, WebhookEvent | Platform | audit is append-only; webhooks idempotent |
+| AuthToken | Email-verification (24 h) and password-reset (30 min) tokens: SHA-256 hash only, single use (`usedAt`), bound to the email at issue time | `tokenHash` unique; older unused tokens of the same type are invalidated on re-issue; purged by the worker |
+| Invitation | Email invitation to a business with a role: hashed token, 7-day expiry, `acceptedAt/acceptedById`, `revokedAt`, resend counters | `tokenHash` unique; accepted only by a signed-in user with the same email |
+| StorageDeletion | Durable queue of object deletions (`storageKey`, attempts, `lastError`, `nextAttemptAt`, `completedAt`) | retried by the worker with exponential backoff (1 min doubling, max 6 h, 20 attempts) |
+
+`MediaAsset` also stores `thumbnailKey`/`thumbnailSizeBytes`, `originalSizeBytes` (before re-encoding) and the malware scan result (`scanStatus`, `scanEngine`, `scannedAt`). `Business.storageQuotaBytes` overrides the default `MEDIA_STORAGE_QUOTA_MB`.
 
 ## Tenant isolation at the data layer
 1. The API's `BusinessAccessGuard` turns `:businessId` into a verified `TenantContext` (ACTIVE membership in a non-deleted business).

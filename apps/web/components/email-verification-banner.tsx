@@ -12,7 +12,7 @@ export function EmailVerificationBanner() {
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'tooSoon' | 'error'>('idle');
   if (!user || user.emailVerified !== false) return null;
   return (
-    <div role="status" data-testid="verify-banner" className="mb-6 flex flex-wrap items-center gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+    <div role="note" data-testid="verify-banner" className="mb-6 flex flex-wrap items-center gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
       <MailWarning className="h-4 w-4 shrink-0" aria-hidden />
       <span className="flex-1">{t('account.unverified', { email: user.email })}</span>
       {state === 'sent' ? (

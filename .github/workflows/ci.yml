@@ -39,6 +39,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - name: Start clamd with the EICAR test signatures (real scanner for the malware tests)
+        run: |
+          sudo apt-get update && sudo apt-get install -y clamav-daemon netcat-openbsd
+          sudo systemctl stop clamav-daemon clamav-freshclam || true
+          infrastructure/clamav/start-test-clamd.sh
       - name: Verify migrations apply and match the schema
         working-directory: packages/database
         run: |
@@ -52,3 +58,75 @@ jobs:
       - run: pnpm test:e2e
       - run: npx playwright install --with-deps chromium
       - run: pnpm test:web-e2e
+
+  # Real S3-compatible round trip (upload, download, signed URL, delete, permissions) against MinIO.
+  # MinIO no longer publishes community images/binaries, so the pinned release is built from source.
+  real-storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: touma
+          POSTGRES_PASSWORD: touma_dev_password
+          POSTGRES_DB: touma_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U touma" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgresql://touma:touma_dev_password@localhost:5432/touma_test?schema=public
+      TEST_DATABASE_URL: postgresql://touma:touma_dev_password@localhost:5432/touma_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      STORAGE_DRIVER: s3
+      S3_PROVIDER: minio
+      S3_ENDPOINT: http://127.0.0.1:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: touma-ci
+      S3_ACCESS_KEY_ID: touma-ci-access
+      S3_SECRET_ACCESS_KEY: touma-ci-secret-key-0123456789
+      S3_AUTO_CREATE_BUCKET: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Build and start MinIO
+        run: |
+          go install github.com/minio/minio@RELEASE.2025-04-22T22-12-26Z
+          mkdir -p /tmp/minio-data
+          MINIO_ROOT_USER="$S3_ACCESS_KEY_ID" MINIO_ROOT_PASSWORD="$S3_SECRET_ACCESS_KEY" nohup "$(go env GOPATH)/bin/minio" server /tmp/minio-data --address 127.0.0.1:9000 > /tmp/minio.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:9000/minio/health/live && exit 0; sleep 1; done; cat /tmp/minio.log; exit 1
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: npx prisma migrate deploy
+        working-directory: packages/database
+      - run: pnpm turbo run build --filter=@touma/api...
+      - name: Storage round trip (exit 0 only if every step succeeded)
+        run: pnpm --filter @touma/api storage:check
+      - name: API media pipeline against real storage
+        run: pnpm --filter @touma/api test:real-storage
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build images (not pushed)
+        run: |
+          docker build -f infrastructure/docker/api.Dockerfile -t touma-api:ci .
+          docker build -f infrastructure/docker/worker.Dockerfile -t touma-worker:ci .
+          docker build -f infrastructure/docker/web.Dockerfile -t touma-web:ci .
+      - name: Production configuration is refused when insecure
+        run: |
+          if docker run --rm -e APP_ENV=production -e DATABASE_URL=postgresql://u:p@h/db -e REDIS_URL=redis://h -e JWT_ACCESS_SECRET=a-very-long-secret-value-0123456789abcd -e JWT_REFRESH_SECRET=a-very-long-secret-value-0123456789abcd -e TOKEN_ENCRYPTION_KEY=$(head -c32 /dev/urandom | base64) touma-api:ci; then
+            echo "API started with an insecure production configuration" >&2; exit 1
+          fi

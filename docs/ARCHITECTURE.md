@@ -61,14 +61,20 @@ Locales live in `packages/shared/src/i18n.ts`. The web app loads message catalog
 | `GET/POST /services`, `GET/PATCH/DELETE /services/:id` | `catalog.read` / `catalog.write` + `X-Business-Id` |
 | `GET/POST /product-categories`, `PATCH/DELETE …/:id`, `POST …/restore-defaults` (same for `/service-categories`) | `catalog.read` / `catalog.write` + `X-Business-Id` |
 | `POST /media` (multipart), `GET /media`, `GET /media/folders`, `GET/PATCH/DELETE /media/:id` | `media.read` / `media.write` + `X-Business-Id` |
-| `GET /media/:id/content?exp&sig` | public, HMAC-signed expiring URL |
+| `GET /media/usage` | `media.read` + `X-Business-Id` (used bytes, quota, file count) |
+| `GET /media/:id/content?exp&sig[&variant=thumb]` | public, HMAC-signed expiring URL (the variant is part of the signature) |
+| `POST /auth/email/verify`, `POST /auth/email/resend` (auth), `POST /auth/password/forgot`, `POST /auth/password/reset` | public / authenticated; auth throttle |
+| `GET/POST /businesses/:businessId/invitations`, `POST …/:id/resend`, `DELETE …/:id` | `members.manage` |
+| `POST /invitations/lookup` (public), `POST /invitations/accept` (authenticated, same email) | token in the body only |
 | `GET/POST /business-knowledge`, `GET /business-knowledge/summary`, `GET /business-knowledge/context`, `GET/PATCH/DELETE …/:id`, `POST …/:id/verify|unverify` | `knowledge.read` / `knowledge.write` / `knowledge.verify` + `X-Business-Id` |
 | `GET /health`, `/health/ready` | public |
 
 ## Frontend structure
 ```
 app/page.tsx                      Landing
-app/(auth)/login, register        Auth pages
+app/(auth)/login, register        Auth pages (both honour a same-origin ?next=)
+app/(auth)/forgot-password, reset-password, verify-email, invitations/accept
+                                  Email-link pages; tokens read from the URL fragment, then removed from the address bar
 app/(app)/layout.tsx              Protected shell: auth gate, onboarding redirect, sidebar + mobile drawer, business switcher
 app/(app)/onboarding              Create first/additional business
 app/(app)/dashboard               Welcome, business info, connected accounts, content overview, upcoming publications, user settings
@@ -83,15 +89,20 @@ Phase 2 resources use flat paths (`/products`, `/media`, …). The tenant is nam
 ## Media pipeline
 ```
 Browser ──multipart──► /api/v1/media (same-origin proxy)
-   API: stream to private temp file (hard size cap) → sniff magic bytes → declared type must equal sniffed type
-        → per-type size limit → image dimensions → SHA-256 → put to S3 under businesses/{businessId}/media/{random}.{ext}
-        → MediaAsset row (READY) → temp file removed
+   API: quota pre-check → stream to private temp file (hard size cap) → sniff magic bytes → declared type must equal sniffed type
+        → per-type size limit → clamd INSTREAM scan (fail closed) → images: sharp decode with pixel limit, auto-rotate,
+          re-encode in the same format without metadata + 480 px WebP thumbnail → quota check on final sizes
+        → SHA-256 → put original + thumbnail to S3 under businesses/{businessId}/media/{random}.{ext} and …/media/thumbs/
+        → MediaAsset row (READY, scanStatus) → temp file removed; any failure rolls back through the deletion queue
 Browser ◄── signed URL /api/v1/media/:id/content?exp&sig ◄── API streams from private bucket (Range supported)
 ```
 - The bucket is never public and storage credentials stay server-side. URLs are HMAC-SHA256 signatures (key derived with HKDF from `TOKEN_ENCRYPTION_KEY`) that expire after 1–2 × `MEDIA_URL_TTL_SECONDS`.
 - Served with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, and the stored (sniffed) Content-Type.
 - `ObjectStorage` interface: `S3ObjectStorage` (AWS S3, R2, MinIO) in every real environment, and `MemoryObjectStorage` only for automated tests (`STORAGE_DRIVER=memory`, which the env loader refuses unless `APP_ENV=test`).
 - Without S3 credentials, media endpoints answer `503 STORAGE_NOT_CONFIGURED`; nothing is simulated.
+- `packages/storage` holds the storage abstraction shared by the API and the worker, typed `StorageError`s (`not_found`, `access_denied`, `bucket_missing`, `unavailable`, `invalid_config`) and `verifyStorage()` (the real round trip used by `storage:check` and readiness).
+- Deleting media soft-deletes the row and queues the original and thumbnail in `StorageDeletion`; the worker's `storage-cleanup` job (every 10 min) retries failures with backoff.
+- Video files are validated, scanned and stored as uploaded: no transcoding or metadata stripping yet (no ffmpeg).
 
 ## AI knowledge boundary
 `KnowledgeService.buildAgentContext(tenant)` is the only way Phase 3 agents will get business facts. It takes a verified `TenantContext`, returns only VERIFIED knowledge plus ACTIVE products and services of that business, keeps unknowns explicit (`price: null`, `stock: "not tracked"`), and lists `missingInformation` so agents answer "I don't know" instead of inventing. `GET /business-knowledge/context` shows the business exactly what the AI will see.

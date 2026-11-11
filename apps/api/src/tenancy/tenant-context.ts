@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import type { BusinessRole, Permission } from '@touma/shared';
+import type { BusinessRole } from '@touma/shared';
 
 /**
  * Verified tenant scope for the current request, set ONLY by BusinessAccessGuard after the

@@ -27,7 +27,8 @@ export function detectInjection(text: string): string[] {
 export function sanitizeUntrusted(value: string, max = 10_000): string {
   return value
     .normalize('NFC')
-    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '')
+    // eslint-disable-next-line no-control-regex -- stripping control and bidi/zero-width characters is the point
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, '')
     .replace(/</g, '‹')
     .replace(/>/g, '›')
     .replace(/\n{4,}/g, '\n\n\n')

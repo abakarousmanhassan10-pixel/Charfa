@@ -9,7 +9,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
-    "lint": "turbo run lint",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:e2e": "pnpm --filter @touma/api test:e2e",
@@ -19,14 +19,21 @@
     "db:deploy": "pnpm --filter @touma/database db:deploy",
     "db:seed": "pnpm --filter @touma/database db:seed",
     "infra:up": "docker compose -f infrastructure/docker/docker-compose.yml up -d postgres redis minio",
-    "infra:down": "docker compose -f infrastructure/docker/docker-compose.yml down"
+    "infra:down": "docker compose -f infrastructure/docker/docker-compose.yml down",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "@next/eslint-plugin-next": "15.5.6",
     "@playwright/test": "1.63.0",
     "@types/node": "^22.10.0",
+    "eslint": "9.39.1",
+    "eslint-plugin-react-hooks": "7.0.1",
+    "globals": "16.5.0",
     "prettier": "^3.4.2",
     "turbo": "^2.5.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "typescript-eslint": "8.46.4"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

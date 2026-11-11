@@ -5,6 +5,8 @@ export interface StepReport {
   detail?: string;
 }
 
+// The output shape depends on the AI task; callers narrow it with the type parameter.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface Generation<T = any> {
   id: string;
   task: 'BUSINESS_ANALYSIS' | 'PRODUCT_ANALYSIS' | 'MARKETING_STRATEGY' | 'CONTENT';

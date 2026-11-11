@@ -6,7 +6,7 @@ TOUMA AI is the AI-powered marketing automation SaaS by **TOUMA**. It helps e-co
 
 > **Status: Phase 3 (TOUMA AI marketing engine) complete and tested.** Business and product analysis, marketing strategy and multilingual content generation with an orchestrator, strict output validation and token tracking (`docs/AI.md`).
 >
-> Phase 2 (Business & product management) complete and tested: Phase 1 delivered the foundation (auth, RBAC, tenant isolation, dashboard). Phase 2 adds businesses with logo and contacts, products, services, categories, a secure S3 media library and the business knowledge base for TOUMA AI. See [docs/phase-reports](docs/phase-reports) and [docs/ROADMAP.md](docs/ROADMAP.md).
+> Phase 2 (Business & product management) complete and tested: Phase 1 delivered the foundation (auth, RBAC, tenant isolation, dashboard). Phase 2 adds businesses with logo and contacts, products, services, categories, a secure S3 media library and the business knowledge base for TOUMA AI. Phase 2 hardening (media processing, malware scanning, email verification, password reset, invitations, distributed rate limiting): see [docs/phase-reports/PHASE-2-HARDENING.md](docs/phase-reports/PHASE-2-HARDENING.md). See [docs/phase-reports](docs/phase-reports) and [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Pages
 Landing · Registration · Login · Onboarding · Dashboard · `/dashboard/businesses` (+ `/new`, `/[id]`) · `/dashboard/products` (+ `/new`, `/[id]`) · `/dashboard/services` (+ `/new`, `/[id]`) · `/dashboard/categories` · `/dashboard/media` · `/dashboard/knowledge` · `/dashboard/ai` (+ `/business-analysis`, `/product-analysis`, `/marketing-strategy`, `/content-generator`, `/history`) · User profile
@@ -52,6 +52,8 @@ Full stack in Docker: `docker compose -f infrastructure/docker/docker-compose.ym
 pnpm test           # unit tests (all packages)
 pnpm test:e2e       # API integration tests against a real Postgres test DB
 pnpm test:web-e2e   # Playwright full-stack tests (build with API_URL=http://localhost:4100 first)
+pnpm lint           # ESLint (flat config, typescript-eslint, react-hooks, Next.js rules)
+pnpm --filter @touma/api storage:check   # real S3/R2/MinIO round trip with your S3_* variables
 ```
 
 See [docs/TESTING.md](docs/TESTING.md).

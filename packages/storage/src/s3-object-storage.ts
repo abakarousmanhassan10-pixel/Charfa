@@ -5,12 +5,12 @@ import {
   HeadBucketCommand,
   HeadObjectCommand,
   S3Client,
-  S3ServiceException,
+  type S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Readable } from 'stream';
-import { ObjectStorage, StorageError, StorageNotConfiguredError, StoredObject } from './object-storage';
+import { type ObjectStorage, StorageError, StorageNotConfiguredError, type StoredObject } from './object-storage';
 
 export type S3Provider = 'aws' | 'r2' | 'minio' | 'custom';
 

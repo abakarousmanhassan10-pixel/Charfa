@@ -39,7 +39,7 @@ describe('processPendingDeletions', () => {
   it('only selects due rows below the attempt cap', async () => {
     const { client } = prismaWith([]);
     await processPendingDeletions(client, new MemoryObjectStorage());
-    expect((client as any).storageDeletion.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ completedAt: null, attempts: { lt: MAX_DELETE_ATTEMPTS } }) }));
+    expect((client as unknown as { storageDeletion: { findMany: jest.Mock } }).storageDeletion.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ completedAt: null, attempts: { lt: MAX_DELETE_ATTEMPTS } }) }));
   });
 
   it('caps the backoff at 6 hours', () => {

@@ -1,5 +1,5 @@
 import { Readable } from 'stream';
-import { ObjectStorage, StorageError, StoredObject } from './object-storage';
+import { type ObjectStorage, StorageError, type StoredObject } from './object-storage';
 
 /**
  * TEST-ONLY storage driver (STORAGE_DRIVER=memory, accepted only with APP_ENV=test).

@@ -53,7 +53,8 @@ test('product lifecycle: create with photo, price and category, search, edit, de
   expect(src).toMatch(/^\/api\/v1\/media\/\w+\/content\?exp=\d+&sig=/);
   const img = await page.request.get(src!);
   expect(img.status()).toBe(200);
-  expect(img.headers()['content-type']).toBe('image/png');
+  // Grid previews use the re-encoded WebP thumbnail variant.
+  expect(img.headers()['content-type']).toBe('image/webp');
 
   await page.getByRole('link', { name: 'Products' }).first().click();
   const list = page.getByTestId('product-list');

@@ -94,7 +94,8 @@ test('user profile: update name, language and timezone', async ({ page }) => {
   await page.goto('/settings/profile');
   await page.getByLabel('Full name').fill('Fatimé Ali');
   await page.getByLabel('Timezone').selectOption('Europe/Paris');
-  await page.getByLabel('Language').first().selectOption('fr');
+  // The profile form's own selector (the header switcher also has the label "Language").
+  await page.locator('#profile-locale').selectOption('fr');
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByRole('heading', { name: 'Profil utilisateur' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr');

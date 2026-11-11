@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -22,5 +25,11 @@
     "ts-jest": "^29.2.5",
     "typescript": "^5.7.3"
   },
-  "jest": { "preset": "ts-jest", "testEnvironment": "node", "roots": ["<rootDir>/src"] }
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/src"
+    ]
+  }
 }

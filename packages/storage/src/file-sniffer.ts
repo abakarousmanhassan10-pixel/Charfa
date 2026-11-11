@@ -29,6 +29,7 @@ export function sanitizeFilename(name: string): string {
   const base = name.split(/[\\/]/).pop() ?? 'file';
   const cleaned = base
     .normalize('NFKC')
+    // eslint-disable-next-line no-control-regex -- control characters are removed from filenames on purpose
     .replace(/[\u0000-\u001f\u007f<>:"|?*]/g, '')
     .replace(/\s+/g, ' ')
     .trim()

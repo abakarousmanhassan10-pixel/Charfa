@@ -2,7 +2,7 @@
  * Idempotent seed: subscription plans only. No demo users, businesses or fake analytics.
  * Prices are configurable through env (PLAN_STARTER_PRICE etc.) and later via the admin UI.
  */
-import { PrismaClient, Prisma, PlanCode } from '@prisma/client';
+import { PrismaClient, Prisma, type PlanCode } from '@prisma/client';
 
 const prisma = new PrismaClient();
 

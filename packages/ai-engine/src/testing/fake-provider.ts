@@ -52,6 +52,8 @@ export const fakeErrors = {
 
 // ─── Deterministic default answers ────────────────────────────────────────────
 
+// Test-only parser of untyped prompt blocks.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function block(user: string, tag: string): any {
   const m = new RegExp(`<${tag}>\\n([\\s\\S]*?)\\n</${tag}>`).exec(user);
   return m ? JSON.parse(m[1]!) : null;

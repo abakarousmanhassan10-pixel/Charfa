@@ -5,7 +5,7 @@
 | Control | Implementation |
 |---|---|
 | Password storage | argon2id, OWASP parameters; strong-password policy (12+ chars, mixed case, digit) on both client and server |
-| Brute force | Per-IP rate limit on auth endpoints (Redis-ready throttler) + account lockout after 5 failures |
+| Brute force | Per-IP rate limit on auth endpoints, counted in Redis so the limit holds across API instances (atomic Lua fixed window; fails open with an error log if Redis is unreachable) + account lockout after 5 failures |
 | User enumeration | Same error and similar timing for unknown email and wrong password |
 | Sessions | Rotating refresh tokens, hashed at rest, family revocation on reuse (10 s re-issue grace for multi-tab/dropped responses, never after logout), server-side session check on each request, logout-all |
 | Authorization (RBAC) | `@RequirePermission` → `BusinessAccessGuard` checks the ACTIVE membership and role permission on every tenant route; role hierarchy and last-owner rules in the service; deny by default when no permission is declared |
@@ -26,12 +26,19 @@
 | AI cost control | Monthly generation/token limits per business checked before provider calls; per-client throttle; every provider call recorded |
 | Encryption at rest | `TokenCipher` AES-256-GCM (random IV, auth tag, versioned format) for OAuth tokens (used from Phase 6) |
 | Audit | `AuditLog` for register/login/failure/lockout/logout/reuse-detection/profile updates, business create/update/delete, membership role change/remove/leave, admin overview access; metadata is redacted automatically |
+| Email verification | 24 h single-use token (SHA-256 hashed at rest, bound to the address it was sent to), delivered only in the URL fragment (`#token=`) so it never reaches server logs or `Referer`; resend cooldown 60 s; required before inviting people |
+| Password reset | 30 min single-use hashed token; the response is identical whether the account exists or not (no enumeration); a successful reset revokes every session, clears lockout, sends a "password changed" notice and is audited |
+| Invitations | Random 32-byte token, hashed, 7-day expiry, single use (atomic claim in a transaction); accepted only by a signed-in user whose email equals the invited address (mismatch → 403 + audit); role comes only from the invitation and must be ≤ the inviter's (`ROLE_HIERARCHY`), never OWNER; max 50 pending, resend max 5 with cooldown and token rotation, revocable |
+| Media processing | Images are decoded and re-encoded with sharp (EXIF/GPS/ICC metadata stripped, orientation applied), so polyglot payloads and metadata don't survive; decoded-pixel limit (`MEDIA_MAX_IMAGE_PIXELS`) against decompression bombs; 480 px WebP thumbnails |
+| Malware scanning | Every upload is streamed to clamd (INSTREAM) before storage; infected → 422 + audit with signature name, nothing stored; scanner down → 503 (fail closed); required in production |
+| Storage quotas | Per-business quota (`MEDIA_STORAGE_QUOTA_MB` or `Business.storageQuotaBytes`) checked before and after processing → 413 |
+| Storage cleanup | Object deletions go through a durable `StorageDeletion` queue retried by the worker, so failed deletes don't leave orphaned files |
+| Production config | The API refuses to start in production/staging with insecure settings (http origins, example or shared secrets, dev DB password, unscanned uploads, no SMTP, in-memory rate limiting, test providers); see `docs/DEPLOYMENT.md` |
 | Headers | HSTS, nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy; `x-powered-by` removed |
 
 ## Planned controls (by phase)
 
-- **Phase 2:** invitation tokens (hashed, expiring, single-use) with email verification, tenant isolation tests for every new resource (catalog), Redis-backed rate-limit storage for multi-instance deployments.
-- **Phase 4:** image re-encoding/EXIF stripping and thumbnails in the worker, malware scanning hook, video transcoding, orphaned-object cleanup job, per-plan storage quotas.
+- **Phase 4:** video transcoding and video metadata stripping (needs ffmpeg), per-plan (rather than per-business) storage quotas, moving image processing from the request into the worker.
 - **Phase 6:** OAuth `state` + PKCE, encrypted token storage, webhook signature verification (HMAC, constant-time comparison), scope checks.
 - **Phase 10:** payment webhook signature verification, GDPR export/deletion workflows, admin step-up auth, backup/restore drills.
 
