@@ -58,3 +58,6 @@ process.env.META_APP_SECRET = 'test-meta-app-secret';
 process.env.META_WEBHOOK_VERIFY_TOKEN = 'test-verify-token-123456';
 process.env.TIKTOK_CLIENT_SECRET = 'test-tiktok-client-secret';
 process.env.PUBLIC_API_URL = 'https://api.touma.test';
+
+// Sales agent public chat: the per-IP limit is raised for tests (all requests share one address).
+process.env.SALES_PUBLIC_RATE_LIMIT_PER_MINUTE = '10000';

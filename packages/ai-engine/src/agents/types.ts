@@ -2,11 +2,12 @@ import type { ZodTypeAny, z } from 'zod';
 import type { AiTask } from '@touma/shared';
 import type { BusinessContext } from '../context';
 
-export type AgentName = 'BUSINESS_ANALYST' | 'PRODUCT_ANALYST' | 'MARKETING_STRATEGIST' | 'CONTENT_CREATOR' | 'VIDEO_CREATOR' | 'SCHEDULER';
+export type AgentName = 'BUSINESS_ANALYST' | 'PRODUCT_ANALYST' | 'MARKETING_STRATEGIST' | 'CONTENT_CREATOR' | 'VIDEO_CREATOR' | 'SCHEDULER' | 'CUSTOMER_SUPPORT';
 
 export interface AgentDefinition<I, S extends ZodTypeAny> {
   agent: AgentName;
-  task: AiTask;
+  /** Generation tasks of the content pipeline, or CUSTOMER_CHAT (a conversation turn: not stored as a generation). */
+  task: AiTask | 'CUSTOMER_CHAT';
   /** Bump whenever the prompt or schema changes; stored with every generation for traceability. */
   promptVersion: string;
   schemaName: string;

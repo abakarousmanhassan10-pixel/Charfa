@@ -24,6 +24,7 @@ import { AiModule } from './ai/ai.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { CreativeModule } from './creative/creative.module';
 import { SocialModule } from './social/social.module';
+import { SalesModule } from './sales/sales.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { EmailModule } from './email/email.module';
 import { InvitationsModule } from './invitations/invitations.module';
@@ -72,6 +73,7 @@ export class AppModule {
         CalendarModule,
         NotificationsModule,
         SocialModule,
+        SalesModule,
         AdminModule,
         HealthModule,
       ],

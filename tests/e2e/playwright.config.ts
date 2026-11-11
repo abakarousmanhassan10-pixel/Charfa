@@ -41,6 +41,7 @@ const testEnv = {
   // TEST-ONLY platform simulator (the API refuses it unless APP_ENV=test). No real platform is contacted.
   SOCIAL_PROVIDER_MODE: 'fake',
   SOCIAL_RATE_LIMIT_PER_MINUTE: '1000',
+  SALES_PUBLIC_RATE_LIMIT_PER_MINUTE: '10000',
   SOCIAL_TICK_MS: '1000',
   SOCIAL_PUBLISH_BACKOFF_MS: '200',
   CALENDAR_TICK_MS: '1000',

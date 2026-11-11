@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  BarChart3, BookOpenCheck, BriefcaseBusiness, Building2, CalendarDays, CreditCard, FolderTree, Image as ImageIcon, Inbox,
+  BarChart3, BookOpenCheck, Bot, BriefcaseBusiness, Building2, CalendarDays, CreditCard, FolderTree, Image as ImageIcon,
   LayoutDashboard, Loader2, LogOut, Menu, Package, Palette, Share2, UserRound, Wand2, X,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
@@ -31,7 +31,7 @@ const NAV: NavItem[] = [
   { key: 'creative', href: '/dashboard/creative', icon: Palette },
   { key: 'calendar', href: '/dashboard/calendar', icon: CalendarDays },
   { key: 'social', href: '/dashboard/social', icon: Share2 },
-  { key: 'inbox', icon: Inbox },
+  { key: 'sales', href: '/dashboard/sales', icon: Bot },
   { key: 'analytics', icon: BarChart3 },
   { key: 'billing', icon: CreditCard },
   { key: 'profile', href: '/settings/profile', icon: UserRound },

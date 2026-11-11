@@ -15,5 +15,7 @@ export * from './agents/marketing-strategist';
 export * from './agents/content-creator';
 export * from './agents/storyboard-creator';
 export * from './agents/content-planner';
+export * from './agents/sales-agent';
+export * from './retrieval';
 export * from './providers/openai';
 export * from './testing/fake-provider';

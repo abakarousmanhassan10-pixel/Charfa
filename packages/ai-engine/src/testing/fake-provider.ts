@@ -101,6 +101,8 @@ function defaultAnswer(req: GenerateRequest): unknown {
   const t = T[lang](bizName, item?.name ?? bizName);
 
   switch (req.schemaName) {
+    case 'sales_reply':
+      return salesAnswer(data, task);
     case 'content_plan': {
       const days: number = task.days ?? 30;
       const platforms: string[] = task.platforms ?? ['INSTAGRAM'];
@@ -254,4 +256,51 @@ function defaultAnswer(req: GenerateRequest): unknown {
     default:
       return {};
   }
+}
+
+// ─── Customer conversation (test-only, deterministic, built only from the delimited data) ─────────────────────────────
+
+const SALES_T: Record<AiLanguage, { hello: (b: string) => string; price: (n: string, p: string) => string; noPrice: (n: string) => string; compare: (a: string, b: string) => string; unknown: string; buy: string; policy: (t: string) => string; unavailable: (n: string) => string; found: (n: string) => string }> = {
+  en: { hello: (b) => `Hello! Welcome to ${b}. How can I help you today?`, price: (n, p) => `${n} costs ${p}.`, noPrice: (n) => `${n} is available; the price is available on request.`, compare: (a, b) => `Here is how ${a} and ${b} compare:`, unknown: 'I do not have verified information about that, so I will not guess.', buy: 'Great choice! Please leave your name and phone number and our team will confirm your order.', policy: (t) => t, unavailable: (n) => `${n} is currently unavailable.`, found: (n) => `${n} could suit you.` },
+  fr: { hello: (b) => `Bonjour ! Bienvenue chez ${b}. Comment puis-je vous aider ?`, price: (n, p) => `${n} coûte ${p}.`, noPrice: (n) => `${n} est disponible ; le prix est communiqué sur demande.`, compare: (a, b) => `Voici une comparaison de ${a} et ${b} :`, unknown: 'Je n’ai pas d’information vérifiée à ce sujet, donc je ne vais pas deviner.', buy: 'Excellent choix ! Laissez-nous votre nom et votre numéro, notre équipe confirmera votre commande.', policy: (t) => t, unavailable: (n) => `${n} est actuellement indisponible.`, found: (n) => `${n} pourrait vous convenir.` },
+  tr: { hello: (b) => `Merhaba! ${b} mağazasına hoş geldiniz. Size nasıl yardımcı olabilirim?`, price: (n, p) => `${n} fiyatı ${p}.`, noPrice: (n) => `${n} mevcut; fiyat istek üzerine bildirilir.`, compare: (a, b) => `${a} ve ${b} karşılaştırması:`, unknown: 'Bu konuda doğrulanmış bilgim yok, tahmin yürütmeyeceğim.', buy: 'Harika bir seçim! Adınızı ve telefon numaranızı bırakın, ekibimiz siparişinizi onaylasın.', policy: (t) => t, unavailable: (n) => `${n} şu anda mevcut değil.`, found: (n) => `${n} size uygun olabilir.` },
+  ar: { hello: (b) => `مرحبًا بك في ${b}. كيف يمكنني مساعدتك؟`, price: (n, p) => `سعر ${n} هو ${p}.`, noPrice: (n) => `${n} متوفر؛ السعر متاح عند الطلب.`, compare: (a, b) => `مقارنة بين ${a} و${b}:`, unknown: 'ليست لدي معلومات موثقة حول ذلك، لذلك لن أخمّن.', buy: 'اختيار رائع! اترك اسمك ورقم هاتفك وسيؤكد فريقنا طلبك.', policy: (t) => t, unavailable: (n) => `${n} غير متوفر حاليًا.`, found: (n) => `${n} قد يناسبك.` },
+};
+
+type SalesItem = { id: string; name: string; price?: string | null; discountPrice?: string | null; currency?: string | null; availability?: string; features?: string[]; benefits?: string[] };
+
+function salesAnswer(data: any, task: any): Record<string, unknown> { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const lang: AiLanguage = task.replyLanguage ?? 'en';
+  const t = SALES_T[lang];
+  const conv: Array<{ from: string; text: string }> = data.conversation ?? [];
+  const last = [...conv].reverse().find((m) => m.from === 'customer')?.text ?? '';
+  const low = last.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const items: Array<SalesItem & { type: 'PRODUCT' | 'SERVICE' }> = [...(data.products ?? []).map((p: SalesItem) => ({ ...p, type: 'PRODUCT' as const })), ...(data.services ?? []).map((p: SalesItem) => ({ ...p, type: 'SERVICE' as const }))];
+  const hit = items.filter((i) => low.includes(i.name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()));
+  const base = { language: lang, handoff: { needed: false, reason: 'NONE' }, recommended: [] as unknown[], missingInformation: [] as string[], nextStep: 'NONE', purchaseIntent: 'NONE' };
+  const money = (i: SalesItem) => (i.price ? `${i.discountPrice ?? i.price} ${i.currency ?? data.business?.currency ?? ''}`.trim() : null);
+  const wantsBuy = /(\bbuy\b|\border\b|acheter|commander|almak|siparis vermek|اشتري|اطلب|شراء)/.test(low);
+  const wantsPrice = /(price|how much|cost|prix|combien|fiyat|kac|kadar|سعر|كم)/.test(low);
+  const wantsCompare = /(compare|difference|vs|versus|comparer|difference|fark|karsilastir|قارن|الفرق)/.test(low);
+  const policyWords = /(deliver|shipping|livraison|teslimat|kargo|return|retour|iade|توصيل|ارجاع|policy|politique)/.test(low);
+
+  if (policyWords) {
+    const k = (data.knowledge ?? []).find((e: { category: string }) => ['DELIVERY_POLICY', 'RETURN_POLICY', 'FAQ', 'OTHER'].includes(e.category) && (/(deliver|shipping|livraison|teslimat|kargo|توصيل)/.test(low) ? e.category === 'DELIVERY_POLICY' : e.category === 'RETURN_POLICY'));
+    if (k) return { ...base, intent: 'POLICY_FAQ', reply: t.policy(k.body), confidence: 'HIGH', answerable: true, sources: [`knowledge:${k.id}`] };
+    return { ...base, intent: 'POLICY_FAQ', reply: t.unknown, confidence: 'LOW', answerable: false, handoff: { needed: true, reason: 'UNVERIFIED_INFO' }, sources: [], missingInformation: ['policy'] };
+  }
+  if (hit.length >= 2 && wantsCompare) {
+    const lines = hit.slice(0, 2).map((i) => `${i.name}: ${money(i) ?? '—'}${i.benefits?.[0] ? `, ${i.benefits[0]}` : ''}`);
+    return { ...base, intent: 'PRODUCT_COMPARISON', reply: `${t.compare(hit[0]!.name, hit[1]!.name)} ${lines.join(' | ')}`, confidence: 'HIGH', answerable: true, recommended: hit.slice(0, 2).map((i) => ({ type: i.type, id: i.id, reason: i.benefits?.[0] ?? i.name })), sources: hit.slice(0, 2).map((i) => `${i.type === 'PRODUCT' ? 'product' : 'service'}:${i.id}`) };
+  }
+  if (hit.length >= 1) {
+    const i = hit[0]!;
+    const src = `${i.type === 'PRODUCT' ? 'product' : 'service'}:${i.id}`;
+    if (['OUT_OF_STOCK', 'DISCONTINUED', 'UNAVAILABLE'].includes(String(i.availability))) return { ...base, intent: 'AVAILABILITY_INQUIRY', reply: t.unavailable(i.name), confidence: 'HIGH', answerable: true, sources: [src] };
+    const p = money(i);
+    const text = wantsPrice ? (p ? t.price(i.name, p) : t.noPrice(i.name)) : t.found(i.name);
+    return { ...base, intent: wantsBuy ? 'PURCHASE_INTENT' : wantsPrice ? 'PRICE_INQUIRY' : 'PRODUCT_INQUIRY', reply: wantsBuy ? `${text} ${t.buy}` : text, confidence: 'HIGH', answerable: true, purchaseIntent: wantsBuy ? 'HIGH' : wantsPrice ? 'MEDIUM' : 'LOW', nextStep: wantsBuy ? 'COLLECT_CONTACT' : 'NONE', recommended: [{ type: i.type, id: i.id, reason: i.benefits?.[0] ?? i.name }], sources: [src] };
+  }
+  if (/(hello|hi\b|bonjour|salut|merhaba|selam|مرحبا)/.test(low) && low.length < 40) return { ...base, intent: 'GREETING', reply: t.hello(data.business?.name ?? 'our shop'), confidence: 'HIGH', answerable: true, sources: ['business'] };
+  return { ...base, intent: 'OTHER', reply: t.unknown, confidence: 'LOW', answerable: false, handoff: { needed: true, reason: 'UNVERIFIED_INFO' }, sources: [], missingInformation: ['answer'] };
 }

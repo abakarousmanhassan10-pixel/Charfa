@@ -214,6 +214,7 @@ enum PublishMode {
 }
 
 enum ConversationChannel {
+  WEB_CHAT
   INSTAGRAM_DM
   FACEBOOK_MESSENGER
   COMMENT_THREAD
@@ -235,6 +236,7 @@ enum MessageDirection {
 enum MessageAuthorType {
   CUSTOMER
   HUMAN_AGENT
+  AI_REPLY
   AI_SUGGESTION
   SYSTEM
 }
@@ -244,6 +246,40 @@ enum ReplyApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+/// Who answers a conversation: the AI, nobody (AI paused by a person) or a person who took it over.
+enum AgentMode {
+  AI_ACTIVE
+  AI_PAUSED
+  HUMAN
+}
+
+enum LeadStatus {
+  NEW
+  ENGAGED
+  QUALIFIED
+  OPPORTUNITY
+  WON
+  LOST
+}
+
+enum PurchaseIntent {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// REVIEW = the AI only drafts, a person approves each reply. AUTO = the AI answers customer-initiated chats itself (explicitly authorized by a person).
+enum AgentReplyMode {
+  REVIEW
+  AUTO
+}
+
+enum FeedbackStatus {
+  OPEN
+  RESOLVED
 }
 
 enum EscalationReason {
@@ -407,6 +443,7 @@ model User {
   sessions            Session[]
   memberships         Membership[]
   invitationsSent     Membership[]     @relation("MembershipInviter")
+  customerNotes       CustomerNote[]   @relation("CustomerNoteAuthor")
   contentsCreated     Content[]        @relation("ContentCreator")
   contentsApproved    Content[]        @relation("ContentApprover")
   mediaUploaded       MediaAsset[]
@@ -506,6 +543,8 @@ model Business {
   approvalRecords     ApprovalRecord[]
   socialSessions      SocialConnectionSession[]
   creativeGenerations CreativeGeneration[]
+  customers           Customer[]
+  salesAgentConfig    SalesAgentConfig?
 
   @@index([deletedAt])
   @@index([createdAt])
@@ -1056,16 +1095,35 @@ model Conversation {
   escalated          Boolean             @default(false)
   escalationReason   EscalationReason?
   assignedToId       String?
+  customerId         String?
+  /// Detected language of the customer (en, fr, tr, ar).
+  language           String?
+  aiMode             AgentMode           @default(AI_ACTIVE)
+  /// A conversation started from the dashboard playground: never counted as a real lead.
+  isTest             Boolean             @default(false)
+  /// SHA-256 of the secret the customer's browser holds; the only way a public visitor can read or continue this conversation.
+  publicTokenHash    String?             @unique
+  intent             String?
+  purchaseIntent     PurchaseIntent      @default(NONE)
+  handoffReason      String?
+  handoffRequestedAt DateTime?           @db.Timestamptz(3)
+  humanTakeoverById  String?
+  aiRepliesCount     Int                 @default(0)
   lastMessageAt      DateTime?           @db.Timestamptz(3)
   createdAt          DateTime            @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
 
-  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  socialAccount SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  business      Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount?  @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  customer      Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
   messages      Message[]
+  notes         CustomerNote[]
+  feedback      AgentFeedback[]
 
   @@unique([socialAccountId, externalThreadId])
   @@index([businessId, status, lastMessageAt])
+  @@index([businessId, customerId])
+  @@index([businessId, aiMode])
 }
 
 model Message {
@@ -1079,12 +1137,16 @@ model Message {
   externalMessageId String?
   approvalStatus    ReplyApprovalStatus @default(NOT_REQUIRED)
   escalationReason  EscalationReason?
+  language          String?
+  intent            String?
+  /// AI replies: confidence, sources, recommended items, handoff, model, prompt version. Never secrets or other businesses' data.
   aiMetadata        Json?
   sentAt            DateTime?           @db.Timestamptz(3)
   createdAt         DateTime            @default(now()) @db.Timestamptz(3)
 
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  authorUser   User?        @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  conversation Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorUser   User?           @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  feedback     AgentFeedback[]
 
   @@unique([conversationId, externalMessageId])
   @@index([businessId, createdAt])
@@ -1117,6 +1179,104 @@ model Comment {
   @@unique([socialAccountId, externalCommentId])
   @@index([businessId, createdAt])
   @@index([publicationId])
+}
+
+/// A person who talks to the business's agent. Identified only by what they chose to share; erasable.
+model Customer {
+  id             String              @id @default(cuid())
+  businessId     String
+  name           String?
+  email          String?
+  phone          String?
+  language       String?
+  source         ConversationChannel @default(WEB_CHAT)
+  leadStatus     LeadStatus          @default(NEW)
+  purchaseIntent PurchaseIntent      @default(NONE)
+  lastIntent     String?
+  /// Items the customer showed interest in: "product:<id>" / "service:<id>".
+  interests      String[]
+  /// Set when the customer explicitly agreed to be contacted.
+  consentAt      DateTime?           @db.Timestamptz(3)
+  assignedToId   String?
+  followUpAt     DateTime?           @db.Timestamptz(3)
+  firstSeenAt    DateTime            @default(now()) @db.Timestamptz(3)
+  lastSeenAt     DateTime            @default(now()) @db.Timestamptz(3)
+  /// Personal data was erased at the customer's or merchant's request.
+  anonymizedAt   DateTime?           @db.Timestamptz(3)
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @db.Timestamptz(3)
+
+  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  notes         CustomerNote[]
+
+  @@index([businessId, leadStatus])
+  @@index([businessId, lastSeenAt])
+  @@index([businessId, email])
+  @@index([businessId, phone])
+}
+
+/// Internal note about a customer or one conversation. Never shown to the customer and never given to the AI.
+model CustomerNote {
+  id             String   @id @default(cuid())
+  businessId     String
+  customerId     String
+  conversationId String?
+  authorId       String?
+  body           String
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  author       User?         @relation("CustomerNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, customerId])
+}
+
+/// One agent configuration per business. The agent is OFF until a person turns it on.
+model SalesAgentConfig {
+  id                          String         @id @default(cuid())
+  businessId                  String         @unique
+  enabled                     Boolean        @default(false)
+  name                        String         @default("TOUMA Assistant")
+  /// Languages the agent answers in (subset of en, fr, tr, ar).
+  languages                   String[]       @default(["en", "fr"])
+  defaultLanguage             String         @default("en")
+  tone                        String?
+  greeting                    String?
+  handoffMessage              String?
+  replyMode                   AgentReplyMode @default(REVIEW)
+  /// Who allowed the AI to answer customers without per-message review, and when.
+  autoReplyAuthorizedById     String?
+  autoReplyAuthorizedAt       DateTime?      @db.Timestamptz(3)
+  maxAiRepliesPerConversation Int            @default(30)
+  updatedById                 String?
+  createdAt                   DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime       @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+/// A person flagged an AI reply as inaccurate and said what is correct.
+model AgentFeedback {
+  id               String         @id @default(cuid())
+  businessId       String
+  conversationId   String
+  messageId        String
+  reporterId       String?
+  /// What was wrong, and the correct information.
+  note             String
+  correction       String?
+  status           FeedbackStatus @default(OPEN)
+  knowledgeEntryId String?
+  createdAt        DateTime       @default(now()) @db.Timestamptz(3)
+  resolvedAt       DateTime?      @db.Timestamptz(3)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message      Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, status])
+  @@index([conversationId])
 }
 
 // ─────────────────────────────── Billing ───────────────────────────────

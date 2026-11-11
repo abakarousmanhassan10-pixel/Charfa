@@ -97,7 +97,8 @@
       "categories": "Categories",
       "knowledge": "Knowledge base",
       "ai": "TOUMA AI",
-      "creative": "Creative Studio"
+      "creative": "Creative Studio",
+      "sales": "AI sales agent"
     },
     "analyticsTitle": "Performance",
     "noAnalytics": "No data yet. Metrics appear here once social accounts are connected and posts are published — we never display estimated numbers as measured results.",
@@ -1484,6 +1485,11 @@
         "token_expiring": "Authorization expires soon: {title}",
         "manual_required": "Publish manually: {title}",
         "published": "Published: {title}"
+      },
+      "sales": {
+        "handoff": "A customer needs a person",
+        "draft_ready": "An AI reply is waiting for your review",
+        "customer_message": "New customer message"
       }
     }
   },
@@ -1827,6 +1833,317 @@
           "disabled": "Not available yet. LinkedIn must first approve the TOUMA application for its Community Management API. Until then TOUMA publishes to personal profiles only."
         }
       }
+    }
+  },
+  "sales": {
+    "title": "AI sales agent",
+    "anonymousVisitor": "Visitor",
+    "test": "test",
+    "back": "Back to the list",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search conversations",
+    "filter": "Filter",
+    "thread": "Conversation messages",
+    "priceOnRequest": "Price on request",
+    "draftWaiting": "Reply waiting",
+    "customerPanel": "Customer and internal notes",
+    "handoffBanner": "This customer needs a person ({reason}). The AI is paused until you take over or resume it.",
+    "tabs": {
+      "conversations": "Conversations",
+      "customers": "Customers",
+      "leads": "Leads",
+      "opportunities": "Opportunities",
+      "faq": "FAQ",
+      "analytics": "Analytics",
+      "agent": "Agent"
+    },
+    "conversations": {
+      "title": "AI conversations",
+      "subtitle": "What customers ask, what the agent answered, and where a person is needed.",
+      "emptyTitle": "No conversations yet",
+      "emptyHint": "Turn the agent on in the Agent tab and share its chat link. You can try it first in the test chat.",
+      "selectTitle": "Select a conversation",
+      "selectHint": "Pick a conversation to read it, review the AI's replies, or take over."
+    },
+    "customers": {
+      "title": "Customers",
+      "subtitle": "People who talked to your agent, with what they shared and where they are in your sales process.",
+      "search": "Search by name, email or phone",
+      "allLeads": "All lead stages",
+      "emptyTitle": "No customers yet",
+      "emptyHint": "Customers appear here when someone starts a conversation with your agent.",
+      "noContact": "No contact details",
+      "profile": "Customer profile",
+      "conversations": "Conversations",
+      "erase": "Erase personal data",
+      "erased": "This customer's personal data was erased.",
+      "eraseTitle": "Erase this customer?",
+      "eraseText": "Contact details, notes and the texts of their messages are removed permanently. Anonymous statistics are kept. This cannot be undone."
+    },
+    "leads": {
+      "title": "Leads",
+      "subtitle": "Customers by stage. Stages advance by themselves from what customers say and share; you decide Won and Lost.",
+      "emptyTitle": "No leads yet",
+      "emptyHint": "A visitor becomes a lead once they show interest in a product or service.",
+      "hasContact": "has contact"
+    },
+    "opportunities": {
+      "title": "Sales opportunities",
+      "subtitle": "Who is ready to buy, what they want, and what to do next.",
+      "hint": "Customers with high purchase intent. Product names and prices are read from your catalog now.",
+      "emptyTitle": "No opportunities right now",
+      "emptyHint": "Customers who clearly want to buy appear here."
+    },
+    "followUps": {
+      "title": "Follow-up recommendations",
+      "hint": "Rule-based suggestions: what needs a person, and why. Nothing is sent automatically.",
+      "emptyTitle": "Nothing needs follow-up",
+      "emptyHint": "You are up to date.",
+      "open": "Open the conversation",
+      "types": {
+        "HANDOFF_WAITING": "Customer waiting for a person",
+        "DRAFT_TO_REVIEW": "AI reply to review",
+        "COLD_OPPORTUNITY": "Opportunity going cold",
+        "FOLLOW_UP_DUE": "Follow-up due",
+        "CORRECTIONS_OPEN": "Reported inaccuracies"
+      }
+    },
+    "priority": {
+      "HIGH": "High priority",
+      "MEDIUM": "Medium priority",
+      "LOW": "Low priority"
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "subtitle": "Verified answers the agent can use, and the questions it could not answer.",
+      "unansweredTitle": "Questions the agent could not answer",
+      "unansweredHint": "Customers asked these and the agent had no verified answer, so it handed over to a person. Add the answers so it can help next time.",
+      "unansweredEmpty": "No unanswered questions",
+      "asked": "Asked {count} time(s)",
+      "answer": "Write the answer",
+      "question": "Question",
+      "answerPlaceholder": "The correct answer, exactly as you want customers to read it",
+      "unverifiedNote": "Saved as an unverified entry. The agent uses it only after someone with permission verifies it in the knowledge base.",
+      "save": "Save answer",
+      "saved": "Answer saved. Verify it in the knowledge base so the agent can use it.",
+      "verifiedTitle": "Verified FAQ",
+      "verifiedEmpty": "No verified FAQ yet",
+      "verifiedHint": "Verified FAQ entries from the knowledge base appear here.",
+      "waitingVerification": "{count} answer(s) waiting for verification",
+      "openKnowledge": "Open the knowledge base",
+      "topIntents": "What customers ask about"
+    },
+    "analytics": {
+      "title": "Conversation analytics",
+      "subtitle": "Counted from real conversations. Nothing here is estimated.",
+      "period": "Period",
+      "lastDays": "Last {days} days",
+      "conversations": "Conversations",
+      "newCustomers": "New customers",
+      "aiAnswered": "Answered by the AI",
+      "handoffs": "Handed to a person",
+      "handoffRate": "Handoff rate",
+      "avgMessages": "Messages per conversation",
+      "byIntent": "What customers want",
+      "byLanguage": "Languages",
+      "handoffReasons": "Why a person was needed",
+      "leads": "Leads by stage",
+      "aiWork": "AI and team replies",
+      "unknown": "Unknown",
+      "ai": {
+        "sentAutomatically": "Sent automatically",
+        "drafts": "Drafts written",
+        "draftsApproved": "Drafts approved",
+        "draftsRejected": "Drafts rejected",
+        "humanReplies": "Team replies"
+      },
+      "note": "Counted from stored conversations. Conversion to a sale is not measured: TOUMA has no order data."
+    },
+    "agent": {
+      "title": "Agent settings",
+      "subtitle": "Turn the agent on, choose its languages and how it answers, and test it.",
+      "configTitle": "Configuration",
+      "enabled": "The agent is on",
+      "enabledHint": "Off by default. While off, the public chat does not exist.",
+      "name": "Agent name",
+      "languages": "Languages the agent answers in",
+      "languagesHint": "The agent detects the customer's language. If it is not enabled here, it answers in the default language.",
+      "defaultLanguage": "Default language",
+      "tone": "Tone (optional)",
+      "tonePlaceholder": "for example warm and professional",
+      "greeting": "Greeting (optional)",
+      "greetingPlaceholder": "Leave empty for the standard greeting",
+      "replyMode": "How the agent answers",
+      "modes": {
+        "REVIEW": {
+          "title": "Review every reply (recommended to start)",
+          "text": "The AI writes a draft; the customer sees nothing until a person approves it."
+        },
+        "AUTO": {
+          "title": "Answer customers automatically",
+          "text": "The AI answers customer-initiated chats by itself from your verified data. Anything uncertain or sensitive still goes to a person."
+        }
+      },
+      "authorizedAt": "Automatic answers authorized on {when}.",
+      "maxReplies": "Automatic replies per conversation",
+      "maxRepliesHint": "After this many, the conversation goes to a person.",
+      "safetyNote": "The agent only uses your verified information, never invents prices, stock or policies, cannot see orders or take payments, and hands over refunds, complaints and anything it cannot verify.",
+      "save": "Save settings",
+      "saved": "Settings saved.",
+      "readOnly": "You can view these settings; an administrator can change them.",
+      "publicLink": "Customer chat link",
+      "publicLinkHint": "Share this link or put it on your website or social profiles.",
+      "copy": "Copy",
+      "open": "Open",
+      "autoTitle": "Allow automatic answers?",
+      "autoText": "You are authorizing TOUMA's agent to answer customers on your behalf.",
+      "autoDetails": "It will answer customer-initiated chats using only your verified products, services and policies. It cannot place orders, take payments or promise anything. You can switch back to review mode at any time. This authorization is recorded.",
+      "autoConfirm": "I authorize automatic answers"
+    },
+    "playground": {
+      "title": "Test chat",
+      "hint": "Try the agent as a customer would. Test conversations are not counted and nothing is sent anywhere.",
+      "placeholder": "Ask something, for example the price of a product",
+      "reset": "New test"
+    },
+    "reply": {
+      "label": "Reply to the customer",
+      "send": "Send",
+      "placeholder": "Write to the customer",
+      "placeholderTakeover": "Writing a reply takes the conversation over from the AI",
+      "takesOver": "Sending a reply pauses the AI for this conversation."
+    },
+    "actions": {
+      "takeover": "Take over",
+      "pause": "Pause AI",
+      "resume": "Resume AI",
+      "resolve": "Mark resolved",
+      "reopen": "Reopen",
+      "suggest": "Suggest a reply",
+      "approveSend": "Approve and send",
+      "edit": "Edit",
+      "reject": "Reject",
+      "reportInaccurate": "Report inaccurate"
+    },
+    "msg": {
+      "customer": "Customer",
+      "ai": "AI reply (sent)",
+      "aiApproved": "AI reply (approved)",
+      "draft": "AI draft – not sent",
+      "team": "Team",
+      "system": "Automatic message",
+      "flagged": "reported",
+      "edited": "edited",
+      "edit": "Edit the reply",
+      "injection": "Possible attempt to give the AI instructions was detected and ignored.",
+      "confidence": "Confidence: {level}",
+      "sources": "{count} source(s)"
+    },
+    "confidence": {
+      "HIGH": "high",
+      "MEDIUM": "medium",
+      "LOW": "low"
+    },
+    "report": {
+      "title": "Report an inaccurate reply",
+      "text": "Tell us what was wrong and what is correct. The correction is recorded for your team.",
+      "what": "What was inaccurate?",
+      "correct": "The correct information",
+      "addKnowledge": "Add the correction to the knowledge base",
+      "addKnowledgeHint": "Saved as unverified: the agent uses it only after it is verified.",
+      "send": "Send report",
+      "open": "{count} report(s) not resolved yet"
+    },
+    "notes": {
+      "title": "Internal notes",
+      "hint": "Only your team sees these. They are never shown to the customer or the AI.",
+      "placeholder": "Add a private note",
+      "add": "Add note"
+    },
+    "fields": {
+      "email": "Email",
+      "phone": "Phone",
+      "consent": "Agreed to be contacted",
+      "language": "Language",
+      "leadStatus": "Lead stage",
+      "followUp": "Follow-up date"
+    },
+    "lead": {
+      "NEW": "New",
+      "ENGAGED": "Engaged",
+      "QUALIFIED": "Qualified",
+      "OPPORTUNITY": "Opportunity",
+      "WON": "Won",
+      "LOST": "Lost"
+    },
+    "purchaseIntent": {
+      "NONE": "No intent",
+      "LOW": "Low intent",
+      "MEDIUM": "Medium intent",
+      "HIGH": "High intent"
+    },
+    "mode": {
+      "AI_ACTIVE": "AI answering",
+      "AI_PAUSED": "AI paused",
+      "HUMAN": "Team",
+      "needsHuman": "Needs a person"
+    },
+    "filters": {
+      "all": "All conversations",
+      "needsHuman": "Needs a person",
+      "ai": "AI answering",
+      "human": "Taken over",
+      "resolved": "Resolved"
+    },
+    "languages": {
+      "en": "English",
+      "fr": "Français",
+      "tr": "Türkçe",
+      "ar": "العربية"
+    },
+    "intent": {
+      "GREETING": "Greeting",
+      "PRODUCT_INQUIRY": "Product question",
+      "PRODUCT_COMPARISON": "Comparison",
+      "PRICE_INQUIRY": "Price question",
+      "AVAILABILITY_INQUIRY": "Availability",
+      "PURCHASE_INTENT": "Wants to buy",
+      "ORDER_STATUS": "Order status",
+      "DELIVERY_INQUIRY": "Delivery",
+      "RETURN_REFUND": "Return or refund",
+      "POLICY_FAQ": "Policy question",
+      "COMPLAINT": "Complaint",
+      "HUMAN_REQUEST": "Asked for a person",
+      "SMALL_TALK": "Small talk",
+      "OTHER": "Other"
+    },
+    "handoffReasons": {
+      "NONE": "none",
+      "ORDER_STATUS": "order or delivery status",
+      "REFUND": "refund or payment",
+      "FINANCIAL_COMMITMENT": "financial commitment",
+      "LEGAL_COMPLAINT": "legal complaint",
+      "SENSITIVE": "sensitive matter",
+      "UNVERIFIED_INFO": "no verified answer",
+      "CUSTOMER_REQUESTED": "customer asked for a person",
+      "LOW_CONFIDENCE": "low confidence",
+      "AI_UNAVAILABLE": "AI unavailable",
+      "OTHER": "other"
+    },
+    "chat": {
+      "placeholder": "Type your message",
+      "name": "Your name",
+      "consent": "I agree to be contacted at these details about my request.",
+      "contactTitle": "Leave your contact details (optional)",
+      "waiting": "A member of the team will reply here.",
+      "team": "Team",
+      "view": "View",
+      "erase": "Delete my conversation and data",
+      "error": "Your message could not be sent. Please try again.",
+      "tooMany": "Too many messages. Please contact the business directly.",
+      "unavailableTitle": "Chat not available",
+      "unavailableText": "This chat is not available right now."
     }
   }
 }

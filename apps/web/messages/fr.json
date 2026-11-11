@@ -97,7 +97,8 @@
       "categories": "Catégories",
       "knowledge": "Base de connaissances",
       "ai": "TOUMA AI",
-      "creative": "Studio créatif"
+      "creative": "Studio créatif",
+      "sales": "Agent commercial IA"
     },
     "analyticsTitle": "Performances",
     "noAnalytics": "Aucune donnée pour l'instant. Les statistiques apparaîtront une fois vos comptes connectés et vos publications en ligne — nous n'affichons jamais d'estimations comme des résultats mesurés.",
@@ -1484,6 +1485,11 @@
         "token_expiring": "Autorisation bientôt expirée : {title}",
         "manual_required": "À publier manuellement : {title}",
         "published": "Publié : {title}"
+      },
+      "sales": {
+        "handoff": "Un client a besoin d’une personne",
+        "draft_ready": "Une réponse IA attend votre relecture",
+        "customer_message": "Nouveau message client"
       }
     }
   },
@@ -1827,6 +1833,317 @@
           "disabled": "Pas encore disponible. LinkedIn doit d’abord approuver l’application TOUMA pour son Community Management API. D’ici là, TOUMA publie uniquement sur des profils personnels."
         }
       }
+    }
+  },
+  "sales": {
+    "title": "Agent commercial IA",
+    "anonymousVisitor": "Visiteur",
+    "test": "test",
+    "back": "Retour à la liste",
+    "yes": "Oui",
+    "no": "Non",
+    "search": "Rechercher une conversation",
+    "filter": "Filtrer",
+    "thread": "Messages de la conversation",
+    "priceOnRequest": "Prix sur demande",
+    "draftWaiting": "Réponse en attente",
+    "customerPanel": "Client et notes internes",
+    "handoffBanner": "Ce client a besoin d’une personne ({reason}). L’IA est en pause jusqu’à ce que vous repreniez la main ou la relanciez.",
+    "tabs": {
+      "conversations": "Conversations",
+      "customers": "Clients",
+      "leads": "Prospects",
+      "opportunities": "Opportunités",
+      "faq": "FAQ",
+      "analytics": "Statistiques",
+      "agent": "Agent"
+    },
+    "conversations": {
+      "title": "Conversations IA",
+      "subtitle": "Ce que demandent les clients, ce que l’agent a répondu et où une personne est nécessaire.",
+      "emptyTitle": "Aucune conversation pour l’instant",
+      "emptyHint": "Activez l’agent dans l’onglet Agent et partagez son lien de chat. Vous pouvez d’abord l’essayer dans le chat de test.",
+      "selectTitle": "Sélectionnez une conversation",
+      "selectHint": "Choisissez une conversation pour la lire, relire les réponses de l’IA ou reprendre la main."
+    },
+    "customers": {
+      "title": "Clients",
+      "subtitle": "Les personnes qui ont parlé à votre agent, ce qu’elles ont partagé et où elles en sont dans votre processus de vente.",
+      "search": "Rechercher par nom, e-mail ou téléphone",
+      "allLeads": "Tous les stades",
+      "emptyTitle": "Aucun client pour l’instant",
+      "emptyHint": "Les clients apparaissent ici dès que quelqu’un démarre une conversation avec votre agent.",
+      "noContact": "Pas de coordonnées",
+      "profile": "Profil du client",
+      "conversations": "Conversations",
+      "erase": "Effacer les données personnelles",
+      "erased": "Les données personnelles de ce client ont été effacées.",
+      "eraseTitle": "Effacer ce client ?",
+      "eraseText": "Les coordonnées, les notes et le texte de ses messages sont supprimés définitivement. Les statistiques anonymes sont conservées. Cette action est irréversible."
+    },
+    "leads": {
+      "title": "Prospects",
+      "subtitle": "Les clients par stade. Les stades avancent seuls selon ce que disent et partagent les clients ; vous décidez de Gagné et Perdu.",
+      "emptyTitle": "Aucun prospect pour l’instant",
+      "emptyHint": "Un visiteur devient prospect dès qu’il s’intéresse à un produit ou à un service.",
+      "hasContact": "coordonnées"
+    },
+    "opportunities": {
+      "title": "Opportunités de vente",
+      "subtitle": "Qui est prêt à acheter, ce qu’il veut et quoi faire ensuite.",
+      "hint": "Les clients avec une forte intention d’achat. Les noms et prix des produits sont lus dans votre catalogue à l’instant.",
+      "emptyTitle": "Aucune opportunité pour le moment",
+      "emptyHint": "Les clients qui veulent clairement acheter apparaissent ici."
+    },
+    "followUps": {
+      "title": "Recommandations de suivi",
+      "hint": "Suggestions fondées sur des règles : ce qui demande une personne, et pourquoi. Rien n’est envoyé automatiquement.",
+      "emptyTitle": "Rien à suivre",
+      "emptyHint": "Vous êtes à jour.",
+      "open": "Ouvrir la conversation",
+      "types": {
+        "HANDOFF_WAITING": "Client en attente d’une personne",
+        "DRAFT_TO_REVIEW": "Réponse IA à relire",
+        "COLD_OPPORTUNITY": "Opportunité qui refroidit",
+        "FOLLOW_UP_DUE": "Relance à faire",
+        "CORRECTIONS_OPEN": "Inexactitudes signalées"
+      }
+    },
+    "priority": {
+      "HIGH": "Priorité haute",
+      "MEDIUM": "Priorité moyenne",
+      "LOW": "Priorité basse"
+    },
+    "faq": {
+      "title": "Questions fréquentes",
+      "subtitle": "Les réponses vérifiées que l’agent peut utiliser, et les questions auxquelles il n’a pas su répondre.",
+      "unansweredTitle": "Questions sans réponse",
+      "unansweredHint": "Des clients ont posé ces questions et l’agent n’avait pas de réponse vérifiée : il a passé la main à une personne. Ajoutez les réponses pour qu’il puisse aider la prochaine fois.",
+      "unansweredEmpty": "Aucune question sans réponse",
+      "asked": "Posée {count} fois",
+      "answer": "Écrire la réponse",
+      "question": "Question",
+      "answerPlaceholder": "La bonne réponse, telle que vous voulez que les clients la lisent",
+      "unverifiedNote": "Enregistrée comme entrée non vérifiée. L’agent ne l’utilise qu’après vérification dans la base de connaissances par une personne autorisée.",
+      "save": "Enregistrer la réponse",
+      "saved": "Réponse enregistrée. Vérifiez-la dans la base de connaissances pour que l’agent puisse l’utiliser.",
+      "verifiedTitle": "FAQ vérifiée",
+      "verifiedEmpty": "Pas encore de FAQ vérifiée",
+      "verifiedHint": "Les entrées FAQ vérifiées de la base de connaissances apparaissent ici.",
+      "waitingVerification": "{count} réponse(s) en attente de vérification",
+      "openKnowledge": "Ouvrir la base de connaissances",
+      "topIntents": "Ce que demandent les clients"
+    },
+    "analytics": {
+      "title": "Statistiques des conversations",
+      "subtitle": "Comptées à partir de vraies conversations. Rien n’est estimé.",
+      "period": "Période",
+      "lastDays": "{days} derniers jours",
+      "conversations": "Conversations",
+      "newCustomers": "Nouveaux clients",
+      "aiAnswered": "Répondues par l’IA",
+      "handoffs": "Passées à une personne",
+      "handoffRate": "Taux de passage",
+      "avgMessages": "Messages par conversation",
+      "byIntent": "Ce que veulent les clients",
+      "byLanguage": "Langues",
+      "handoffReasons": "Pourquoi une personne était nécessaire",
+      "leads": "Prospects par stade",
+      "aiWork": "Réponses de l’IA et de l’équipe",
+      "unknown": "Inconnu",
+      "ai": {
+        "sentAutomatically": "Envoyées automatiquement",
+        "drafts": "Brouillons rédigés",
+        "draftsApproved": "Brouillons approuvés",
+        "draftsRejected": "Brouillons rejetés",
+        "humanReplies": "Réponses de l’équipe"
+      },
+      "note": "Comptées à partir des conversations enregistrées. La conversion en vente n’est pas mesurée : TOUMA n’a pas de données de commandes."
+    },
+    "agent": {
+      "title": "Réglages de l’agent",
+      "subtitle": "Activez l’agent, choisissez ses langues et sa façon de répondre, et testez-le.",
+      "configTitle": "Configuration",
+      "enabled": "L’agent est activé",
+      "enabledHint": "Désactivé par défaut. Tant qu’il l’est, le chat public n’existe pas.",
+      "name": "Nom de l’agent",
+      "languages": "Langues dans lesquelles l’agent répond",
+      "languagesHint": "L’agent détecte la langue du client. Si elle n’est pas activée ici, il répond dans la langue par défaut.",
+      "defaultLanguage": "Langue par défaut",
+      "tone": "Ton (facultatif)",
+      "tonePlaceholder": "par exemple chaleureux et professionnel",
+      "greeting": "Message d’accueil (facultatif)",
+      "greetingPlaceholder": "Laissez vide pour l’accueil standard",
+      "replyMode": "Façon de répondre",
+      "modes": {
+        "REVIEW": {
+          "title": "Relire chaque réponse (recommandé pour commencer)",
+          "text": "L’IA rédige un brouillon ; le client ne voit rien tant qu’une personne ne l’a pas approuvé."
+        },
+        "AUTO": {
+          "title": "Répondre automatiquement aux clients",
+          "text": "L’IA répond seule aux conversations lancées par les clients, à partir de vos données vérifiées. Tout ce qui est incertain ou sensible passe quand même à une personne."
+        }
+      },
+      "authorizedAt": "Réponses automatiques autorisées le {when}.",
+      "maxReplies": "Réponses automatiques par conversation",
+      "maxRepliesHint": "Au-delà, la conversation passe à une personne.",
+      "safetyNote": "L’agent n’utilise que vos informations vérifiées, n’invente jamais de prix, de stock ni de politique, ne voit pas les commandes, ne prend aucun paiement et passe la main pour les remboursements, les réclamations et tout ce qu’il ne peut pas vérifier.",
+      "save": "Enregistrer",
+      "saved": "Réglages enregistrés.",
+      "readOnly": "Vous pouvez consulter ces réglages ; un administrateur peut les modifier.",
+      "publicLink": "Lien du chat client",
+      "publicLinkHint": "Partagez ce lien ou placez-le sur votre site ou vos profils sociaux.",
+      "copy": "Copier",
+      "open": "Ouvrir",
+      "autoTitle": "Autoriser les réponses automatiques ?",
+      "autoText": "Vous autorisez l’agent de TOUMA à répondre aux clients en votre nom.",
+      "autoDetails": "Il répondra aux conversations lancées par les clients en utilisant uniquement vos produits, services et politiques vérifiés. Il ne peut ni passer de commande, ni encaisser, ni rien promettre. Vous pouvez revenir au mode relecture à tout moment. Cette autorisation est enregistrée.",
+      "autoConfirm": "J’autorise les réponses automatiques"
+    },
+    "playground": {
+      "title": "Chat de test",
+      "hint": "Essayez l’agent comme le ferait un client. Les conversations de test ne sont pas comptées et rien n’est envoyé nulle part.",
+      "placeholder": "Posez une question, par exemple le prix d’un produit",
+      "reset": "Nouveau test"
+    },
+    "reply": {
+      "label": "Répondre au client",
+      "send": "Envoyer",
+      "placeholder": "Écrire au client",
+      "placeholderTakeover": "Écrire une réponse reprend la conversation à l’IA",
+      "takesOver": "Envoyer une réponse met l’IA en pause pour cette conversation."
+    },
+    "actions": {
+      "takeover": "Reprendre la main",
+      "pause": "Mettre l’IA en pause",
+      "resume": "Relancer l’IA",
+      "resolve": "Marquer comme résolue",
+      "reopen": "Rouvrir",
+      "suggest": "Suggérer une réponse",
+      "approveSend": "Approuver et envoyer",
+      "edit": "Modifier",
+      "reject": "Rejeter",
+      "reportInaccurate": "Signaler une erreur"
+    },
+    "msg": {
+      "customer": "Client",
+      "ai": "Réponse IA (envoyée)",
+      "aiApproved": "Réponse IA (approuvée)",
+      "draft": "Brouillon IA – non envoyé",
+      "team": "Équipe",
+      "system": "Message automatique",
+      "flagged": "signalée",
+      "edited": "modifiée",
+      "edit": "Modifier la réponse",
+      "injection": "Une tentative possible de donner des instructions à l’IA a été détectée et ignorée.",
+      "confidence": "Confiance : {level}",
+      "sources": "{count} source(s)"
+    },
+    "confidence": {
+      "HIGH": "élevée",
+      "MEDIUM": "moyenne",
+      "LOW": "faible"
+    },
+    "report": {
+      "title": "Signaler une réponse inexacte",
+      "text": "Dites-nous ce qui était faux et ce qui est correct. La correction est consignée pour votre équipe.",
+      "what": "Qu’est-ce qui était inexact ?",
+      "correct": "L’information correcte",
+      "addKnowledge": "Ajouter la correction à la base de connaissances",
+      "addKnowledgeHint": "Enregistrée comme non vérifiée : l’agent ne l’utilise qu’après vérification.",
+      "send": "Envoyer le signalement",
+      "open": "{count} signalement(s) non résolu(s)"
+    },
+    "notes": {
+      "title": "Notes internes",
+      "hint": "Seule votre équipe les voit. Elles ne sont jamais montrées au client ni à l’IA.",
+      "placeholder": "Ajouter une note privée",
+      "add": "Ajouter"
+    },
+    "fields": {
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "consent": "Accepte d’être contacté",
+      "language": "Langue",
+      "leadStatus": "Stade du prospect",
+      "followUp": "Date de relance"
+    },
+    "lead": {
+      "NEW": "Nouveau",
+      "ENGAGED": "Engagé",
+      "QUALIFIED": "Qualifié",
+      "OPPORTUNITY": "Opportunité",
+      "WON": "Gagné",
+      "LOST": "Perdu"
+    },
+    "purchaseIntent": {
+      "NONE": "Aucune intention",
+      "LOW": "Intention faible",
+      "MEDIUM": "Intention moyenne",
+      "HIGH": "Forte intention"
+    },
+    "mode": {
+      "AI_ACTIVE": "IA en réponse",
+      "AI_PAUSED": "IA en pause",
+      "HUMAN": "Équipe",
+      "needsHuman": "Besoin d’une personne"
+    },
+    "filters": {
+      "all": "Toutes les conversations",
+      "needsHuman": "Besoin d’une personne",
+      "ai": "IA en réponse",
+      "human": "Reprises en main",
+      "resolved": "Résolues"
+    },
+    "languages": {
+      "en": "English",
+      "fr": "Français",
+      "tr": "Türkçe",
+      "ar": "العربية"
+    },
+    "intent": {
+      "GREETING": "Salutation",
+      "PRODUCT_INQUIRY": "Question produit",
+      "PRODUCT_COMPARISON": "Comparaison",
+      "PRICE_INQUIRY": "Question de prix",
+      "AVAILABILITY_INQUIRY": "Disponibilité",
+      "PURCHASE_INTENT": "Veut acheter",
+      "ORDER_STATUS": "Statut de commande",
+      "DELIVERY_INQUIRY": "Livraison",
+      "RETURN_REFUND": "Retour ou remboursement",
+      "POLICY_FAQ": "Question de politique",
+      "COMPLAINT": "Réclamation",
+      "HUMAN_REQUEST": "A demandé une personne",
+      "SMALL_TALK": "Discussion",
+      "OTHER": "Autre"
+    },
+    "handoffReasons": {
+      "NONE": "aucun",
+      "ORDER_STATUS": "statut de commande ou de livraison",
+      "REFUND": "remboursement ou paiement",
+      "FINANCIAL_COMMITMENT": "engagement financier",
+      "LEGAL_COMPLAINT": "réclamation juridique",
+      "SENSITIVE": "sujet sensible",
+      "UNVERIFIED_INFO": "pas de réponse vérifiée",
+      "CUSTOMER_REQUESTED": "le client a demandé une personne",
+      "LOW_CONFIDENCE": "confiance faible",
+      "AI_UNAVAILABLE": "IA indisponible",
+      "OTHER": "autre"
+    },
+    "chat": {
+      "placeholder": "Écrivez votre message",
+      "name": "Votre nom",
+      "consent": "J’accepte d’être contacté à ces coordonnées au sujet de ma demande.",
+      "contactTitle": "Laissez vos coordonnées (facultatif)",
+      "waiting": "Un membre de l’équipe vous répondra ici.",
+      "team": "Équipe",
+      "view": "Voir",
+      "erase": "Supprimer ma conversation et mes données",
+      "error": "Votre message n’a pas pu être envoyé. Veuillez réessayer.",
+      "tooMany": "Trop de messages. Veuillez contacter directement le commerce.",
+      "unavailableTitle": "Chat indisponible",
+      "unavailableText": "Ce chat n’est pas disponible pour le moment."
     }
   }
 }

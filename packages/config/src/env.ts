@@ -162,6 +162,10 @@ export const appEnvSchema = z.object({
   /** An in-flight publication that the platform has not finished after this many minutes is failed (its outcome stays unknown if it may exist). */
   SOCIAL_PROCESSING_TIMEOUT_MINUTES: z.coerce.number().int().min(1).max(240).default(30),
   SOCIAL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
+  /** Sales agent: AI replies/drafts one business may generate per day (cost control), and public chat limits per IP per minute. */
+  SALES_AGENT_DAILY_REPLY_CAP: z.coerce.number().int().positive().default(500),
+  SALES_PUBLIC_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
+  SALES_MAX_CUSTOMER_MESSAGES_PER_CONVERSATION: z.coerce.number().int().positive().default(60),
   /** Per-model prices (JSON, USD): {"gpt-image-1":{"perImageUsd":0.04},"sora-2":{"perSecondUsd":0.1}}. Unset = cost reported as unknown. */
   CREATIVE_MODEL_PRICING: z
     .string()

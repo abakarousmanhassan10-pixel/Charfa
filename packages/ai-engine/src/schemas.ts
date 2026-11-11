@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AI_FORMATS, AI_LANGUAGES, AI_PLATFORMS, ASPECT_RATIOS, CONTENT_PILLARS, VIDEO_FORMAT_KEYS } from '@touma/shared';
+import { AI_FORMATS, AI_LANGUAGES, CUSTOMER_INTENTS, HANDOFF_REASONS, NEXT_STEPS, PURCHASE_INTENTS, AI_PLATFORMS, ASPECT_RATIOS, CONTENT_PILLARS, VIDEO_FORMAT_KEYS } from '@touma/shared';
 
 const s = (max: number) => z.string().min(1).max(max);
 const list = <T extends z.ZodTypeAny>(item: T, max: number, min = 0) => z.array(item).min(min).max(max);
@@ -200,3 +200,20 @@ export const contentPlanSchema = z.object({
   missingInformation: list(s(300), 10),
 });
 export type ContentPlan = z.infer<typeof contentPlanSchema>;
+
+/** One customer-facing answer. Everything the service needs to decide what to do next is explicit and validated. */
+export const salesReplySchema = z.object({
+  language: z.enum(AI_LANGUAGES),
+  intent: z.enum(CUSTOMER_INTENTS),
+  reply: s(1500),
+  confidence: z.enum(['HIGH', 'MEDIUM', 'LOW']),
+  /** False when the verified data does not contain the answer. */
+  answerable: z.boolean(),
+  handoff: z.object({ needed: z.boolean(), reason: z.enum(HANDOFF_REASONS) }),
+  purchaseIntent: z.enum(PURCHASE_INTENTS),
+  nextStep: z.enum(NEXT_STEPS),
+  recommended: list(z.object({ type: z.enum(['PRODUCT', 'SERVICE']), id: s(60), reason: s(300) }), 3),
+  sources: list(s(80), 12),
+  missingInformation: list(s(300), 6),
+});
+export type SalesReply = z.infer<typeof salesReplySchema>;
