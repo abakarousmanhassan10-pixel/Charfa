@@ -1748,6 +1748,14 @@
       "token": "Jeton d’accès",
       "refreshable": "renouvelé automatiquement",
       "notRefreshable": "non renouvelable automatiquement : reconnectez quand il expire"
+    },
+    "reconcile": {
+      "check": "Vérifier sur la plateforme",
+      "FOUND": "La plateforme liste cette publication.",
+      "NOT_FOUND": "La plateforme n’affiche pas encore de publication correspondante.",
+      "AMBIGUOUS": "Plusieurs publications de la plateforme correspondent.",
+      "UNAVAILABLE": "La plateforme n’a pas pu être vérifiée.",
+      "foundNote": "Retrouvée sur la plateforme après une réponse peu claire : confirmée par la plateforme, publiée une seule fois."
     }
   }
 }

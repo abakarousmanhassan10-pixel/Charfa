@@ -7,3 +7,5 @@ export * from './youtube';
 export * from './linkedin';
 export * from './registry';
 export * from './testing/fake';
+export * from './probe';
+export * from './reconcile';

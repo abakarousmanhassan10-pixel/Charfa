@@ -1,9 +1,10 @@
 import { PLATFORM_CAPABILITIES } from '@touma/shared';
 import { Http, FORM_HEADERS, JSON_HEADERS, form, redact, type FetchLike, type HttpResult } from './http';
 import { composeText, validateAgainstLimits } from './validate';
+import { matchCandidates, unavailable } from './reconcile';
 import {
   EMPTY_METRICS, SocialApiError, type AdapterConfig, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type PlatformAdapter, type PublishableContent, type PublishContext,
-  type PublishOutcome, type StatusOutcome, type TokenInspection, type TokenSet, type ValidationIssue,
+  type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenInspection, type TokenSet, type ValidationIssue,
 } from './types';
 import { createHash, randomBytes } from 'crypto';
 
@@ -80,9 +81,18 @@ export class YouTubePublisher implements PlatformAdapter {
   }
 
   async listAccounts(t: TokenSet): Promise<CandidateAccount[]> {
-    const r = await this.http.ok('https://www.googleapis.com/youtube/v3/channels', { query: { part: 'snippet', mine: 'true' }, headers: { authorization: `Bearer ${t.accessToken}` } }, mapGoogle);
     const missing = SCOPES.filter((s) => t.scopes.length > 0 && !t.scopes.includes(s));
-    return ((r.json?.items ?? []) as Array<{ id: string; snippet?: { title?: string; customUrl?: string; thumbnails?: { default?: { url?: string } } } }>).map((c) => ({
+    type Channel = { id: string; snippet?: { title?: string; customUrl?: string; thumbnails?: { default?: { url?: string } } } };
+    // A Google account can manage several channels: follow nextPageToken until it is absent.
+    const channels: Channel[] = [];
+    let pageToken: string | undefined;
+    for (let page = 0; page < 100; page++) {
+      const r = await this.http.ok('https://www.googleapis.com/youtube/v3/channels', { query: { part: 'snippet', mine: 'true', maxResults: '50', pageToken }, headers: { authorization: `Bearer ${t.accessToken}` } }, mapGoogle);
+      channels.push(...((r.json?.items ?? []) as Channel[]));
+      pageToken = r.json?.nextPageToken as string | undefined;
+      if (!pageToken) break;
+    }
+    return channels.map((c) => ({
       externalAccountId: c.id, displayName: c.snippet?.title ?? null, username: c.snippet?.customUrl ?? null, avatarUrl: c.snippet?.thumbnails?.default?.url ?? null, accountType: 'CHANNEL',
       tokens: t, scopesGranted: t.scopes, permissionsMissing: [...missing], metadata: {},
     }));
@@ -131,6 +141,36 @@ export class YouTubePublisher implements PlatformAdapter {
     const id = json?.id as string | undefined;
     if (!id) throw new SocialApiError('transient', 'YouTube did not return a video id', { outcome: 'unknown' });
     return { status: 'PUBLISHED', externalPostId: id, url: c.surface === 'SHORT' ? `https://www.youtube.com/shorts/${id}` : `https://www.youtube.com/watch?v=${id}`, raw: { privacyStatus: json?.status?.privacyStatus ?? null, uploadStatus: json?.status?.uploadStatus ?? null } };
+  }
+
+  async reconcile(a: AuthorizedAccount, q: ReconcileQuery): Promise<ReconcileOutcome> {
+    try {
+      const auth = { authorization: `Bearer ${a.tokens.accessToken}` };
+      // The uploads playlist lists every video of the channel for 1 quota unit (search costs 100).
+      const ch = await this.http.ok('https://www.googleapis.com/youtube/v3/channels', { query: { part: 'contentDetails', id: a.externalAccountId }, headers: auth }, mapGoogle);
+      const uploads = ch.json?.items?.[0]?.contentDetails?.relatedPlaylists?.uploads as string | undefined;
+      if (!uploads) return { result: 'UNAVAILABLE', reason: 'The channel has no uploads playlist that can be read.' };
+      const found: Array<{ id: string; text: string; at: string; url: string }> = [];
+      let pageToken: string | undefined;
+      for (let page = 0; page < 5; page++) {
+        const r = await this.http.ok('https://www.googleapis.com/youtube/v3/playlistItems', { query: { part: 'snippet', playlistId: uploads, maxResults: '50', pageToken }, headers: auth }, mapGoogle);
+        for (const it of (r.json?.items ?? []) as Array<{ snippet?: { title?: string; description?: string; publishedAt?: string; resourceId?: { videoId?: string } } }>) {
+          const id = it.snippet?.resourceId?.videoId;
+          if (id) found.push({ id, text: it.snippet?.description ?? '', at: it.snippet?.publishedAt ?? '', url: `https://www.youtube.com/watch?v=${id}` });
+        }
+        pageToken = r.json?.nextPageToken as string | undefined;
+        if (!pageToken || found.length > 0 && Date.parse(found[found.length - 1]!.at) < q.since.getTime() - 120_000) break; // newest first: older than the attempt, stop
+      }
+      // The description we send carries the composed text (and #Shorts for Shorts): compare on the description prefix.
+      const wanted = q.text.trim();
+      const hits = found.filter((f) => f.text.trim().startsWith(wanted.slice(0, Math.max(1, Math.min(wanted.length, 200)))) && (!f.at || Date.parse(f.at) >= q.since.getTime() - 120_000));
+      if (hits.length === 1) return { result: 'FOUND', externalPostId: hits[0]!.id, url: hits[0]!.url };
+      if (hits.length > 1) return { result: 'AMBIGUOUS', candidates: hits.map((h) => ({ id: h.id, url: h.url })) };
+      void matchCandidates;
+      return { result: 'NOT_FOUND', checked: found.length };
+    } catch (e) {
+      return unavailable(e);
+    }
   }
 
   async status(): Promise<StatusOutcome> {

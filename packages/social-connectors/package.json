@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "live-verify": "ts-node -T scripts/live-verify.ts"
   },
   "devDependencies": {
     "@touma/config": "workspace:*",

@@ -55,6 +55,9 @@ export interface MediaItem {
   height?: number | null;
   durationSeconds?: number | null;
   altText?: string | null;
+  /** Video codec fourcc as probed from the file (avc1 = H.264, hvc1/hev1 = H.265, vp09, av01...). */
+  videoCodec?: string | null;
+  audioCodec?: string | null;
   /** Reads the file (for platforms that need the bytes). */
   read(): Promise<Buffer>;
 }
@@ -87,6 +90,27 @@ export type PublishOutcome =
   | { status: 'PUBLISHED'; externalPostId: string; url?: string | null; raw?: unknown }
   /** Accepted, still being processed by the platform. Poll status() with `ref`. */
   | { status: 'PROCESSING'; ref: string; stage: string; retryAfterMs?: number; raw?: unknown };
+
+/** What a platform listing says about a post whose creation outcome is unknown. */
+export type ReconcileOutcome =
+  | { result: 'FOUND'; externalPostId: string; url?: string | null; raw?: unknown }
+  /** The platform was searched and nothing matches. Not proof (listings lag): a person still decides. */
+  | { result: 'NOT_FOUND'; checked: number }
+  /** More than one post matches: only a person can tell which one is ours. */
+  | { result: 'AMBIGUOUS'; candidates: Array<{ id: string; url?: string | null }> }
+  /** The platform (or the granted permissions) offers no way to look this up. */
+  | { result: 'UNAVAILABLE'; reason: string };
+
+export interface ReconcileQuery {
+  /** The exact text the post was created with (caption, hashtags). */
+  text: string;
+  title?: string | null;
+  /** The earliest time the post can have been created (when the create request started). */
+  since: Date;
+  /** Provider reference of an in-flight step, when one was recorded. */
+  ref?: string | null;
+  stage?: string | null;
+}
 
 export type StatusOutcome = PublishOutcome | { status: 'FAILED'; code: string; message: string; raw?: unknown };
 
@@ -150,6 +174,8 @@ export interface PlatformAdapter {
   validate(content: PublishableContent): ValidationIssue[];
   publish(account: AuthorizedAccount, content: PublishableContent, ctx: PublishContext): Promise<PublishOutcome>;
   status(account: AuthorizedAccount, ref: string, stage: string): Promise<StatusOutcome>;
+  /** Looks on the platform for a post created by an attempt whose outcome is unknown. Read-only; never creates anything. */
+  reconcile(account: AuthorizedAccount, q: ReconcileQuery): Promise<ReconcileOutcome>;
   fetchMetrics(account: AuthorizedAccount, externalPostId: string): Promise<Metrics>;
 }
 

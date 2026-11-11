@@ -79,3 +79,43 @@ export const form = (data: Record<string, string | undefined>) => {
 };
 export const FORM_HEADERS = { 'content-type': 'application/x-www-form-urlencoded' };
 export const JSON_HEADERS = { 'content-type': 'application/json' };
+
+/** Hard stop against a platform that never ends a listing (a cursor loop). 200 pages x 100 = 20 000 items. */
+export const MAX_PAGES = 200;
+
+export interface Paged<T> {
+  items: T[];
+  pages: number;
+  /** True when the safety cap stopped the listing: the result is incomplete and callers must say so. */
+  truncated: boolean;
+}
+
+/**
+ * Follows a Graph-style listing to its end: uses paging.next (a ready URL) when present, otherwise paging.cursors.after.
+ * Stops when the platform reports no next page, when a cursor repeats, or at the safety cap (reported as truncated).
+ */
+export async function paginateGraph<T>(http: Http, firstUrl: string, firstQuery: Record<string, string | undefined>, map: ErrorMapper, maxPages = MAX_PAGES): Promise<Paged<T>> {
+  const items: T[] = [];
+  const seen = new Set<string>();
+  let url = firstUrl;
+  let query: Record<string, string | undefined> | undefined = firstQuery;
+  let pages = 0;
+  for (;;) {
+    const r = await http.ok(url, { query }, map);
+    pages++;
+    items.push(...((r.json?.data ?? []) as T[]));
+    const paging = (r.json?.paging ?? {}) as { next?: string; cursors?: { after?: string } };
+    if (!paging.next) return { items, pages, truncated: false };
+    const key = paging.cursors?.after ?? paging.next;
+    if (seen.has(key)) return { items, pages, truncated: false };
+    seen.add(key);
+    if (pages >= maxPages) return { items, pages, truncated: true };
+    if (paging.cursors?.after) {
+      url = firstUrl;
+      query = { ...firstQuery, after: paging.cursors.after };
+    } else {
+      url = paging.next; // already carries every parameter, token included
+      query = undefined;
+    }
+  }
+}

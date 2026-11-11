@@ -60,7 +60,7 @@ export class SocialWorkerService implements OnApplicationBootstrap, OnApplicatio
   }
 
   async tick(now = new Date()) {
-    if (this.ticking) return { monitored: null, requeued: 0, polled: 0, measured: 0 };
+    if (this.ticking) return { monitored: null, requeued: 0, polled: 0, reconciled: 0, measured: 0 };
     this.ticking = true;
     try {
       const monitored = await this.accounts.monitor(now);
@@ -87,6 +87,16 @@ export class SocialWorkerService implements OnApplicationBootstrap, OnApplicatio
         await this.publisher.poll(p.id);
         polled++;
       }
+      // Unknown outcomes: ask the platform what exists (a few times, spaced out) instead of retrying. Never creates anything.
+      let reconciled = 0;
+      for (const p of await this.publisher.reconcilable(now)) {
+        try {
+          await this.publisher.reconcile(p.id);
+          reconciled++;
+        } catch (e) {
+          this.logger.warn(`reconcile ${p.id} skipped: ${(e as Error).message.slice(0, 200)}`);
+        }
+      }
       let measured = 0;
       for (const id of await this.analytics.due(now)) {
         try {
@@ -96,7 +106,7 @@ export class SocialWorkerService implements OnApplicationBootstrap, OnApplicatio
           this.logger.warn(`metrics for ${id} failed: ${(e as Error).message.slice(0, 200)}`);
         }
       }
-      return { monitored, requeued, polled, measured };
+      return { monitored, requeued, polled, reconciled, measured };
     } finally {
       this.ticking = false;
     }

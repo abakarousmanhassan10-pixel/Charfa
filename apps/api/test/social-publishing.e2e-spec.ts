@@ -98,7 +98,7 @@ describe('Social publishing (e2e)', () => {
 
     it('publishes carousels (Instagram, Facebook, LinkedIn)', async () => {
       const b = await newBiz();
-      const photos = [await h.jpeg(b.owner), await h.jpeg(b.owner, 600, 800), await h.jpeg(b.owner, 700, 700)];
+      const photos = [await h.jpeg(b.owner), await h.jpeg(b.owner, 600, 750), await h.jpeg(b.owner, 700, 700)];
       for (const platform of ['INSTAGRAM', 'FACEBOOK', 'LINKEDIN'] as const) {
         const { pub } = await publish(b, { platform, contentType: 'CAROUSEL', mediaIds: photos.map((p) => p.id), title: `Carousel ${platform}` }, ['PUBLISHED']);
         expect(pub!.status).toBe('PUBLISHED');
@@ -545,6 +545,139 @@ describe('Social publishing (e2e)', () => {
       await prisma.publication.update({ where: { id: waiting.id }, data: { createdAt: new Date(Date.now() - 3 * 3_600_000), nextCheckAt: new Date() } });
       await h.socialWorker.tick();
       expect(await prisma.publication.findUniqueOrThrow({ where: { id: waiting.id } })).toMatchObject({ status: 'FAILED', outcomeUnknown: true, errorCode: 'OUTCOME_UNKNOWN' });
+    });
+  });
+
+  describe('media validation before anything is sent', () => {
+    const failureOf = async (b: Biz, platform: 'INSTAGRAM' | 'TIKTOK' | 'LINKEDIN', mediaId: string, contentType: 'VIDEO' | 'IMAGE', title: string) => {
+      const e = await h.scheduled(b.editor, b.admin, { platform, contentType, mediaIds: [mediaId], ...slot(b), title });
+      await h.dispatch(e.id);
+      return waitUntil(e.id, (p) => p.status === 'FAILED' || p.status === 'MANUAL_REQUIRED');
+    };
+
+    it('rejects a wrong aspect ratio, with the numbers, and calls no platform API', async () => {
+      const b = await newBiz();
+      const tall = await h.jpeg(b.owner, 500, 1200);
+      const pub = await failureOf(b, 'INSTAGRAM', tall.id, 'IMAGE', 'Too tall');
+      expect(pub).toMatchObject({ status: 'FAILED', errorCode: 'MEDIA_INVALID', outcomeUnknown: false });
+      expect(pub.lastError).toMatch(/500x1200.*aspect ratio.*0\.80:1 to 1\.91:1/);
+      expect(h.hub.count('INSTAGRAM', 'publish')).toBe(0);
+    });
+
+    it('rejects a video codec the platform does not take, and audio it does not take', async () => {
+      const b = await newBiz();
+      const hevc = await h.video(b.owner, { codec: 'hvc1' });
+      expect((await failureOf(b, 'LINKEDIN', hevc.id, 'VIDEO', 'HEVC')).lastError).toMatch(/H\.265\/HEVC codec; LinkedIn accepts H\.264/);
+      const ac3 = await h.video(b.owner, { audio: 'ac-3' });
+      expect((await failureOf(b, 'INSTAGRAM', ac3.id, 'VIDEO', 'AC3')).lastError).toMatch(/audio uses ac-3/);
+      expect(h.hub.count('LINKEDIN', 'publish') + h.hub.count('INSTAGRAM', 'publish')).toBe(0);
+    });
+
+    it('measures the real file: stored width/height/duration that are wrong do not decide', async () => {
+      const b = await newBiz();
+      // The row claims a vertical 20 s video; the bytes are a 5000x2500 file: the file wins.
+      const v = await h.video(b.owner, { width: 5000, height: 2500, seconds: 20 });
+      await prisma.mediaAsset.update({ where: { id: v.id }, data: { width: 1080, height: 1920 } });
+      const pub = await failureOf(b, 'TIKTOK', v.id, 'VIDEO', 'Lying row');
+      expect(pub.lastError).toMatch(/5000x2500.*at most 4096/);
+    });
+
+    it('rejects a file whose content is not what its type says', async () => {
+      const b = await newBiz();
+      const v = await h.video(b.owner);
+      const key = (await prisma.mediaAsset.findUniqueOrThrow({ where: { id: v.id } })).storageKey;
+      const junk = Buffer.from('this is not a video');
+      await h.storage.put(key, junk, { contentType: 'video/mp4', contentLength: junk.length });
+      const pub = await failureOf(b, 'TIKTOK', v.id, 'VIDEO', 'Not a video');
+      expect(pub).toMatchObject({ status: 'FAILED', errorCode: 'MEDIA_INVALID' });
+      expect(pub.lastError).toMatch(/not a valid MP4\/MOV video/);
+    });
+  });
+
+  describe('reconciliation of unknown outcomes', () => {
+    const unknown = async (b: Biz, platform: 'FACEBOOK' | 'INSTAGRAM', title: string) => {
+      const photo = await h.jpeg(b.owner);
+      h.hub.script(platform, 'publish', { createThen: new SocialApiError('timeout', 'The platform did not answer in time', { outcome: 'unknown' }) });
+      const e = await h.scheduled(b.editor, b.admin, { platform, contentType: 'IMAGE', mediaIds: [photo.id], ...slot(b), title });
+      await h.dispatch(e.id);
+      const pub = await waitUntil(e.id, (p) => p.status === 'FAILED');
+      expect(pub).toMatchObject({ outcomeUnknown: true, externalPostId: null });
+      return { e, pub };
+    };
+
+    it('finds the post the platform created, records it as published and confirmed, and never publishes a second time', async () => {
+      const b = await newBiz();
+      const { e, pub } = await unknown(b, 'FACEBOOK', 'Created but unanswered');
+      expect(h.hub.posts).toHaveLength(1);
+      const res = (await h.post(b.admin, `/publications/${pub.id}/reconcile`).expect(200)).body;
+      expect(res).toMatchObject({ status: 'PUBLISHED', confirmedByProvider: true, outcomeUnknown: false, reconcile: { result: 'FOUND', foundOnPlatform: true } });
+      expect(res.externalPostId).toBe(h.hub.posts[0]!.id);
+      expect(res.externalUrl).toContain(h.hub.posts[0]!.id);
+      expect(h.hub.count('FACEBOOK', 'publish')).toBe(1);
+      expect(h.hub.posts).toHaveLength(1);
+      expect((await h.entryRow(e.id)).content?.status).toBe('PUBLISHED');
+      await h.post(b.admin, `/publications/${pub.id}/reconcile`).expect(409); // nothing left to reconcile
+    });
+
+    it('when the platform shows nothing, it stays with a person: no auto-retry, retry needs confirmation', async () => {
+      const b = await newBiz();
+      const { pub } = await unknown(b, 'FACEBOOK', 'Maybe lost');
+      h.hub.posts.length = 0; // the platform's listing shows nothing (the create request never reached it, or the listing lags)
+      const publishesBefore = h.hub.count('FACEBOOK', 'publish');
+      const res = (await h.post(b.admin, `/publications/${pub.id}/reconcile`).expect(200)).body;
+      expect(res).toMatchObject({ status: 'FAILED', outcomeUnknown: true, reconcile: { result: 'NOT_FOUND' } });
+      expect(res.reconcile.note).toMatch(/look at the platform yourself/);
+      expect(h.hub.count('FACEBOOK', 'publish')).toBe(publishesBefore);
+      expect((await h.post(b.admin, `/publications/${pub.id}/retry`).expect(422)).body.code).toBe('OUTCOME_UNKNOWN');
+    });
+
+    it('says so when the platform cannot be asked, and when several posts match', async () => {
+      const b = await newBiz();
+      const { pub } = await unknown(b, 'INSTAGRAM', 'Cannot ask');
+      h.hub.script('INSTAGRAM', 'reconcile', 'unavailable');
+      const r1 = (await h.post(b.admin, `/publications/${pub.id}/reconcile`).expect(200)).body;
+      expect(r1).toMatchObject({ status: 'FAILED', outcomeUnknown: true, reconcile: { result: 'UNAVAILABLE' } });
+      // A second identical post appears on the platform: only a person can tell which one is ours.
+      const first = h.hub.posts[0]!;
+      h.hub.posts.push({ ...first, id: 'ig-duplicate', at: new Date() });
+      const r2 = (await h.post(b.admin, `/publications/${pub.id}/reconcile`).expect(200)).body;
+      expect(r2).toMatchObject({ status: 'FAILED', outcomeUnknown: true, reconcile: { result: 'AMBIGUOUS' } });
+      expect(r2.reconcile.note).toContain('2 posts');
+      const audit = await prisma.auditLog.findMany({ where: { entityId: pub.id, action: 'social.reconciled_uncertain' } });
+      expect(audit.length).toBe(2);
+    });
+
+    it('a failed lookup is never read as "not found": a permission error is UNAVAILABLE', async () => {
+      const b = await newBiz();
+      const { pub } = await unknown(b, 'FACEBOOK', 'Permission');
+      h.hub.script('FACEBOOK', 'reconcile', new SocialApiError('permission', 'pages_read_engagement is missing', { outcome: 'not_created' }));
+      const r = (await h.post(b.admin, `/publications/${pub.id}/reconcile`).expect(200)).body;
+      expect(r.reconcile.result).toBe('UNAVAILABLE');
+      expect(r.reconcile.note).toMatch(/permissions do not allow listing/);
+    });
+
+    it('the worker reconciles unknown outcomes on its own, a bounded number of times, and only a viewer-proof role can do it by hand', async () => {
+      const b = await newBiz();
+      const { e, pub } = await unknown(b, 'FACEBOOK', 'Worker finds it');
+      await h.post(b.viewer, `/publications/${pub.id}/reconcile`).expect(403);
+      await prisma.publication.update({ where: { id: pub.id }, data: { updatedAt: new Date(Date.now() - 120_000) } });
+      await h.socialWorker.tick();
+      const done = await prisma.publication.findUniqueOrThrow({ where: { id: pub.id } });
+      expect(done).toMatchObject({ status: 'PUBLISHED', confirmedByProvider: true, reconciledFound: true, reconcileResult: 'FOUND' });
+      expect((await h.entryRow(e.id)).content?.status).toBe('PUBLISHED');
+      expect(h.hub.count('FACEBOOK', 'publish')).toBe(1);
+
+      // Attempts are capped: after three uncertain checks the worker stops and leaves it to a person.
+      const b2 = await newBiz();
+      const { pub: p2 } = await unknown(b2, 'INSTAGRAM', 'Never found');
+      h.hub.posts.length = 0;
+      await prisma.publication.update({ where: { id: p2.id }, data: { updatedAt: new Date(Date.now() - 120_000) } });
+      for (let i = 0; i < 5; i++) {
+        await h.socialWorker.tick();
+        await prisma.publication.update({ where: { id: p2.id }, data: { reconciledAt: new Date(Date.now() - 30 * 60_000) } });
+      }
+      const capped = await prisma.publication.findUniqueOrThrow({ where: { id: p2.id } });
+      expect(capped).toMatchObject({ status: 'FAILED', outcomeUnknown: true, reconcileAttempts: 3, reconcileResult: 'NOT_FOUND' });
     });
   });
 

@@ -1,8 +1,9 @@
 import { randomBytes } from 'crypto';
-import { validateAgainstLimits } from '../validate';
+import { validateAgainstLimits, composeText } from '../validate';
+import { matchCandidates, unavailable } from '../reconcile';
 import {
   EMPTY_METRICS, SocialApiError, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type Platform, type PlatformAdapter, type PublishableContent, type PublishContext,
-  type PublishOutcome, type StatusOutcome, type TokenInspection, type TokenSet,
+  type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenInspection, type TokenSet,
 } from '../types';
 import { SOCIAL_PLATFORMS, PLATFORM_CAPABILITIES } from '@touma/shared';
 
@@ -11,8 +12,8 @@ import { SOCIAL_PLATFORMS, PLATFORM_CAPABILITIES } from '@touma/shared';
  * It never talks to a network. Tests script its behavior and read back what was "sent"; nothing it does is evidence
  * about a real platform.
  */
-export type Step = 'exchange' | 'refresh' | 'list' | 'publish' | 'status' | 'metrics';
-export type Scripted = SocialApiError | 'ok' | 'processing' | { createThen: SocialApiError };
+export type Step = 'exchange' | 'refresh' | 'list' | 'publish' | 'status' | 'metrics' | 'reconcile';
+export type Scripted = SocialApiError | 'ok' | 'processing' | 'unavailable' | { createThen: SocialApiError };
 
 export interface FakeCall {
   platform: Platform;
@@ -171,6 +172,20 @@ export class FakeAdapter implements PlatformAdapter {
     if (s === 'processing') return { status: 'PROCESSING', ref, stage: 'CONTAINER', retryAfterMs: 1 };
     // ready: the engine continues with publish()
     return { status: 'PROCESSING', ref, stage: 'CONTAINER', retryAfterMs: 0 };
+  }
+
+  async reconcile(a: AuthorizedAccount, q: ReconcileQuery): Promise<ReconcileOutcome> {
+    this.hub.calls.push({ platform: this.platform, op: 'reconcile', accessToken: a.tokens.accessToken, detail: { since: q.since.toISOString() } });
+    try {
+      this.guard(a);
+      const s = this.hub.next(this.platform, 'reconcile');
+      if (s instanceof SocialApiError) throw s;
+      if (s === 'unavailable') return { result: 'UNAVAILABLE', reason: 'The simulated platform offers no listing.' };
+    } catch (e) {
+      return unavailable(e);
+    }
+    const mine = this.hub.posts.filter((p) => p.platform === this.platform && p.accountId === a.externalAccountId);
+    return matchCandidates(mine.map((p) => ({ id: p.id, text: composeText(p.content), at: p.at.toISOString(), url: `https://fake-platform.test/${this.platform}/${p.id}` })), q);
   }
 
   async fetchMetrics(a: AuthorizedAccount, postId: string): Promise<Metrics> {

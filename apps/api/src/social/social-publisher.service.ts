@@ -1,7 +1,7 @@
 import { ConflictException, Inject, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { Prisma, type Publication, type SocialAccount } from '@touma/database';
 import { PLATFORM_CAPABILITIES, roleHasPermission, type ContentKind, type SocialPlatformId, type VideoSurface } from '@touma/shared';
-import { SocialApiError, type MediaItem, type PlatformAdapter, type PublishableContent, type PublishOutcome as AdapterOutcome } from '@touma/social-connectors';
+import { composeText, probeMedia, SocialApiError, type MediaItem, type PlatformAdapter, type PublishableContent, type PublishOutcome as AdapterOutcome } from '@touma/social-connectors';
 import { AuditService } from '../audit/audit.service';
 import type { PublishingOutcome, PublishingRequest } from '../calendar/publishing';
 import { CalendarResultsService } from '../calendar/calendar-results.service';
@@ -235,8 +235,27 @@ export class SocialPublisherService {
     const rows = await this.media.publishable(pub.businessId, ids).catch(() => {
       throw new Final('MEDIA_INVALID', 'A media file of this post was deleted or is not ready');
     });
-    void platform;
-    return rows.map((m) => ({ id: m.id, url: `${this.accounts.apiBase}${m.relativeUrl}`, mimeType: m.mimeType, sizeBytes: m.sizeBytes, width: m.width, height: m.height, durationSeconds: m.durationSeconds, altText: m.altText, read: m.read }));
+    const limits = PLATFORM_CAPABILITIES[platform];
+    const items: MediaItem[] = [];
+    for (const m of rows) {
+      const item: MediaItem = { id: m.id, url: `${this.accounts.apiBase}${m.relativeUrl}`, mimeType: m.mimeType, sizeBytes: m.sizeBytes, width: m.width, height: m.height, durationSeconds: m.durationSeconds, altText: m.altText, read: m.read };
+      // Facts are read from the file's own bytes, not from its name or the declared type. Files already over the platform's size
+      // limit are not read: validation rejects them by size without loading up to a gigabyte into memory.
+      const isVideo = m.mimeType.startsWith('video/');
+      const limit = isVideo ? limits.videoMaxBytes : limits.imageMaxBytes;
+      if (m.sizeBytes <= limit) {
+        const facts = probeMedia(await m.read());
+        const expected = isVideo ? ['mp4', 'mov'] : ['jpeg', 'png'];
+        if (!expected.includes(facts.container)) throw new Final('MEDIA_INVALID', `The file's content is not a valid ${isVideo ? 'MP4/MOV video' : 'JPEG/PNG image'}, whatever its name says. Export it again and upload the new file.`);
+        if (facts.width && facts.height) { item.width = facts.width; item.height = facts.height; }
+        if (facts.durationSeconds !== undefined) item.durationSeconds = facts.durationSeconds;
+        item.videoCodec = facts.videoCodec ?? null;
+        item.audioCodec = facts.audioCodec ?? null;
+        if (isVideo && !facts.videoCodec) throw new Final('MEDIA_INVALID', 'The video track of this file could not be read. Export it again as MP4 (H.264 video, AAC audio).');
+      }
+      items.push(item);
+    }
+    return items;
   }
 
   // ─── Outcomes ───────────────────────────────────────────────────────────────
@@ -373,7 +392,7 @@ export class SocialPublisherService {
     }
     const res = await this.prisma.publication.updateMany({
       where: { id, status: 'FAILED' },
-      data: { status: 'QUEUED', attempts: 0, lastError: null, errorCode: null, outcomeUnknown: false, submitStartedAt: null, nextCheckAt: null, lockedUntil: null, providerRef: pub.providerStage && RESUMABLE_AFTER_SUBMIT.has(pub.providerStage) ? pub.providerRef : null, providerStage: pub.providerStage && RESUMABLE_AFTER_SUBMIT.has(pub.providerStage) ? pub.providerStage : null },
+      data: { status: 'QUEUED', attempts: 0, lastError: null, errorCode: null, outcomeUnknown: false, reconcileResult: null, reconcileNote: null, submitStartedAt: null, nextCheckAt: null, lockedUntil: null, providerRef: pub.providerStage && RESUMABLE_AFTER_SUBMIT.has(pub.providerStage) ? pub.providerRef : null, providerStage: pub.providerStage && RESUMABLE_AFTER_SUBMIT.has(pub.providerStage) ? pub.providerStage : null },
     });
     if (!res.count) throw new ConflictException({ code: 'INVALID_STATE', message: 'This publication changed' });
     await this.audit.record({ action: 'social.publish_retried', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'Publication', entityId: id, metadata: { platform: pub.platform, confirmedNotPublished: confirmNotPublished } });
@@ -381,6 +400,60 @@ export class SocialPublisherService {
     await this.queue.forget(id);
     await this.queue.enqueue(id);
     return this.get(tenant, id);
+  }
+
+  // ─── Reconciliation of unknown outcomes ─────────────────────────────────────
+
+  /**
+   * An unknown outcome is never retried blindly. The platform is asked what exists:
+   *  - FOUND: exactly one post with our text since the attempt began. It is recorded as published, confirmed by the platform;
+   *  - NOT_FOUND / AMBIGUOUS / UNAVAILABLE: nothing changes except the note. A person still decides (retry only after they confirm
+   *    the post is not there, or mark it published). A listing that does not show the post is not proof that it was not created.
+   * Read-only on the platform: this never creates anything.
+   */
+  async reconcile(publicationId: string, by: { userId: string | null; businessId?: string } = { userId: null }) {
+    const pub = await this.prisma.publication.findFirst({ where: { id: publicationId, ...(by.businessId ? { businessId: by.businessId } : {}) }, include: { content: true } });
+    if (!pub) throw new NotFoundException({ code: 'PUBLICATION_NOT_FOUND', message: 'Publication not found' });
+    if (pub.status !== 'FAILED' || !pub.outcomeUnknown) throw new ConflictException({ code: 'INVALID_STATE', message: 'Only a publication with an unknown outcome can be reconciled' });
+    const claimed = await this.prisma.publication.updateMany({ where: { id: pub.id, status: 'FAILED', outcomeUnknown: true, OR: [{ lockedUntil: null }, { lockedUntil: { lt: new Date() } }] }, data: { lockedUntil: new Date(Date.now() + 2 * 60_000), reconcileAttempts: { increment: 1 } } });
+    if (!claimed.count) throw new ConflictException({ code: 'RECONCILE_IN_PROGRESS', message: 'This publication is being checked right now' });
+    const adapter = this.adapters[pub.platform as SocialPlatformId];
+    const payload = (pub.payload ?? {}) as Partial<Payload>;
+    let outcome: Awaited<ReturnType<PlatformAdapter['reconcile']>>;
+    try {
+      const { auth } = await this.accounts.authorized(pub.businessId, pub.socialAccountId);
+      const text = composeText({ kind: payload.kind ?? 'TEXT', surface: payload.surface ?? 'FEED', title: payload.title, caption: payload.caption ?? '', hashtags: payload.hashtags ?? [], callToAction: payload.callToAction, media: [] });
+      outcome = await adapter.reconcile(auth, { text, title: payload.title, since: pub.submitStartedAt ?? pub.createdAt, ref: pub.providerRef, stage: pub.providerStage });
+    } catch (e) {
+      outcome = { result: 'UNAVAILABLE', reason: e instanceof SocialAuthError ? e.message : 'The platform could not be asked.' };
+    }
+    const base = { lockedUntil: null, reconciledAt: new Date(), reconcileResult: outcome.result };
+    if (outcome.result === 'FOUND') {
+      const res = await this.prisma.publication.updateMany({
+        where: { id: pub.id, status: 'FAILED', outcomeUnknown: true },
+        data: { ...base, status: 'PUBLISHED', externalPostId: outcome.externalPostId, externalUrl: outcome.url ?? null, publishedAt: new Date(), confirmedByProvider: true, reconciledFound: true, outcomeUnknown: false, lastError: null, errorCode: null, submitStartedAt: null, nextCheckAt: null, reconcileNote: 'The platform lists this post.', providerResponse: (outcome.raw ?? undefined) as Prisma.InputJsonValue | undefined },
+      });
+      if (res.count) {
+        await this.audit.record({ action: 'social.reconciled_found', actorId: by.userId, businessId: pub.businessId, entityType: 'Publication', entityId: pub.id, metadata: { platform: pub.platform, externalPostId: outcome.externalPostId } });
+        if (pub.calendarEventId) await this.results.recordPublished(pub.calendarEventId, { publishedAt: new Date(), externalUrl: outcome.url ?? null, publicationId: pub.id });
+      }
+    } else {
+      const note =
+        outcome.result === 'NOT_FOUND' ? `Checked ${outcome.checked} recent post(s) on the platform and none matches. A platform listing can lag: look at the platform yourself, then retry or mark it published.`
+        : outcome.result === 'AMBIGUOUS' ? `${outcome.candidates.length} posts on the platform match this text (${outcome.candidates.map((c) => c.url ?? c.id).join(', ')}). Open them and decide.`
+        : outcome.reason;
+      await this.prisma.publication.update({ where: { id: pub.id }, data: { ...base, reconcileNote: note.slice(0, 500) } });
+      await this.audit.record({ action: 'social.reconciled_uncertain', actorId: by.userId, businessId: pub.businessId, entityType: 'Publication', entityId: pub.id, metadata: { platform: pub.platform, result: outcome.result } });
+    }
+    return this.prisma.publication.findUniqueOrThrow({ where: { id: pub.id }, include: { socialAccount: { select: { displayName: true, username: true, platform: true } }, calendarEvent: { select: { title: true } } } }).then((p) => this.dto(p, true));
+  }
+
+  /** Unknown outcomes the worker should look into on its own: a few attempts, spaced out. After that a person decides. */
+  reconcilable(now = new Date()) {
+    return this.prisma.publication.findMany({
+      where: { status: 'FAILED', outcomeUnknown: true, reconcileAttempts: { lt: 3 }, OR: [{ reconciledAt: null, updatedAt: { lt: new Date(now.getTime() - 60_000) } }, { reconciledAt: { lt: new Date(now.getTime() - 15 * 60_000) }, reconcileResult: { in: ['NOT_FOUND', 'UNAVAILABLE'] } }], AND: [{ OR: [{ lockedUntil: null }, { lockedUntil: { lt: now } }] }] },
+      select: { id: true }, take: 25,
+    });
   }
 
   /** The person published it themselves (manual fallback, or after an unknown outcome). Recorded as manual, never as provider-confirmed. */
@@ -406,7 +479,7 @@ export class SocialPublisherService {
     const out = {
       id: p.id, platform: p.platform, status: p.status, mode: p.mode, scheduledAt: p.scheduledAt.toISOString(), timezone: p.timezone, attempts: p.attempts, entryId: p.calendarEventId, entryTitle: p.calendarEvent?.title ?? null,
       accountId: p.socialAccountId, accountName: p.socialAccount?.displayName ?? p.socialAccount?.username ?? null, kind: payload.kind ?? null, errorCode: p.errorCode, error: p.lastError, outcomeUnknown: p.outcomeUnknown,
-      confirmedByProvider: p.confirmedByProvider, externalPostId: p.externalPostId, externalUrl: p.externalUrl, publishedAt: p.publishedAt?.toISOString() ?? null, nextCheckAt: p.nextCheckAt?.toISOString() ?? null, createdAt: p.createdAt.toISOString(),
+      confirmedByProvider: p.confirmedByProvider, reconcile: p.reconcileResult ? { result: p.reconcileResult, note: p.reconcileNote, attempts: p.reconcileAttempts, at: p.reconciledAt?.toISOString() ?? null, foundOnPlatform: p.reconciledFound } : null, externalPostId: p.externalPostId, externalUrl: p.externalUrl, publishedAt: p.publishedAt?.toISOString() ?? null, nextCheckAt: p.nextCheckAt?.toISOString() ?? null, createdAt: p.createdAt.toISOString(),
     };
     if (!detail || p.status !== 'MANUAL_REQUIRED') return out;
     const ids = payload.mediaIds ?? [];

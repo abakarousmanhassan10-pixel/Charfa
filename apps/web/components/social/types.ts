@@ -88,6 +88,7 @@ export interface Publication {
   errorCode: string | null;
   error: string | null;
   outcomeUnknown: boolean;
+  reconcile?: { result: "FOUND" | "NOT_FOUND" | "AMBIGUOUS" | "UNAVAILABLE"; note: string | null; attempts: number; at: string | null; foundOnPlatform: boolean } | null;
   confirmedByProvider: boolean;
   externalPostId: string | null;
   externalUrl: string | null;

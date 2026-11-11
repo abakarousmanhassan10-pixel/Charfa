@@ -1,8 +1,9 @@
 import { Http, FORM_HEADERS, JSON_HEADERS, form, redact, type FetchLike, type HttpResult } from './http';
 import { validateAgainstLimits } from './validate';
+import { matchCandidates, unavailable } from './reconcile';
 import {
   EMPTY_METRICS, SocialApiError, type AdapterConfig, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type PlatformAdapter, type PublishableContent, type PublishContext,
-  type PublishOutcome, type StatusOutcome, type TokenSet,
+  type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenSet,
 } from './types';
 
 const API = 'https://api.linkedin.com';
@@ -20,6 +21,11 @@ function mapLinkedIn(r: HttpResult): SocialApiError {
 }
 
 /** LinkedIn "little text" reserves these characters; they are escaped so the text is posted exactly as written. */
+/** The reverse of escapeLinkedIn, with hashtag markup shown as plain #tags, to compare what LinkedIn returns with what TOUMA composed. */
+export function unescapeLinkedIn(text: string) {
+  return text.replace(/\{hashtag\|\\#\|([^}]*)\}/g, '#$1').replace(/\\([\\|{}@[\]()<>#*_~])/g, '$1');
+}
+
 export function escapeLinkedIn(text: string) {
   return text.replace(/([\\|{}@[\]()<>#*_~])/g, '\\$1');
 }
@@ -88,15 +94,20 @@ export class LinkedInPublisher implements PlatformAdapter {
       out.push({ externalAccountId: `urn:li:person:${u.sub}`, displayName: u.name ?? null, avatarUrl: u.picture ?? null, accountType: 'PROFILE', tokens: t, scopesGranted: granted, permissionsMissing: missing, metadata: {} });
     }
     // Company Pages: only when the application was approved for the organization scopes.
-    const orgs = await this.http.request(`${API}/rest/organizationAcls`, { query: { q: 'roleAssignee', role: 'ADMINISTRATOR', state: 'APPROVED' }, headers: this.rest(t) });
-    if (orgs.status === 200) {
-      for (const el of (orgs.json?.elements ?? []) as Array<{ organization?: string }>) {
-        const urn = el.organization;
-        if (!urn) continue;
-        const id = urn.split(':').pop()!;
-        const detail = await this.http.request(`${API}/rest/organizations/${id}`, { headers: this.rest(t) });
-        out.push({ externalAccountId: urn, displayName: (detail.json?.localizedName as string) ?? `Organization ${id}`, accountType: 'ORGANIZATION', tokens: t, scopesGranted: granted, permissionsMissing: ['w_organization_social'].filter((s) => granted.length > 0 && !granted.includes(s)), metadata: {} });
-      }
+    // Paged with start/count until a page comes back short; a refusal (no organization scopes approved) means personal publishing only.
+    const orgUrns: string[] = [];
+    for (let start = 0, page = 0; page < 100; page++) {
+      const orgs = await this.http.request(`${API}/rest/organizationAcls`, { query: { q: 'roleAssignee', role: 'ADMINISTRATOR', state: 'APPROVED', start: String(start), count: '100' }, headers: this.rest(t) });
+      if (orgs.status !== 200) break;
+      const els = (orgs.json?.elements ?? []) as Array<{ organization?: string }>;
+      for (const el of els) if (el.organization) orgUrns.push(el.organization);
+      if (els.length < 100) break;
+      start += els.length;
+    }
+    for (const urn of orgUrns) {
+      const id = urn.split(':').pop()!;
+      const detail = await this.http.request(`${API}/rest/organizations/${id}`, { headers: this.rest(t) });
+      out.push({ externalAccountId: urn, displayName: (detail.json?.localizedName as string) ?? `Organization ${id}`, accountType: 'ORGANIZATION', tokens: t, scopesGranted: granted, permissionsMissing: ['w_organization_social'].filter((s) => granted.length > 0 && !granted.includes(s)), metadata: {} });
     }
     return out;
   }
@@ -152,6 +163,19 @@ export class LinkedInPublisher implements PlatformAdapter {
     const urn = r.headers.get('x-restli-id') ?? (r.json?.id as string | undefined);
     if (!urn) throw new SocialApiError('transient', 'LinkedIn did not return the post id', { outcome: 'unknown' });
     return { status: 'PUBLISHED', externalPostId: urn, url: `https://www.linkedin.com/feed/update/${urn}` };
+  }
+
+  async reconcile(a: AuthorizedAccount, q: ReconcileQuery): Promise<ReconcileOutcome> {
+    try {
+      // Reading an author's posts needs r_member_social (restricted) or r_organization_social: without them LinkedIn cannot be asked.
+      const r = await this.http.request(`${API}/rest/posts`, { query: { author: a.externalAccountId, q: 'author', count: '50', sortBy: 'LAST_MODIFIED' }, headers: this.rest(a.tokens) });
+      if (r.status === 401 || r.status === 403) return { result: 'UNAVAILABLE', reason: 'LinkedIn only lets an application list posts with a restricted read permission (r_member_social / r_organization_social) that has not been granted. Check LinkedIn by hand.' };
+      if (r.status < 200 || r.status >= 300) return unavailable(mapLinkedIn(r));
+      const els = (r.json?.elements ?? []) as Array<{ id?: string; commentary?: string; createdAt?: number; publishedAt?: number }>;
+      return matchCandidates(els.filter((e) => e.id).map((e) => ({ id: e.id!, text: unescapeLinkedIn(e.commentary ?? ''), at: new Date(e.publishedAt ?? e.createdAt ?? 0).toISOString(), url: `https://www.linkedin.com/feed/update/${e.id}` })), q, els.length);
+    } catch (e) {
+      return unavailable(e);
+    }
   }
 
   async status(): Promise<StatusOutcome> {

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { BarChart3, Copy, ExternalLink, Loader2, RotateCcw } from 'lucide-react';
+import { BarChart3, Copy, ExternalLink, Loader2, RotateCcw, SearchCheck } from 'lucide-react';
 import { useBusiness } from '@/components/business-provider';
 import { useI18n } from '@/components/i18n-provider';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,21 @@ export function PublicationList({ items, onChanged, testId = 'publication-list' 
     try {
       await api(`/social/publications/${p.id}/retry`, { method: 'POST', json: confirmNotPublished ? { confirmNotPublished: true } : {}, businessId: active.id });
       setUnknownFor(null);
+    } catch (e) {
+      setError(errText(e));
+    } finally {
+      setBusy(null);
+      onChanged();
+    }
+  }
+
+  /** Asks the platform whether the post exists. Read-only: found = recorded as published; otherwise the person decides. */
+  async function reconcile(p: Publication) {
+    if (!active) return;
+    setBusy(p.id);
+    setError(null);
+    try {
+      await api(`/social/publications/${p.id}/reconcile`, { method: 'POST', json: {}, businessId: active.id });
     } catch (e) {
       setError(errText(e));
     } finally {
@@ -115,9 +130,14 @@ export function PublicationList({ items, onChanged, testId = 'publication-list' 
               {p.status === 'PUBLISHED' && !p.confirmedByProvider && <p className="mt-1 text-xs text-muted-foreground">{t('social.history.notConfirmed')}</p>}
               {p.error && p.status !== 'PUBLISHED' && <p className={`mt-1 text-xs ${p.status === 'FAILED' ? 'text-destructive' : 'text-muted-foreground'}`} data-testid="publication-message">{p.errorCode && t(`social.publishErrors.${p.errorCode}`).indexOf('social.') !== 0 ? `${t(`social.publishErrors.${p.errorCode}`)} ` : ''}<span className="text-muted-foreground">{p.error}</span></p>}
               {p.outcomeUnknown && <p className="mt-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs" data-testid="outcome-unknown">{t('social.history.outcomeUnknown')}</p>}
+              {p.outcomeUnknown && p.reconcile && <p className="mt-1 text-xs text-muted-foreground" data-testid="reconcile-result">{t(`social.reconcile.${p.reconcile.result}`)} {p.reconcile.note}</p>}
+              {p.status === 'PUBLISHED' && p.reconcile?.foundOnPlatform && <p className="mt-1 text-xs text-muted-foreground" data-testid="reconcile-found">{t('social.reconcile.foundNote')}</p>}
               {p.externalUrl && <a href={p.externalUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline" data-testid="external-link"><ExternalLink className="h-3 w-3" aria-hidden />{t('social.history.openPost')}</a>}
             </div>
             <div className="flex flex-wrap items-start gap-2 sm:justify-end">
+              {p.status === 'FAILED' && p.outcomeUnknown && schedule && (
+                <Button size="sm" onClick={() => void reconcile(p)} disabled={busy === p.id} data-testid="reconcile-button">{busy === p.id ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <SearchCheck className="h-4 w-4" aria-hidden />}{t('social.reconcile.check')}</Button>
+              )}
               {p.status === 'FAILED' && schedule && (
                 <Button size="sm" variant="outline" onClick={() => (p.outcomeUnknown ? setUnknownFor(p) : void retry(p))} disabled={busy === p.id} data-testid="retry-button">{busy === p.id ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RotateCcw className="h-4 w-4" aria-hidden />}{t('social.history.retry')}</Button>
               )}

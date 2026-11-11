@@ -50,3 +50,24 @@ Do this with **authorized test accounts** before relying on any adapter (none wa
 6. Metrics: after a day, compare TOUMA's numbers with the platform's own; confirm unavailable metrics show "—" and not 0.
 7. Restart test: stop the worker during a publication and confirm no duplicate post (an *unknown outcome* is the expected, safe result when it was stopped mid-request).
 Record the date, platform, account and result of each step; this report's "real integration results" stay empty until then.
+
+---
+
+## Media probing and per-platform rules (Phase 6 final verification)
+
+Before a publication is sent, the engine reads each media file's own bytes (`probeMedia`: MP4/MOV `mvhd`/`tkhd`/`stsd`, JPEG/PNG headers) and validates pixel dimensions, aspect ratio, duration, video/audio codec, size and type against the platform (`MEDIA_RULES` in `@touma/social-connectors`, plus `PLATFORM_CAPABILITIES`). A file whose content is not what its type says fails with `MEDIA_INVALID` and a message naming the measured value and the allowed range. Files already over the platform's size limit are rejected by size without being read. No platform API is called when validation fails. See `docs/SOCIAL-PLATFORM-APPROVALS.md` §5 for the table.
+
+## Reconciliation of unknown outcomes
+
+When a create request may have reached the platform but the answer was lost (timeout, dropped connection, process death after `beforeCreate`), the publication becomes `FAILED` with `outcomeUnknown = true` and is **never retried automatically**. Reconciliation asks the platform what exists (read-only, `adapter.reconcile`):
+
+| Result | Meaning | Engine action |
+|---|---|---|
+| `FOUND` | exactly one post with this text, created since the attempt began | recorded as **PUBLISHED**, `confirmedByProvider = true`, `reconciledFound = true`, platform id and URL stored; the calendar entry becomes published; no second post is ever created |
+| `NOT_FOUND` | the listing shows nothing | unchanged; a note says a listing can lag and a person must look. Retry still needs `confirmNotPublished` |
+| `AMBIGUOUS` | more than one post matches | unchanged; the note lists the candidate links; a person decides |
+| `UNAVAILABLE` | the platform or the granted permissions allow no lookup, or the lookup failed | unchanged; the reason is stored. **A failed lookup is never treated as "not found"** |
+
+Sources: Facebook `published_posts`; Instagram `/{ig}/media`; TikTok `status/fetch` by publish id, then `video/list` (needs `video.list`); YouTube uploads playlist (1 quota unit); LinkedIn `GET /rest/posts?q=author` (needs a restricted read permission, otherwise UNAVAILABLE). Matching uses the exact composed text and the time window since the attempt began.
+
+Triggers: `POST /api/v1/social/publications/:id/reconcile` (permission `publication.schedule`), the dashboard's **Check the platform** button, and the social worker (at most 3 attempts, 15 minutes apart, only while the result is NOT_FOUND/UNAVAILABLE). Fields: `reconcileResult`, `reconcileNote`, `reconcileAttempts`, `reconciledAt`, `reconciledFound`. Audit events: `social.reconciled_found`, `social.reconciled_uncertain`.

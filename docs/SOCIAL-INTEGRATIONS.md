@@ -30,7 +30,7 @@ Create one application per platform, register TOUMA's **redirect URI** (shown in
 ### TikTok — `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`
 - Products: Login Kit and Content Posting API (Direct Post). Redirect URI: the TikTok callback URI.
 - Scopes: `user.info.basic`, `video.publish`, `video.upload`, `video.list` (statistics).
-- **Restriction:** until TikTok audits the application, every post is private to the creator (`SELF_ONLY`). TOUMA uses the most public option the creator and the app allow and shows the result; it does not hide this restriction.
+- **Restriction (see `docs/SOCIAL-PLATFORM-APPROVALS.md`):** until TikTok audits the application, every post is private to the creator (`SELF_ONLY`). TOUMA uses the most public option the creator and the app allow and shows the result; it does not hide this restriction.
 - Media is pulled by TikTok from `PUBLIC_API_URL`: the **domain must be verified** in the TikTok app (URL prefix verification).
 - Webhooks (optional): `…/api/v1/social/webhooks/tiktok`, signature `TikTok-Signature: t=…,s=…` verified with `TIKTOK_CLIENT_SECRET`.
 

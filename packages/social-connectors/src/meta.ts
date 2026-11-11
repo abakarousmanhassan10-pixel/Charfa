@@ -1,8 +1,9 @@
-import { Http, JSON_HEADERS, FORM_HEADERS, form, redact, type FetchLike, type HttpResult } from './http';
+import { Http, JSON_HEADERS, FORM_HEADERS, form, paginateGraph, redact, type FetchLike, type HttpResult } from './http';
 import { composeText, validateAgainstLimits } from './validate';
+import { matchCandidates, unavailable } from './reconcile';
 import {
   EMPTY_METRICS, SocialApiError, type AdapterConfig, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type PlatformAdapter, type PublishableContent, type PublishContext,
-  type PublishOutcome, type StatusOutcome, type TokenInspection, type TokenSet, type ValidationIssue,
+  type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenInspection, type TokenSet, type ValidationIssue,
 } from './types';
 
 const DAY = 86_400_000;
@@ -77,12 +78,20 @@ abstract class MetaAdapter implements PlatformAdapter {
   protected async pages(tokens: TokenSet) {
     const perms = await this.http.ok(`${this.base}/me/permissions`, { query: { access_token: tokens.accessToken } }, mapGraph);
     const granted = ((perms.json?.data ?? []) as Array<{ permission: string; status: string }>).filter((p) => p.status === 'granted').map((p) => p.permission);
-    const res = await this.http.ok(`${this.base}/me/accounts`, {
-      query: { access_token: tokens.accessToken, limit: '100', fields: 'id,name,username,picture{url},access_token,tasks,instagram_business_account{id,username,name,profile_picture_url}' },
-    }, mapGraph);
     type Page = { id: string; name?: string; username?: string; picture?: { data?: { url?: string } }; access_token?: string; tasks?: string[]; instagram_business_account?: { id: string; username?: string; name?: string; profile_picture_url?: string } };
-    return { granted, pages: (res.json?.data ?? []) as Page[] };
+    // Every page of the listing is followed (a manager of many Pages has far more than 100); only the safety cap can stop it, and then it says so.
+    const res = await paginateGraph<Page>(this.http, `${this.base}/me/accounts`, {
+      access_token: tokens.accessToken, limit: '50', fields: 'id,name,username,picture{url},access_token,tasks,instagram_business_account{id,username,name,profile_picture_url}',
+    }, mapGraph);
+    return { granted, pages: res.items, truncated: res.truncated, pageRequests: res.pages };
   }
+
+  /** Posts the platform lists for an account since a time, following every page of the listing. */
+  protected async listSince<T>(path: string, a: AuthorizedAccount, query: Record<string, string>) {
+    return paginateGraph<T>(this.http, `${this.base}${path}`, { ...query, access_token: this.token(a) }, mapGraph, 20);
+  }
+
+  abstract reconcile(a: AuthorizedAccount, q: ReconcileQuery): Promise<ReconcileOutcome>;
 
   abstract listAccounts(tokens: TokenSet): Promise<CandidateAccount[]>;
   abstract validate(c: PublishableContent): ValidationIssue[];
@@ -111,7 +120,7 @@ export class FacebookPublisher extends MetaAdapter {
   readonly requiredScopes = ['pages_show_list', 'pages_manage_posts', 'pages_read_engagement', 'read_insights'] as const;
 
   async listAccounts(tokens: TokenSet): Promise<CandidateAccount[]> {
-    const { granted, pages } = await this.pages(tokens);
+    const { granted, pages, truncated } = await this.pages(tokens);
     return pages
       .filter((p) => p.access_token)
       .map((p) => {
@@ -119,7 +128,7 @@ export class FacebookPublisher extends MetaAdapter {
         if (p.tasks && !p.tasks.includes('CREATE_CONTENT')) missing.push('CREATE_CONTENT (page task)');
         return {
           externalAccountId: p.id, displayName: p.name ?? null, username: p.username ?? null, avatarUrl: p.picture?.data?.url ?? null, accountType: 'PAGE',
-          tokens: { accessToken: p.access_token!, expiresAt: null, scopes: granted }, scopesGranted: granted, permissionsMissing: missing, metadata: { tasks: p.tasks ?? [] },
+          tokens: { accessToken: p.access_token!, expiresAt: null, scopes: granted }, scopesGranted: granted, permissionsMissing: missing, metadata: { tasks: p.tasks ?? [], ...(truncated ? { listingTruncated: true } : {}) },
         };
       });
   }
@@ -173,6 +182,22 @@ export class FacebookPublisher extends MetaAdapter {
     return { status: 'PROCESSING', ref, stage: 'VIDEO_ACCEPTED', retryAfterMs: 15_000 };
   }
 
+  async reconcile(a: AuthorizedAccount, q: ReconcileQuery): Promise<ReconcileOutcome> {
+    try {
+      // A video accepted earlier has its own id: ask about it directly.
+      if (q.ref && q.stage === 'VIDEO_ACCEPTED') {
+        const st = await this.status(a, q.ref);
+        if (st.status === 'PUBLISHED') return { result: 'FOUND', externalPostId: st.externalPostId, url: st.url ?? null };
+      }
+      const r = await this.listSince<{ id: string; message?: string; created_time?: string; permalink_url?: string }>(`/${a.externalAccountId}/published_posts`, a, {
+        fields: 'id,message,created_time,permalink_url', since: String(Math.floor(q.since.getTime() / 1000) - 120), limit: '50',
+      });
+      return matchCandidates(r.items.map((x) => ({ id: x.id, text: x.message ?? '', at: x.created_time, url: x.permalink_url ? `https://www.facebook.com${x.permalink_url}` : null })), q, r.items.length);
+    } catch (e) {
+      return unavailable(e);
+    }
+  }
+
   async fetchMetrics(a: AuthorizedAccount, postId: string): Promise<Metrics> {
     try {
       const ins = await this.get(`/${postId}/insights`, a, { metric: 'post_impressions,post_impressions_unique', period: 'lifetime' });
@@ -199,13 +224,13 @@ export class InstagramPublisher extends MetaAdapter {
   readonly requiredScopes = ['instagram_basic', 'instagram_content_publish', 'instagram_manage_insights', 'pages_show_list', 'pages_read_engagement'] as const;
 
   async listAccounts(tokens: TokenSet): Promise<CandidateAccount[]> {
-    const { granted, pages } = await this.pages(tokens);
+    const { granted, pages, truncated } = await this.pages(tokens);
     return pages
       .filter((p) => p.access_token && p.instagram_business_account)
       .map((p) => ({
         externalAccountId: p.instagram_business_account!.id, displayName: p.instagram_business_account!.name ?? p.name ?? null, username: p.instagram_business_account!.username ?? null,
         avatarUrl: p.instagram_business_account!.profile_picture_url ?? null, accountType: 'INSTAGRAM_BUSINESS', parentExternalId: p.id,
-        tokens: { accessToken: p.access_token!, expiresAt: null, scopes: granted }, scopesGranted: granted, permissionsMissing: this.missing(granted), metadata: { linkedPage: p.name ?? null },
+        tokens: { accessToken: p.access_token!, expiresAt: null, scopes: granted }, scopesGranted: granted, permissionsMissing: this.missing(granted), metadata: { linkedPage: p.name ?? null, ...(truncated ? { listingTruncated: true } : {}) },
       }));
   }
 
@@ -272,6 +297,16 @@ export class InstagramPublisher extends MetaAdapter {
     if (st === 'IN_PROGRESS') return { status: 'PROCESSING', ref, stage, retryAfterMs: 10_000 };
     if (st === 'FINISHED') return { status: 'PROCESSING', ref, stage: 'CONTAINER', retryAfterMs: 0 }; // ready: the engine continues with publish()
     return { status: 'FAILED', code: 'PLATFORM_REJECTED', message: st === 'EXPIRED' ? 'The Instagram media container expired.' : 'Instagram could not process the media.' };
+  }
+
+  async reconcile(a: AuthorizedAccount, q: ReconcileQuery): Promise<ReconcileOutcome> {
+    try {
+      // A container that was already published is visible by its own status; the media list is the authority otherwise.
+      const r = await this.listSince<{ id: string; caption?: string; timestamp?: string; permalink?: string }>(`/${a.externalAccountId}/media`, a, { fields: 'id,caption,timestamp,permalink', since: String(Math.floor(q.since.getTime() / 1000) - 120), limit: '50' });
+      return matchCandidates(r.items.map((x) => ({ id: x.id, text: x.caption ?? '', at: x.timestamp, url: x.permalink ?? null })), q, r.items.length);
+    } catch (e) {
+      return unavailable(e);
+    }
   }
 
   async fetchMetrics(a: AuthorizedAccount, mediaId: string): Promise<Metrics> {

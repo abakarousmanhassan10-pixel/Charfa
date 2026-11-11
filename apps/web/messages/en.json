@@ -1748,6 +1748,14 @@
       "token": "Access token",
       "refreshable": "renewed automatically",
       "notRefreshable": "cannot be renewed automatically: reconnect when it expires"
+    },
+    "reconcile": {
+      "check": "Check the platform",
+      "FOUND": "The platform lists this post.",
+      "NOT_FOUND": "The platform shows no matching post yet.",
+      "AMBIGUOUS": "Several posts on the platform match.",
+      "UNAVAILABLE": "The platform could not be checked.",
+      "foundNote": "Found on the platform after an unclear answer: confirmed by the platform, published only once."
     }
   }
 }

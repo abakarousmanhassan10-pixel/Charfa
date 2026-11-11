@@ -135,6 +135,14 @@ export class SocialController {
     return this.publisher.get(tenant, id);
   }
 
+  @Post('publications/:id/reconcile')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Ask the platform whether a post with an unknown outcome exists. Found = recorded as published (confirmed by the platform); otherwise a person decides' })
+  @RequireTenantPermission('publication.schedule')
+  reconcile(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.publisher.reconcile(id, { userId: tenant.userId, businessId: tenant.businessId });
+  }
+
   @Post('publications/:id/retry')
   @HttpCode(200)
   @ApiOperation({ summary: 'Retry a failed publication. When its outcome is unknown, confirm you checked the platform' })

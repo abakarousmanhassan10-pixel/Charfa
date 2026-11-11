@@ -3,7 +3,7 @@ import request from 'supertest';
 import sharp from 'sharp';
 import { randomBytes } from 'crypto';
 import type { SocialPlatform } from '@touma/database';
-import { fakeMp4 } from '@touma/creative';
+import { buildMp4 } from './mp4';
 import type { FakeSocialHub } from '@touma/social-connectors';
 import { OBJECT_STORAGE, type ObjectStorage } from '@touma/storage';
 import { TokenCipher } from '../src/common/crypto/token-cipher';
@@ -52,9 +52,9 @@ export function socialHelpers(app: INestApplication) {
     return (await request(http).post('/api/v1/media').set(as(c)).attach('file', data, { filename: 'post.png', contentType: 'image/png' }).expect(201)).body as { id: string };
   }
   /** A video file registered in the media library (stored bytes, READY), as an upload would leave it. */
-  async function video(c: Ctx, o: { seconds?: number; width?: number; height?: number } = {}) {
+  async function video(c: Ctx, o: { seconds?: number; width?: number; height?: number; codec?: string; audio?: string } = {}) {
     const key = `businesses/${c.businessId}/media/${randomBytes(6).toString('hex')}.mp4`;
-    const bytes = fakeMp4();
+    const bytes = buildMp4({ w: o.width, h: o.height, seconds: o.seconds, codec: o.codec, audio: o.audio });
     await storage.put(key, bytes, { contentType: 'video/mp4', contentLength: bytes.length });
     return prisma.mediaAsset.create({ data: { businessId: c.businessId, type: 'VIDEO', status: 'READY', storageKey: key, originalFilename: 'clip.mp4', mimeType: 'video/mp4', sizeBytes: bytes.length, width: o.width ?? 1080, height: o.height ?? 1920, durationSec: o.seconds ?? 20, scanStatus: 'CLEAN' } });
   }

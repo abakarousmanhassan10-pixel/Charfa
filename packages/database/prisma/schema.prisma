@@ -1006,6 +1006,13 @@ model Publication {
   outcomeUnknown      Boolean           @default(false)
   /// True only when the platform itself confirmed the post.
   confirmedByProvider Boolean           @default(false)
+  /// Last reconciliation against the platform for an unknown outcome: FOUND, NOT_FOUND, AMBIGUOUS, UNAVAILABLE.
+  reconcileResult     String?
+  reconcileNote       String?
+  reconcileAttempts   Int               @default(0)
+  reconciledAt        DateTime?         @db.Timestamptz(3)
+  /// True when the platform confirmed the post by listing it after an unknown outcome (as opposed to its create response).
+  reconciledFound     Boolean           @default(false)
   manualCompletedById String?
   /// What was sent: caption, hashtags, format and media ids at the time of publication.
   payload             Json?

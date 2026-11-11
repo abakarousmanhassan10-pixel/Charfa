@@ -1,8 +1,9 @@
 import { Http, FORM_HEADERS, JSON_HEADERS, form, redact, type FetchLike, type HttpResult } from './http';
 import { composeText, validateAgainstLimits } from './validate';
+import { matchCandidates, unavailable } from './reconcile';
 import {
   EMPTY_METRICS, SocialApiError, type AdapterConfig, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type PlatformAdapter, type PublishableContent, type PublishContext,
-  type PublishOutcome, type StatusOutcome, type TokenSet,
+  type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenSet,
 } from './types';
 
 const API = 'https://open.tiktokapis.com';
@@ -121,6 +122,35 @@ export class TikTokPublisher implements PlatformAdapter {
     }
     if (d.status === 'FAILED') return { status: 'FAILED', code: 'PLATFORM_REJECTED', message: `TikTok could not publish this: ${redact(d.fail_reason ?? 'unknown reason')}`, raw: d };
     return { status: 'PROCESSING', ref, stage: 'PUBLISH_INIT', retryAfterMs: 8_000 };
+  }
+
+  async reconcile(a: AuthorizedAccount, q: ReconcileQuery): Promise<ReconcileOutcome> {
+    try {
+      // The publish id is the platform's own handle: when we have it, its status is the authority.
+      if (q.ref && q.stage === 'PUBLISH_INIT') {
+        const st = await this.status(a, q.ref);
+        if (st.status === 'PUBLISHED') return { result: 'FOUND', externalPostId: st.externalPostId, url: st.url ?? null };
+        if (st.status === 'PROCESSING') return { result: 'UNAVAILABLE', reason: 'TikTok is still processing this post; check again later.' };
+      }
+      if (!a.tokens.scopes.includes('video.list')) return { result: 'UNAVAILABLE', reason: 'The video.list permission was not granted, so the creator\'s videos cannot be listed. Check the TikTok app by hand.' };
+      const found: Array<{ id: string; text: string; at: string; url: string | null }> = [];
+      let cursor: number | undefined;
+      for (let page = 0; page < 5; page++) {
+        const r = await this.http.ok(`${API}/v2/video/list/`, { method: 'POST', query: { fields: 'id,title,video_description,create_time,share_url' }, headers: this.headers(a), body: JSON.stringify({ max_count: 20, ...(cursor ? { cursor } : {}) }) }, mapTikTok);
+        const d = (r.json?.data ?? {}) as { videos?: Array<{ id: string; title?: string; video_description?: string; create_time?: number; share_url?: string }>; has_more?: boolean; cursor?: number };
+        let older = false;
+        for (const v of d.videos ?? []) {
+          const at = v.create_time ? new Date(v.create_time * 1000) : null;
+          if (at && at.getTime() < q.since.getTime() - 120_000) older = true;
+          found.push({ id: v.id, text: v.title ?? v.video_description ?? '', at: at?.toISOString() ?? '', url: v.share_url ?? null });
+        }
+        if (!d.has_more || older) break;
+        cursor = d.cursor;
+      }
+      return matchCandidates(found, q);
+    } catch (e) {
+      return unavailable(e);
+    }
   }
 
   async fetchMetrics(a: AuthorizedAccount, postId: string): Promise<Metrics> {
