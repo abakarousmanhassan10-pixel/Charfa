@@ -30,7 +30,12 @@ export class EmailService {
         auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } : undefined,
         // Upgrade to TLS when offered; refuse invalid certificates.
         requireTLS: env.APP_ENV === 'production' || env.APP_ENV === 'staging',
+        // Sending happens inside the HTTP request (sign-up, password reset): a stalled provider must fail fast.
+        // Nodemailer's own defaults would let an idle socket hold the request for up to an hour.
         connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
+        dnsTimeout: 10_000,
       });
     }
   }

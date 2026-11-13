@@ -29,6 +29,18 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...valid, TRUST_PROXY_HOPS: '50' })).toThrow(EnvValidationError);
   });
 
+  it('validates the SMTP settings that would otherwise fail obscurely', () => {
+    const smtp = { ...valid, EMAIL_TRANSPORT: 'smtp', SMTP_HOST: 'smtp.example.com' };
+    expect(loadEnv({ ...smtp, SMTP_PORT: '587', SMTP_SECURE: 'false' }).SMTP_PORT).toBe(587);
+    expect(loadEnv({ ...smtp, SMTP_PORT: '465', SMTP_SECURE: 'true', SMTP_USER: 'u', SMTP_PASSWORD: 'p' }).SMTP_SECURE).toBe(true);
+    expect(() => loadEnv({ ...smtp, SMTP_PORT: '465' })).toThrow(/implicit TLS/);
+    expect(() => loadEnv({ ...smtp, SMTP_PORT: '2465', SMTP_SECURE: 'false' })).toThrow(/implicit TLS/);
+    expect(() => loadEnv({ ...smtp, SMTP_PORT: '587', SMTP_SECURE: 'true' })).toThrow(/STARTTLS/);
+    expect(() => loadEnv({ ...smtp, SMTP_USER: 'u' })).toThrow(/together/);
+    expect(() => loadEnv({ ...smtp, SMTP_PASSWORD: 'p' })).toThrow(/together/);
+    expect(loadEnv({ ...smtp, SMTP_PORT: '1025' }).SMTP_PORT).toBe(1025); // local capture servers: unchanged
+  });
+
   it('rejects short secrets', () => {
     expect(() => loadEnv({ ...valid, JWT_ACCESS_SECRET: 'short' })).toThrow(EnvValidationError);
   });

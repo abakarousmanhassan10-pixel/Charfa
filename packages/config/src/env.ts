@@ -289,6 +289,18 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
   if (env.EMAIL_TRANSPORT === 'smtp' && !env.SMTP_HOST) {
     throw new EnvValidationError(['SMTP_HOST is required when EMAIL_TRANSPORT=smtp']);
   }
+  if (env.EMAIL_TRANSPORT === 'smtp') {
+    if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASSWORD)) {
+      throw new EnvValidationError(['SMTP_USER and SMTP_PASSWORD must be set together']);
+    }
+    // Wrong TLS mode for the port makes the connection hang or fail with an obscure error: fail at boot instead.
+    if ((env.SMTP_PORT === 465 || env.SMTP_PORT === 2465) && !env.SMTP_SECURE) {
+      throw new EnvValidationError([`SMTP_PORT=${env.SMTP_PORT} uses implicit TLS: set SMTP_SECURE=true`]);
+    }
+    if ([25, 587, 2525, 2587].includes(env.SMTP_PORT) && env.SMTP_SECURE) {
+      throw new EnvValidationError([`SMTP_PORT=${env.SMTP_PORT} uses STARTTLS: set SMTP_SECURE=false`]);
+    }
+  }
   if (env.AI_PROVIDER === 'fake' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['AI_PROVIDER=fake is only allowed when APP_ENV=test']);
   }
