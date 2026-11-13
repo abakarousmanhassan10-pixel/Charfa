@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBusiness } from '@/components/business-provider';
 import { useI18n } from '@/components/i18n-provider';
 import { Badge } from '@/components/ui/badge';
@@ -63,7 +63,9 @@ export function WorkflowsView() {
   const [error, setError] = useState<string | null>(null);
 
   // Follow executions that are still moving.
-  const moving = execs.data?.items.some((r) => BUSY.includes(r.status)) ?? false;
+  // Also while an opened panel is still empty: the first execution is started right after the panel opens, and the list that was
+  // fetched at that moment can be older than the new run (it would otherwise stay empty until the panel is reopened).
+  const moving = (execs.data?.items.some((r) => BUSY.includes(r.status)) ?? false) || (selected !== null && execs.data !== null && execs.data.items.length === 0);
   const reloadExecs = execs.reload;
   useEffect(() => {
     if (!moving) return;
@@ -71,8 +73,11 @@ export function WorkflowsView() {
     return () => clearInterval(id);
   }, [moving, reloadExecs]);
 
+  // A double click fires two clicks before React disables the button: the ref blocks the second one at once.
+  const inflight = useRef(false);
   async function act(path: string, json?: unknown) {
-    if (!active) return;
+    if (!active || inflight.current) return;
+    inflight.current = true;
     setBusy(path);
     setError(null);
     try {
@@ -81,6 +86,7 @@ export function WorkflowsView() {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('workflows.error'));
     } finally {
+      inflight.current = false;
       setBusy(null);
     }
   }

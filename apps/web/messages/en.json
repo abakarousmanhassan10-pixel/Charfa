@@ -2287,7 +2287,7 @@
     "simulated": "Simulation: no AI model is called, nothing is published and no calendar entry is created.",
     "disabled": "Workflows are not enabled for this platform yet.",
     "createDemo": "Create the demo workflow",
-    "demoName": "Product launch (simulation)",
+    "demoName": "Product launch - simulation",
     "none": "No workflow yet.",
     "active": "Active",
     "inactive": "Inactive",

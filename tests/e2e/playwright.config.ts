@@ -53,6 +53,11 @@ const testEnv = {
   SMTP_PORT: '2626',
   EMAIL_FROM: 'TOUMA AI <no-reply@touma.test>',
   RATE_LIMIT_STORE: 'redis',
+  // Newer modules are off by default; the browser tests exercise them (simulated adapters, no provider, nothing outbound).
+  ORCHESTRATOR_ENABLED: 'true',
+  WORKFLOWS_ENABLED: 'true',
+  MARKET_INTELLIGENCE_ENABLED: 'true',
+  SALES_ASSIST_ENABLED: 'true',
 };
 
 export default defineConfig({
