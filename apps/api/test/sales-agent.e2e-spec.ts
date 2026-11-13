@@ -39,7 +39,7 @@ describe('Sales agent (e2e)', () => {
   const chat = (slug: string) => ({
     info: () => request(h.http).get(`/api/v1/public/chat/${slug}`),
     send: (message: string, extra: Record<string, unknown> = {}) => request(h.http).post(`/api/v1/public/chat/${slug}/messages`).send({ message, ...extra }),
-    poll: (token: string) => request(h.http).get(`/api/v1/public/chat/${slug}/messages`).query({ token }),
+    poll: (token: string) => request(h.http).get(`/api/v1/public/chat/${slug}/messages`).set('x-chat-token', token),
   });
 
   /** A shop with an owner, admin, editor and viewer, a small verified catalog and a delivery policy; the agent is OFF. */
@@ -513,7 +513,7 @@ describe('Sales agent (e2e)', () => {
       const s = await shop();
       await enable(s);
       const a = await chat(s.slug).send('Hello', { name: 'Awa' }).expect(200);
-      await request(h.http).delete(`/api/v1/public/chat/${s.slug}/data`).query({ token: a.body.token }).expect(200);
+      await request(h.http).delete(`/api/v1/public/chat/${s.slug}/data`).set('x-chat-token', a.body.token).expect(200);
       expect((await prisma.customer.findFirstOrThrow({ where: { businessId: s.owner.businessId } })).anonymizedAt).not.toBeNull();
     });
   });
@@ -634,7 +634,7 @@ describe('Sales agent (e2e)', () => {
       await chat(s.slug).send('hello', { token: 'A'.repeat(43) }).expect(404);
       await chat(s.slug).send('hello', { email: 'not-an-email' }).expect(400);
       await chat(s.slug).send('hello', { unknownField: true }).expect(400);
-      await chat(s.slug).poll('bad token!').expect(400);
+      await chat(s.slug).poll('bad token!').expect(404); // Phase N10: a malformed secret gets the same answer as an unknown one
       await chat('Bad Slug!!').send('hello').expect(404);
       expect((await chat(s.slug).poll(a.body.token).expect(200)).body.messages).toHaveLength(2);
     });

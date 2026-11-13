@@ -228,6 +228,13 @@ export const appEnvSchema = z.object({
   SALES_ASSIST_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   /** Follow-up drafts one business may create per rolling 24 hours (resource control). */
   SALES_ASSIST_MAX_FOLLOWUPS_PER_DAY: z.coerce.number().int().min(1).max(10_000).default(100),
+  // ─── Tenant resource limits and chat token lifetime (Phase N10) ───
+  /** Generations one business may have queued or running at once (text AI). Excess requests get 429 and nothing is charged. */
+  AI_MAX_INFLIGHT_PER_BUSINESS: z.coerce.number().int().min(1).max(1000).default(10),
+  /** Same for image/video generations. */
+  CREATIVE_MAX_INFLIGHT_PER_BUSINESS: z.coerce.number().int().min(1).max(1000).default(5),
+  /** A customer chat token stops working after this many hours without any message (sliding). */
+  CHAT_TOKEN_IDLE_HOURS: z.coerce.number().int().min(1).max(24 * 90).default(24 * 7),
   // ─── Operations control center (Phase N6): queue metrics sampling and alerts, platform administrators only ───
   /** Seconds between queue samples taken by the API (0 = off; samples can still be taken on demand by an administrator). */
   OPS_SAMPLER_INTERVAL_SECONDS: z.coerce.number().int().min(0).max(3600).default(0),

@@ -38,12 +38,13 @@ describe('Log safety on server errors (e2e)', () => {
     const s = await shop('Log shop');
     const err = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     jest.spyOn(SalesPublicService.prototype, 'poll').mockRejectedValue(new Error('database exploded'));
-    const res = await request(http).get(`/api/v1/public/chat/${s.slug}/messages`).query({ token: s.token });
+    const res = await request(http).get(`/api/v1/public/chat/${s.slug}/messages`).set('x-chat-token', s.token).query({ token: s.token, code: 'OAUTHCODE123' }); // a legacy ?token= is ignored but must still never be logged
     expect(res.status).toBe(500);
     expect(Object.keys(res.body).sort()).toEqual(['code', 'message', 'requestId', 'statusCode']);
     expect(JSON.stringify(res.body)).not.toMatch(/exploded|stack/);
     const log = logged(err);
-    expect(log).toContain('/messages?token=[redacted]'); // still useful: the route and the parameter name
+    expect(log).toContain('/messages?token=[redacted]&code=[redacted]');
+    expect(log).not.toContain('OAUTHCODE123'); // still useful: the route and the parameter name
     expect(log).toContain('database exploded'); // the real cause stays in the server log
     expect(log).not.toContain(s.token);
     expect(log).toContain(res.body.requestId);
@@ -61,13 +62,13 @@ describe('Log safety on server errors (e2e)', () => {
     const a = await shop('Shop A');
     const b = await shop('Shop B');
     const err = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-    await request(http).get(`/api/v1/public/chat/${a.slug}/messages`).query({ token: a.token }).expect(200);
-    await request(http).get(`/api/v1/public/chat/${b.slug}/messages`).query({ token: a.token }).expect(404); // cross-tenant token
+    await request(http).get(`/api/v1/public/chat/${a.slug}/messages`).set('x-chat-token', a.token).expect(200);
+    await request(http).get(`/api/v1/public/chat/${b.slug}/messages`).set('x-chat-token', a.token).expect(404); // cross-tenant token
     expect(err).not.toHaveBeenCalled(); // client errors are not logged as server errors
     const spy = jest.spyOn(SalesPublicService.prototype, 'poll').mockRejectedValueOnce(new Error('temporary'));
-    await request(http).get(`/api/v1/public/chat/${a.slug}/messages`).query({ token: a.token }).expect(500);
+    await request(http).get(`/api/v1/public/chat/${a.slug}/messages`).set('x-chat-token', a.token).expect(500);
     expect(logged(err)).not.toContain(a.token);
     spy.mockRestore();
-    await request(http).get(`/api/v1/public/chat/${a.slug}/messages`).query({ token: a.token }).expect(200); // recovered
+    await request(http).get(`/api/v1/public/chat/${a.slug}/messages`).set('x-chat-token', a.token).expect(200); // recovered
   });
 });

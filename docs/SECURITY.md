@@ -79,3 +79,8 @@ Report vulnerabilities privately to the maintainers. Do not open public issues f
 
 ## Social media (Phase 6)
 See [SOCIAL-SECURITY.md](SOCIAL-SECURITY.md).
+
+## Phase N10: customer chat token and tenant limits
+- **Chat token.** Sent in the `X-Chat-Token` header (GET/DELETE) or the POST body, never in a URL (a `?token=` query is ignored and answers 404). A malformed, unknown, expired, erased or foreign-shop token all answer the same 404. It expires after `CHAT_TOKEN_IDLE_HOURS` (default 168) without a message (a message renews it) and is revoked by the customer's erasure. Cookies were not adopted: the chat is embeddable cross-site and a custom header avoids adding a CSRF surface. 5xx logs keep only query parameter names (N7).
+- **Tenant limits** (decided under a per-tenant advisory lock, counted from row statuses so failures/cancellations free their slot): active runs (`ORCHESTRATOR_MAX_ACTIVE_RUNS_PER_BUSINESS`, now atomic, also on retry), queued+running AI generations (`AI_MAX_INFLIGHT_PER_BUSINESS`, default 10), queued+running creative generations (`CREATIVE_MAX_INFLIGHT_PER_BUSINESS`, default 5). Over the limit: HTTP 429 with `RUN_LIMIT_REACHED`, `AI_QUEUE_LIMIT` or `CREATIVE_QUEUE_LIMIT`, nothing charged or queued.
+- Not covered: social publication and calendar dispatch queues (bounded by approvals, per-account rules and request throttles).

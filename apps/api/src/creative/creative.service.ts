@@ -18,6 +18,7 @@ import { AuditService } from '../audit/audit.service';
 import { pageArgs, toPage } from '../common/pagination';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { MediaService } from '../media/media.service';
+import { lockTenantQuota, quotaExceeded } from '../common/tenant-quota';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TenantContext } from '../tenancy/tenant-context';
 import { BrandKitService } from './brand-kit.service';
@@ -136,6 +137,9 @@ export class CreativeService {
     let created: CreativeGeneration;
     try {
       created = await this.prisma.$transaction(async (tx) => {
+        await lockTenantQuota(tx, 'creative', tenant.businessId);
+        const inFlight = await tx.creativeGeneration.count({ where: { businessId: tenant.businessId, status: { in: ['QUEUED', 'RUNNING'] } } });
+        if (inFlight >= this.env.CREATIVE_MAX_INFLIGHT_PER_BUSINESS) throw quotaExceeded('CREATIVE_QUEUE_LIMIT', `At most ${this.env.CREATIVE_MAX_INFLIGHT_PER_BUSINESS} image or video generations can be waiting or running at once.`);
         const periodStart = await this.usage.reserve(tx, { businessId: tenant.businessId, kind: data.unitKind as 'IMAGE' | 'VIDEO_SECOND', units: data.requestedUnits });
         return tx.creativeGeneration.create({ data: { ...data, businessId: tenant.businessId, userId: tenant.userId, status: 'QUEUED', periodStart, queuedAt: new Date(), reservedUnits: data.requestedUnits, idempotencyKey: key ?? null } });
       });

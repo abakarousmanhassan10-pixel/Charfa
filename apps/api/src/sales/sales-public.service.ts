@@ -51,7 +51,9 @@ export class SalesPublicService {
   }
 
   private async conversationByToken(businessId: string, token: string): Promise<Conversation> {
-    const c = await this.prisma.conversation.findFirst({ where: { publicTokenHash: hash(token), businessId, isTest: false } });
+    // A token stops working after CHAT_TOKEN_IDLE_HOURS without a message, and when the customer erases their data (hash cleared).
+    const idleSince = new Date(Date.now() - this.env.CHAT_TOKEN_IDLE_HOURS * 3_600_000);
+    const c = await this.prisma.conversation.findFirst({ where: { publicTokenHash: hash(token), businessId, isTest: false, lastMessageAt: { gte: idleSince } } });
     if (!c) throw new NotFoundException({ code: 'CONVERSATION_NOT_FOUND', message: 'Conversation not found' });
     return c;
   }

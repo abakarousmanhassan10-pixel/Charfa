@@ -12,6 +12,7 @@ import { Inject } from '@nestjs/common';
 import { AppEnv, InjectEnv } from '../config';
 import { AuditService } from '../audit/audit.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { lockTenantQuota, quotaExceeded } from '../common/tenant-quota';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TenantContext } from '../tenancy/tenant-context';
 import { AiQueueService } from './ai-queue';
@@ -232,6 +233,10 @@ export class AiOrchestratorService {
     const agent = AGENT_FOR[req.task];
 
     const gen = await this.prisma.$transaction(async (tx) => {
+      // Tenant limit on queued + running generations, decided under a tenant lock (nothing is charged when it refuses).
+      await lockTenantQuota(tx, 'ai', tenant.businessId);
+      const inFlight = await tx.aIGeneration.count({ where: { businessId: tenant.businessId, status: { in: ['QUEUED', 'RUNNING'] } } });
+      if (inFlight >= this.env.AI_MAX_INFLIGHT_PER_BUSINESS) throw quotaExceeded('AI_QUEUE_LIMIT', `At most ${this.env.AI_MAX_INFLIGHT_PER_BUSINESS} generations can be waiting or running at once. Try again when one finishes.`);
       const created = await tx.aIGeneration.create({
         data: {
           ...this.rowFor(req),

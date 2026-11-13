@@ -1,9 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, NotFoundException, Param, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../common/decorators/current-user.decorator';
 import { PublicMessageDto, PublicPollDto, PublicConsentDto } from './sales.dto';
+
+/** The chat secret travels in a header (GET and DELETE have no body), never in the URL: URLs end up in history, proxies and logs. */
+const CHAT_TOKEN_HEADER = 'x-chat-token';
+function chatToken(value: string | string[] | undefined): string {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{40,60}$/.test(value)) throw new NotFoundException({ code: 'CONVERSATION_NOT_FOUND', message: 'Conversation not found' });
+  return value;
+}
 import { SalesPublicService } from './sales-public.service';
 
 const slug = (s: string) => (/^[a-z0-9][a-z0-9-]{0,80}$/.test(s) ? s : '__invalid__');
@@ -33,8 +40,9 @@ export class SalesPublicController {
 
   @Get(':slug/messages')
   @Throttle(publicThrottle())
-  poll(@Param('slug') s: string, @Query() q: PublicPollDto) {
-    return this.chat.poll(slug(s), q.token);
+  @ApiOperation({ summary: 'Messages of a conversation. The secret goes in the X-Chat-Token header (a ?token= query is ignored)' })
+  poll(@Param('slug') s: string, @Headers(CHAT_TOKEN_HEADER) token: string | undefined) {
+    return this.chat.poll(slug(s), chatToken(token));
   }
 
   @Post(':slug/handoff')
@@ -56,7 +64,7 @@ export class SalesPublicController {
   @Delete(':slug/data')
   @Throttle(publicThrottle())
   @ApiOperation({ summary: 'The customer erases their data' })
-  erase(@Param('slug') s: string, @Query() q: PublicPollDto) {
-    return this.chat.erase(slug(s), q.token);
+  erase(@Param('slug') s: string, @Headers(CHAT_TOKEN_HEADER) token: string | undefined) {
+    return this.chat.erase(slug(s), chatToken(token));
   }
 }

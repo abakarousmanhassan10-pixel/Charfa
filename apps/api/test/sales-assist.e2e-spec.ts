@@ -41,7 +41,7 @@ describe('Sales assistant 2.0 (e2e)', () => {
     send: (message: string, extra: Record<string, unknown> = {}) => request(h.http).post(`/api/v1/public/chat/${slug}/messages`).send({ message, ...extra }),
     handoff: (token: string) => request(h.http).post(`/api/v1/public/chat/${slug}/handoff`).send({ token }),
     consent: (token: string, granted: boolean) => request(h.http).post(`/api/v1/public/chat/${slug}/follow-up-consent`).send({ token, granted }),
-    erase: (token: string) => request(h.http).delete(`/api/v1/public/chat/${slug}/data`).query({ token }),
+    erase: (token: string) => request(h.http).delete(`/api/v1/public/chat/${slug}/data`).set('x-chat-token', token),
   });
   async function shop(label = `Shop ${++n}`) {
     const t = await h.tenant(label);
@@ -182,7 +182,7 @@ describe('Sales assistant 2.0 (e2e)', () => {
         expect(await assist.publicState(conv.id)).toBeUndefined();
         await api(s.editor, 'get', `/conversations/${conv.id}/assist`).expect(404);
         await chat(s.slug).handoff(r.body.token).expect(404);
-        const poll = await request(h.http).get(`/api/v1/public/chat/${s.slug}/messages`).query({ token: r.body.token }).expect(200);
+        const poll = await request(h.http).get(`/api/v1/public/chat/${s.slug}/messages`).set('x-chat-token', r.body.token).expect(200);
         expect(poll.body.assist).toBeUndefined();
       } finally {
         env.SALES_ASSIST_ENABLED = true;

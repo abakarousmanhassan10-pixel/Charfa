@@ -83,3 +83,6 @@ process.env.SALES_ASSIST_ENABLED = 'true';
 process.env.SALES_ASSIST_MAX_FOLLOWUPS_PER_DAY = '5';
 process.env.OPS_RETENTION_DAYS = '7';
 
+
+process.env.AI_MAX_INFLIGHT_PER_BUSINESS = '8';
+process.env.CREATIVE_MAX_INFLIGHT_PER_BUSINESS = '25';

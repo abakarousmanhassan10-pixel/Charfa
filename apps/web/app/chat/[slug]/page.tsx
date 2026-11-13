@@ -49,7 +49,7 @@ export default function ChatPage() {
 
   const poll = useCallback(async () => {
     if (!token) return;
-    const r = await fetch(`/api/v1/public/chat/${slug}/messages?token=${encodeURIComponent(token)}`).catch(() => null);
+    const r = await fetch(`/api/v1/public/chat/${slug}/messages`, { headers: { 'x-chat-token': token } }).catch(() => null);
     if (r?.ok) setState(await r.json());
     else if (r?.status === 404) { try { localStorage.removeItem(key); } catch { /* ignore */ } setToken(null); setState({ messages: [], aiMode: 'AI' }); }
   }, [slug, token, key]);
@@ -81,7 +81,7 @@ export default function ChatPage() {
   }
   async function erase() {
     if (!token) return;
-    await fetch(`/api/v1/public/chat/${slug}/data?token=${encodeURIComponent(token)}`, { method: 'DELETE' }).catch(() => null);
+    await fetch(`/api/v1/public/chat/${slug}/data`, { method: 'DELETE', headers: { 'x-chat-token': token } }).catch(() => null);
     try { localStorage.removeItem(key); } catch { /* ignore */ }
     setToken(null);
     setState({ messages: [], aiMode: 'AI' });

@@ -1,9 +1,10 @@
-import { BadRequestException, ConflictException, HttpException, HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, type AgentRun, type AgentRunStatus, type AgentRunStep } from '@touma/database';
 import { roleHasPermission } from '@touma/shared';
 import { AuditService } from '../audit/audit.service';
 import { AppEnv, InjectEnv } from '../config';
 import { PageQueryDto, pageArgs, toPage } from '../common/pagination';
+import { lockTenantQuota, quotaExceeded } from '../common/tenant-quota';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TenantContext } from '../tenancy/tenant-context';
 import { RUN_ADAPTER_REGISTRY, RunStepError, type RunAdapterRegistry } from './run-adapters';
@@ -148,14 +149,14 @@ export class RunsService {
     const replayed = await replay();
     if (replayed) return replayed;
 
-    const active = await this.prisma.agentRun.count({ where: { businessId: actor.businessId, status: { in: COUNTED } } });
-    if (active >= this.env.ORCHESTRATOR_MAX_ACTIVE_RUNS_PER_BUSINESS) {
-      throw new HttpException({ code: 'RUN_LIMIT_REACHED', message: `At most ${this.env.ORCHESTRATOR_MAX_ACTIVE_RUNS_PER_BUSINESS} runs can be in progress at once` }, HttpStatus.TOO_MANY_REQUESTS);
-    }
-
     let created: RunWithSteps;
     try {
-      created = await this.prisma.agentRun.create({
+      // The limit is checked and the run inserted under one tenant lock: concurrent submissions cannot exceed it.
+      created = await this.prisma.$transaction(async (tx) => {
+      await lockTenantQuota(tx, 'runs', actor.businessId);
+      const active = await tx.agentRun.count({ where: { businessId: actor.businessId, status: { in: COUNTED } } });
+      if (active >= this.env.ORCHESTRATOR_MAX_ACTIVE_RUNS_PER_BUSINESS) throw quotaExceeded('RUN_LIMIT_REACHED', `At most ${this.env.ORCHESTRATOR_MAX_ACTIVE_RUNS_PER_BUSINESS} runs can be in progress at once`);
+      return tx.agentRun.create({
         data: {
           businessId: actor.businessId,
           createdById: actor.userId,
@@ -183,6 +184,7 @@ export class RunsService {
           events: { create: [{ businessId: actor.businessId, type: 'run.created', actorId: actor.userId, detail: { template: spec.template, version: spec.templateVersion, steps: spec.steps.length, ...(spec.triggerType ? { trigger: spec.triggerType } : {}) } }] },
         },
         include: { steps: true },
+      });
       });
     } catch (err) {
       // Two identical requests raced: the unique key picked a winner; answer with it.
@@ -320,9 +322,12 @@ export class RunsService {
     if (run.status !== 'FAILED') throw this.conflict('NOT_FAILED', 'Only a failed run can be retried');
     const failed = run.steps.filter((x) => x.status === 'FAILED');
     if (failed.some((x) => x.errorCode === 'OUTCOME_UNKNOWN')) throw this.conflict('OUTCOME_UNKNOWN_UNRESOLVED', 'Resolve the step whose outcome is unknown before retrying');
-    const active = await this.prisma.agentRun.count({ where: { businessId: tenant.businessId, status: { in: COUNTED } } });
-    if (active >= this.env.ORCHESTRATOR_MAX_ACTIVE_RUNS_PER_BUSINESS) throw new HttpException({ code: 'RUN_LIMIT_REACHED', message: 'Too many runs are in progress' }, HttpStatus.TOO_MANY_REQUESTS);
-    const res = await this.prisma.agentRun.updateMany({ where: { id: run.id, status: 'FAILED' }, data: { status: 'PENDING', errorCode: null, errorMessage: null, completedAt: null, deadLetteredAt: null } });
+    const res = await this.prisma.$transaction(async (tx) => {
+      await lockTenantQuota(tx, 'runs', tenant.businessId);
+      const active = await tx.agentRun.count({ where: { businessId: tenant.businessId, status: { in: COUNTED } } });
+      if (active >= this.env.ORCHESTRATOR_MAX_ACTIVE_RUNS_PER_BUSINESS) throw quotaExceeded('RUN_LIMIT_REACHED', 'Too many runs are in progress');
+      return tx.agentRun.updateMany({ where: { id: run.id, status: 'FAILED' }, data: { status: 'PENDING', errorCode: null, errorMessage: null, completedAt: null, deadLetteredAt: null } });
+    });
     if (!res.count) throw this.conflict('NOT_FAILED', 'Only a failed run can be retried');
     for (const st of failed) {
       await this.prisma.agentRunStep.updateMany({

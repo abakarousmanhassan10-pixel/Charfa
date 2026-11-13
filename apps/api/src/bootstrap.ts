@@ -48,7 +48,7 @@ export async function createApp(env: AppEnv, opts: { logger?: false } = {}): Pro
   app.enableCors({
     origin: (origin, cb) => cb(null, !origin || env.CORS_ORIGINS.includes(origin)),
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', CSRF_HEADER, 'x-request-id', 'x-business-id', 'range'],
+    allowedHeaders: ['Content-Type', 'Authorization', CSRF_HEADER, 'x-request-id', 'x-business-id', 'x-chat-token', 'range'],
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
   });
   app.setGlobalPrefix(API_PREFIX);
