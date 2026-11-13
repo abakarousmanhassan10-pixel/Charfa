@@ -98,6 +98,7 @@
       "knowledge": "Base de connaissances",
       "ai": "TOUMA AI",
       "creative": "Studio créatif",
+      "workflows": "Workflows",
       "sales": "Agent commercial IA"
     },
     "analyticsTitle": "Performances",
@@ -2210,6 +2211,52 @@
         "heldBecauseOfConfidence": "Retenus pour faible confiance",
         "approvalRate": "Taux d’approbation"
       }
+    }
+  },
+  "workflows": {
+    "title": "Workflows",
+    "subtitle": "Séquences automatisées où une personne valide chaque étape sensible.",
+    "simulated": "Simulation : aucun modèle d'IA n'est appelé, rien n'est publié et aucune entrée de calendrier n'est créée.",
+    "disabled": "Les workflows ne sont pas encore activés sur cette plateforme.",
+    "createDemo": "Créer le workflow de démonstration",
+    "demoName": "Lancement produit (simulation)",
+    "none": "Aucun workflow pour l'instant.",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "version": "Version",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "start": "Démarrer",
+    "topic": "Sujet",
+    "topicPlaceholder": "ex. Collection d’automne",
+    "executions": "Exécutions",
+    "noExecutions": "Aucune exécution pour l'instant.",
+    "approve": "Approuver",
+    "reject": "Rejeter",
+    "pause": "Mettre en pause",
+    "resume": "Reprendre",
+    "cancel": "Annuler",
+    "retry": "Réessayer",
+    "resolveExecuted": "Elle a bien eu lieu",
+    "resolveNotExecuted": "Elle n'a pas eu lieu",
+    "outcomeUnknown": "Le résultat de cette action est inconnu. Vérifiez en dehors de TOUMA, puis indiquez ce qui s'est passé.",
+    "needsApproval": "En attente de l'approbation d'une personne",
+    "showExecutions": "Exécutions",
+    "hideExecutions": "Masquer",
+    "by": "Démarrée",
+    "steps": "Étapes",
+    "attempts": "tentatives",
+    "deadLetter": "Échec : en attente d’une personne",
+    "error": "Une erreur s'est produite",
+    "status": {
+      "PENDING": "En attente",
+      "RUNNING": "En cours",
+      "WAITING_APPROVAL": "En attente d'approbation",
+      "COMPLETED": "Terminée",
+      "FAILED": "Échec",
+      "PAUSED": "En pause",
+      "CANCELLED": "Annulée",
+      "SKIPPED": "Ignorée"
     }
   }
 }

@@ -29,6 +29,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { EmailModule } from './email/email.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { RunsModule } from './runs/runs.module';
+import { WorkflowsModule } from './workflows/workflows.module';
 
 @Global()
 @Module({})
@@ -76,6 +77,7 @@ export class AppModule {
         SocialModule,
         SalesModule,
         RunsModule,
+        WorkflowsModule,
         AdminModule,
         HealthModule,
       ],

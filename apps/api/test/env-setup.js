@@ -69,3 +69,8 @@ process.env.ORCHESTRATOR_STEP_LEASE_SECONDS = '60';
 process.env.ORCHESTRATOR_RATE_LIMIT_PER_MINUTE = '1000';
 
 process.env.ORCHESTRATOR_STEP_TIMEOUT_MS = '800';
+// Workflow engine (Phase N3): enabled for its tests; the scheduler tick is driven by the tests.
+process.env.WORKFLOWS_ENABLED = 'true';
+process.env.WORKFLOWS_TICK_MS = '600000';
+process.env.WORKFLOWS_MIN_SCHEDULE_MINUTES = '1';
+

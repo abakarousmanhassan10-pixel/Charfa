@@ -41,9 +41,13 @@ export class RunsWorkerService implements OnApplicationBootstrap, OnApplicationS
     this.logger.log(`Runs worker listening on ${RUNS_QUEUE} (concurrency ${this.env.ORCHESTRATOR_WORKER_CONCURRENCY})`);
   }
 
+  /** Stops consuming. The worker can be started again afterwards (a restart): nothing is lost, the queue and PostgreSQL hold the state. */
   async onApplicationShutdown() {
     this.timers.forEach(clearInterval);
+    this.timers = [];
     await this.worker?.close().catch(() => undefined);
     await this.connection?.quit().catch(() => undefined);
+    this.worker = undefined;
+    this.connection = undefined;
   }
 }

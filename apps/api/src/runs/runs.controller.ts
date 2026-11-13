@@ -4,7 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { RequireTenantPermission } from '../tenancy/business-access.guard';
 import { Tenant, type TenantContext } from '../tenancy/tenant-context';
-import { CreateRunDto, IDEMPOTENCY_KEY_REGEX, ListRunsQueryDto } from './runs.dto';
+import { CreateRunDto, IDEMPOTENCY_KEY_REGEX, ListRunsQueryDto, ResolveOutcomeDto } from './runs.dto';
 import { OrchestratorEnabledGuard } from './runs.guard';
 import { RunsService } from './runs.service';
 
@@ -70,5 +70,46 @@ export class RunsController {
   @RequireTenantPermission('content.approve')
   reject(@Tenant() tenant: TenantContext, @Param('id') id: string, @Param('key') key: string) {
     return this.runs.reject(tenant, id, key);
+  }
+
+  // ─── Operator controls (Phase N3): content.approve, as for approvals ───
+
+  @Post(':id/pause')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Pause a run in progress: no new step starts until it is resumed' })
+  @RequireTenantPermission('content.approve')
+  pause(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.runs.pause(tenant, id);
+  }
+
+  @Post(':id/resume')
+  @HttpCode(200)
+  @RequireTenantPermission('content.approve')
+  resume(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.runs.resume(tenant, id);
+  }
+
+  @Post(':id/cancel')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Cancel a run. Refused while a step that acts outside TOUMA is running' })
+  @RequireTenantPermission('content.approve')
+  cancel(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.runs.cancel(tenant, id);
+  }
+
+  @Post(':id/retry')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Retry a failed run (dead-letter recovery). Outward steps need a new approval; an unknown outcome must be resolved first' })
+  @RequireTenantPermission('content.approve')
+  retry(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.runs.retry(tenant, id);
+  }
+
+  @Post(':id/steps/:key/resolve')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'State whether an outward step with an UNKNOWN outcome really happened' })
+  @RequireTenantPermission('content.approve')
+  resolve(@Tenant() tenant: TenantContext, @Param('id') id: string, @Param('key') key: string, @Body() dto: ResolveOutcomeDto) {
+    return this.runs.resolve(tenant, id, key, dto.resolution);
   }
 }

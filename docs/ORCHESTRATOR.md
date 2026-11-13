@@ -32,3 +32,5 @@ No real model or external adapter, no token/cost budget per run (arrives with th
 
 ## Tests
 `apps/api/src/runs/run-templates.spec.ts` (plan validation, input validation, feature flag) and `apps/api/test/runs.e2e-spec.ts` (16 tests with real PostgreSQL, Redis and BullMQ: permissions, tenant isolation, approval, idempotency, retries, recovery).
+
+Phase N3 extends this engine into workflows (versions, triggers, conditions, pause/cancel/retry, dead letters): see [WORKFLOWS.md](WORKFLOWS.md).

@@ -211,6 +211,13 @@ export const appEnvSchema = z.object({
   ORCHESTRATOR_MAX_ACTIVE_RUNS_PER_BUSINESS: z.coerce.number().int().min(1).max(100).default(5),
   ORCHESTRATOR_TICK_MS: z.coerce.number().int().min(20).default(30_000),
   ORCHESTRATOR_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
+  // ─── Workflow engine (Phase N3): needs ORCHESTRATOR_ENABLED too; off by default; simulated adapters only ───
+  WORKFLOWS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  WORKFLOWS_MAX_PER_BUSINESS: z.coerce.number().int().min(1).max(200).default(20),
+  WORKFLOWS_MAX_VERSIONS: z.coerce.number().int().min(1).max(500).default(50),
+  /** Shortest allowed interval of a schedule trigger. */
+  WORKFLOWS_MIN_SCHEDULE_MINUTES: z.coerce.number().int().min(1).default(15),
+  WORKFLOWS_TICK_MS: z.coerce.number().int().min(20).default(30_000),
   /** Health endpoint of the standalone AI worker (node dist/ai-worker.js). */
   AI_WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(4002),
   /** Reservations of jobs that never finished are released after this many minutes by the reconciler. */

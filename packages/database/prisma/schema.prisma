@@ -544,6 +544,7 @@ model Business {
   socialSessions      SocialConnectionSession[]
   creativeGenerations CreativeGeneration[]
   agentRuns           AgentRun[]
+  workflowDefinitions WorkflowDefinition[]
   customers           Customer[]
   salesAgentConfig    SalesAgentConfig?
 
@@ -1774,6 +1775,10 @@ enum AgentRunStatus {
   WAITING_APPROVAL
   COMPLETED
   FAILED
+  /// Phase N3: no new step starts until resumed.
+  PAUSED
+  /// Phase N3: stopped by a person; final.
+  CANCELLED
 }
 
 enum AgentRunStepStatus {
@@ -1782,6 +1787,9 @@ enum AgentRunStepStatus {
   WAITING_APPROVAL
   COMPLETED
   FAILED
+  /// Phase N3: its condition was false, so it did not run (counts as satisfied for the steps that depend on it).
+  SKIPPED
+  CANCELLED
 }
 
 model AgentRun {
@@ -1800,6 +1808,15 @@ model AgentRun {
   input           Json
   errorCode       String?
   errorMessage    String?
+  /// Phase N3: set when the run comes from a workflow (definition id and the immutable version it started from).
+  workflowId      String?
+  workflowVersion Int?
+  /// manual | schedule | event
+  triggerType     String?
+  /// Validated, size-limited scalars of the triggering event (conditions can read them as `trigger.*`).
+  triggerData     Json?
+  /// Set when the run failed and waits for a person (the dead-letter list); cleared by a retry.
+  deadLetteredAt  DateTime?      @db.Timestamptz(3)
   createdAt       DateTime       @default(now()) @db.Timestamptz(3)
   startedAt       DateTime?      @db.Timestamptz(3)
   completedAt     DateTime?      @db.Timestamptz(3)
@@ -1812,6 +1829,8 @@ model AgentRun {
   @@unique([businessId, idempotencyKey])
   @@index([businessId, status, createdAt])
   @@index([status, updatedAt])
+  @@index([businessId, workflowId, createdAt])
+  @@index([businessId, deadLetteredAt])
 }
 
 model AgentRunStep {
@@ -1827,6 +1846,10 @@ model AgentRunStep {
   attempts         Int                @default(0)
   maxAttempts      Int
   nextAttemptAt    DateTime?          @db.Timestamptz(3)
+  /// Restricted condition (see workflow-conditions.ts); false means the step is SKIPPED.
+  condition        Json?
+  /// Per-step retry policy (null: the environment default).
+  backoffMs        Int?
   output           Json?
   errorCode        String?
   errorMessage     String?
@@ -1861,4 +1884,47 @@ model AgentRunEvent {
 
   @@index([runId, createdAt])
   @@index([businessId, createdAt])
+}
+
+// ─────────────────────────── Workflow engine (Phase N3) ───────────────────────────
+// A definition has immutable versions; an execution is an AgentRun that snapshots the version it started from.
+
+model WorkflowDefinition {
+  id             String    @id @default(cuid())
+  businessId     String
+  name           String
+  description    String?
+  /// Latest version number: new executions start from it; running ones keep their own snapshot.
+  currentVersion Int
+  isActive       Boolean   @default(false)
+  /// The user whose permissions scheduled and event-triggered executions run with.
+  activatedById  String?
+  /// Next scheduled execution (schedule trigger), claimed with one conditional UPDATE.
+  nextRunAt      DateTime? @db.Timestamptz(3)
+  createdById    String
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  business Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  versions WorkflowVersion[]
+
+  @@unique([businessId, name])
+  @@index([isActive, nextRunAt])
+  @@index([businessId, isActive])
+}
+
+model WorkflowVersion {
+  id          String   @id @default(cuid())
+  workflowId  String
+  businessId  String
+  version     Int
+  /// The validated definition document (never contains secrets or code).
+  definition  Json
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  workflow WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, version])
+  @@index([businessId])
 }

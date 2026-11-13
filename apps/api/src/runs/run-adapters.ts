@@ -30,6 +30,9 @@ export interface RunAdapterRegistry {
   get(name: string): RunAdapter | undefined;
 }
 
+/** true = acts outside TOUMA, false = internal, undefined = no such adapter. */
+export const adapterIsExternal = (registry: RunAdapterRegistry) => (name: string): boolean | undefined => registry.get(name)?.external;
+
 export const RUN_ADAPTER_REGISTRY = Symbol('RUN_ADAPTER_REGISTRY');
 
 /**
@@ -46,6 +49,10 @@ export class SimulatedRunAdapters implements RunAdapterRegistry {
     'simulated.analyze': this.make('simulated.analyze', false, (ctx) => ({ summary: `Simulated analysis of the topic (${String(ctx.input.topic ?? '').length} characters)`, simulated: true })),
     'simulated.draft': this.make('simulated.draft', false, (ctx) => ({ draft: 'Simulated draft', basedOn: Object.keys(ctx.outputs), simulated: true })),
     'simulated.external-action': this.make('simulated.external-action', true, () => ({ simulated: true, note: 'No external action was performed' })),
+    // Phase N3 workflow adapters (simulations as well: no model, no calendar write, nothing leaves TOUMA).
+    'simulated.product-analysis': this.make('simulated.product-analysis', false, (ctx) => ({ summary: `Simulated product analysis (${String(ctx.input.topic ?? ctx.input.product ?? '').length} characters)`, score: 72, simulated: true })),
+    'simulated.content-draft': this.make('simulated.content-draft', false, (ctx) => ({ draft: 'Simulated content draft', basedOn: Object.keys(ctx.outputs), simulated: true })),
+    'simulated.calendar-schedule': this.make('simulated.calendar-schedule', true, () => ({ simulated: true, scheduled: false, note: 'No calendar entry was created' })),
   };
 
   get(name: string) {

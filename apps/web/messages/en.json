@@ -98,6 +98,7 @@
       "knowledge": "Knowledge base",
       "ai": "TOUMA AI",
       "creative": "Creative Studio",
+      "workflows": "Workflows",
       "sales": "AI sales agent"
     },
     "analyticsTitle": "Performance",
@@ -2210,6 +2211,52 @@
         "heldBecauseOfConfidence": "Held for low confidence",
         "approvalRate": "Approval rate"
       }
+    }
+  },
+  "workflows": {
+    "title": "Workflows",
+    "subtitle": "Automated sequences with a person approving every sensitive step.",
+    "simulated": "Simulation: no AI model is called, nothing is published and no calendar entry is created.",
+    "disabled": "Workflows are not enabled for this platform yet.",
+    "createDemo": "Create the demo workflow",
+    "demoName": "Product launch (simulation)",
+    "none": "No workflow yet.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "version": "Version",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "start": "Start",
+    "topic": "Topic",
+    "topicPlaceholder": "e.g. Autumn collection",
+    "executions": "Executions",
+    "noExecutions": "No execution yet.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "pause": "Pause",
+    "resume": "Resume",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "resolveExecuted": "It did happen",
+    "resolveNotExecuted": "It did not happen",
+    "outcomeUnknown": "The result of this action is unknown. Check outside TOUMA, then tell us what happened.",
+    "needsApproval": "Waiting for a person to approve",
+    "showExecutions": "Executions",
+    "hideExecutions": "Hide",
+    "by": "Started",
+    "steps": "Steps",
+    "attempts": "attempts",
+    "deadLetter": "Failed: waiting for a person",
+    "error": "Something went wrong",
+    "status": {
+      "PENDING": "Pending",
+      "RUNNING": "Running",
+      "WAITING_APPROVAL": "Waiting for approval",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed",
+      "PAUSED": "Paused",
+      "CANCELLED": "Cancelled",
+      "SKIPPED": "Skipped"
     }
   }
 }
