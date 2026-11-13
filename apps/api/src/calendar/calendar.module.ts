@@ -5,7 +5,9 @@ import { NotificationsCoreModule } from '../notifications/notifications.module';
 import { CalendarResultsModule } from './calendar-results.module';
 import { CalendarController } from './calendar.controller';
 import { CalendarQueueService } from './calendar-queue';
+import { CalendarRunAdapter } from './calendar-run-adapter';
 import { CalendarService } from './calendar.service';
+import { RunsCoreModule } from '../runs/runs.module';
 import { CalendarWorkerService } from './calendar-worker.service';
 import { PlanService } from './plan.service';
 import { PUBLISHING_GATEWAY } from './publishing';
@@ -19,9 +21,9 @@ import { SchedulingService } from './scheduling.service';
  * publisher by replacing the PUBLISHING_GATEWAY provider.
  */
 @Module({
-  imports: [AiCoreModule, KnowledgeModule, NotificationsCoreModule, CalendarResultsModule, SocialCoreModule],
+  imports: [AiCoreModule, KnowledgeModule, NotificationsCoreModule, CalendarResultsModule, SocialCoreModule, RunsCoreModule],
   providers: [
-    CalendarService, SchedulingService, PlanService, RecurrenceService, CalendarQueueService, CalendarWorkerService,
+    CalendarService, CalendarRunAdapter, SchedulingService, PlanService, RecurrenceService, CalendarQueueService, CalendarWorkerService,
     { provide: PUBLISHING_GATEWAY, useExisting: SocialPublishingGateway },
   ],
   exports: [CalendarService, SchedulingService, PlanService, RecurrenceService, CalendarQueueService, CalendarWorkerService, PUBLISHING_GATEWAY],

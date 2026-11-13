@@ -31,6 +31,8 @@ export interface ResolvedTime {
 }
 
 export interface EntryInput {
+  /** Deterministic content id (Phase N9): lets an automation step be replayed without creating a second entry. */
+  contentId?: string;
   title: string;
   platform: SocialPlatform;
   at: Date;
@@ -110,9 +112,10 @@ export class CalendarService {
   }
 
   /** Creates the content draft and its calendar entry. The caller holds the scheduling lock for the platform. */
-  async insertEntry(tx: Prisma.TransactionClient, tenant: Pick<TenantContext, 'businessId' | 'userId'>, bt: BusinessTime, i: EntryInput) {
+  async insertEntry(tx: Prisma.TransactionClient, tenant: { businessId: string; userId: string | null }, bt: BusinessTime, i: EntryInput) {
     const content = await tx.content.create({
       data: {
+        ...(i.contentId ? { id: i.contentId } : {}),
         businessId: tenant.businessId,
         type: (i.contentType ?? 'TEXT') as never,
         title: i.title,

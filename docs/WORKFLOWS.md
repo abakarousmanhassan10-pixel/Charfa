@@ -47,3 +47,6 @@ No real adapter (AI, calendar, social), no emitter in existing modules, no cron 
 
 ## Tests
 `workflow-conditions.spec.ts`, `workflow-definition.spec.ts` (unit) and `apps/api/test/workflows.e2e-spec.ts` (22 tests with real PostgreSQL, Redis and BullMQ): versioning, RBAC, tenant isolation, unsafe definitions, the demonstration workflow, idempotency, conditions, retry policy, schedule and event triggers (duplicates, chains, tenant scoping), pause/resume/cancel, dead letters, unknown outcomes, requester revoked, worker restart.
+
+## Calendar step (Phase N9)
+Adapter `calendar.create-entry` (inputs `title`, `platform`, `scheduled_at` ISO instant, optional `caption`) creates a real `CalendarEvent` (status PLANNED, draft content) in the run's business after a person approves the step (declared external, so the approval cannot be skipped). It never authorizes or publishes: authorizing the exact content stays a separate human act in the calendar. Idempotent without a schema change: content id derived from the step key + the unique placement key, re-checked under the scheduling lock. Conflicts (including a time in the past) fail the step with `CALENDAR_CONFLICT`; other failures roll back and report `CALENDAR_FAILED`; a retry asks for a new approval and reuses the same entry if it already exists.
