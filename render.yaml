@@ -44,6 +44,12 @@ envVarGroups:
         value: none
       - key: AI_WORKER_INLINE
         value: "false"
+      - key: S3_PROVIDER
+        value: r2 # Cloudflare R2 (private bucket). Endpoint, bucket and keys are entered per service.
+      - key: S3_REGION
+        value: auto # the only region R2 accepts
+      - key: MEDIA_MAX_VIDEO_MB
+        value: "50" # STAGING ONLY. Vercel proxies a request for at most 120 s; ClamAV is configured above this size (see touma-clamav)
 
 services:
   # ── API ────────────────────────────────────────────────────────────────────────
@@ -80,9 +86,7 @@ services:
       - { key: TOKEN_ENCRYPTION_KEY, sync: false }
       - { key: WEB_URL, sync: false }
       - { key: CORS_ORIGINS, sync: false }
-      - { key: S3_PROVIDER, sync: false }
       - { key: S3_ENDPOINT, sync: false }
-      - { key: S3_REGION, sync: false }
       - { key: S3_BUCKET, sync: false }
       - { key: S3_ACCESS_KEY_ID, sync: false }
       - { key: S3_SECRET_ACCESS_KEY, sync: false }
@@ -122,9 +126,7 @@ services:
       - { key: TOKEN_ENCRYPTION_KEY, sync: false }
       - { key: WEB_URL, sync: false }
       - { key: CORS_ORIGINS, sync: false }
-      - { key: S3_PROVIDER, sync: false }
       - { key: S3_ENDPOINT, sync: false }
-      - { key: S3_REGION, sync: false }
       - { key: S3_BUCKET, sync: false }
       - { key: S3_ACCESS_KEY_ID, sync: false }
       - { key: S3_SECRET_ACCESS_KEY, sync: false }
@@ -159,9 +161,7 @@ services:
       - { key: TOKEN_ENCRYPTION_KEY, sync: false }
       - { key: WEB_URL, sync: false }
       - { key: CORS_ORIGINS, sync: false }
-      - { key: S3_PROVIDER, sync: false }
       - { key: S3_ENDPOINT, sync: false }
-      - { key: S3_REGION, sync: false }
       - { key: S3_BUCKET, sync: false }
       - { key: S3_ACCESS_KEY_ID, sync: false }
       - { key: S3_SECRET_ACCESS_KEY, sync: false }
@@ -184,6 +184,13 @@ services:
       url: docker.io/clamav/clamav:1.4
     region: frankfurt
     plan: 1c-2g
+    # The stock image limits a scanned stream to 25 MB, so larger uploads would be refused (scanning fails closed).
+    # Keep these above MEDIA_MAX_VIDEO_MB. The image applies CLAMD_CONF_* variables to clamd.conf at start (checked on clamav/clamav:1.4).
+    envVars:
+      - key: CLAMD_CONF_StreamMaxLength
+        value: 60M
+      - key: CLAMD_CONF_MaxFileSize
+        value: 60M
     disk:
       name: clamav-signatures
       mountPath: /var/lib/clamav

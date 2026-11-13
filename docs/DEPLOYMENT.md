@@ -115,12 +115,56 @@ Migrations are forward-only (there are no down migrations). Rollback means expan
 - **Prisma `directUrl`.** Deliberately not configured: with `directUrl = env(...)` every Prisma command would require that variable and the migration image would stop working without it. Migrations use `DATABASE_URL`, which must be a **direct** (or session-mode) PostgreSQL connection; the calendar scheduler's advisory locks also require it at run time. Do not point `DATABASE_URL` at a transaction-mode pooler.
 
 ### Known risks to test before real users
-1. **E-mail ports.** Some hosting plans block outbound SMTP ports **[verify]**. Test a real verification e-mail.
+1. **E-mail ports.** Confirmed by Render: port 25 is blocked for every service and free web services also block 465 and 587; paid services can use 587/465. Still send one real verification e-mail in staging.
 2. **Docker Hub pull limits** for the ClamAV image **[verify]**.
 3. Nothing has been verified against real OpenAI, S3/R2, SMTP, Render Key Value or Vercel: only MinIO, Mailpit and simulated providers have been used.
 
+### Staging setup: PostgreSQL, Cloudflare R2, SMTP (steps you perform yourself)
+Nothing below needs a secret to be shared with anyone: keys are created in each provider's dashboard and typed only into Render (or into your own terminal for the checks). OpenAI stays **disabled** until the AI pilot: leave `OPENAI_API_KEY` empty (AI features then report "not configured"; production validation does not require it).
+
+**1. PostgreSQL (Render Postgres, same region as the services).**
+1. Create the database in `frankfurt` (paid plan: the free plan has no recovery). Official prices read from Render's pricing page: `0.1c-256mb` $6/month (100 connections), `0.5c-1g` $19/month, storage expansion $0.30/GB. Point-in-time recovery covers 3 days on a Hobby workspace and 7 on Pro; logical backups are kept 7 days. **[not verified]** how much storage the smallest plan includes.
+2. Services use the **internal** URL, with TLS required: append `?sslmode=require` (internal certificates are self-signed, so `verify-ca`/`verify-full` do not work). Use it as `DATABASE_URL` in the three backend services.
+3. For the one-off migration from your machine, enable the external URL and restrict it to your own IP, run the migration/seed commands above with that URL, then remove the external access.
+
+**2. Cloudflare R2 (private media).**
+1. Create an R2 bucket (staging only: do not reuse it for production). Keep it private: no public bucket URL and no custom domain (the app serves media through API-signed URLs; browsers never call R2 directly, so no CORS rule is needed).
+2. Create an R2 API token with *Object Read & Write* limited to that bucket. Note the account ID: `S3_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com`. `S3_PROVIDER=r2` and `S3_REGION=auto` are already set by the Blueprint.
+3. **Before deploying anything**, run the storage check from your machine with the R2 variables exported in your own shell (the secret never leaves it): `pnpm --filter @touma/api storage:check`. It uploads, reads back, signs a URL, deletes and confirms.
+4. Known risk: the AWS SDK in use (3.1165) sends CRC32 checksums by default, and community reports describe R2 rejecting some requests (uploads, multipart parts, deletes). Cloudflare's incident was marked resolved, but a recent report says multipart SHA-256 parts still fail. If the storage check fails, the fix is to set `requestChecksumCalculation` and `responseChecksumValidation` to `WHEN_REQUIRED` in `packages/storage/src/s3-object-storage.ts` (a small code change, to be approved and regression-tested against MinIO). **[not verified]** against a real R2 bucket.
+5. Facts from Cloudflare's documentation (via search results, not the page itself): presigned URLs work for GET/HEAD/PUT/DELETE, expire between 1 second and 7 days (`MEDIA_URL_TTL_SECONDS` defaults to 1 hour), and only on the `r2.cloudflarestorage.com` domain. Pricing from the same source: free tier of 10 GB-month of storage, 1 M class A and 10 M class B operations per month, then $0.015 per GB-month; egress is free. **[verify]** on Cloudflare's pricing page, and whether a payment method is required to enable R2.
+
+**3. SMTP (the app only speaks SMTP).**
+- Render's rules (official): outbound port 25 is blocked for every service; free web services also block 465 and 587. The staging services are paid, so use **587 with STARTTLS** (`SMTP_PORT=587`, `SMTP_SECURE=false`, already set) or 465 (`SMTP_SECURE=true`).
+- Candidates (figures from search results, mostly provider blogs, **[verify]** each pricing page; SMTP port support per provider is **[not verified]** here):
+
+| Provider | Free allowance | First paid step | Note |
+|---|---|---|---|
+| Brevo | 300 emails/day | from about $9/month | SMTP included; simplest for a staging pilot |
+| Resend | 3,000/month (100/day) | about $20/month | API-first; check that SMTP is enabled on your plan |
+| Postmark | 100/month | about $15/month | Strong transactional reputation, tiny free tier |
+| Mailgun | trial or 100/day (sources disagree) | about $15/month | |
+| Amazon SES | free tier is time-limited | about $0.10 per 1,000 | Cheapest at volume; needs account/sandbox approval |
+
+- Whatever you choose: verify the sending domain (SPF, DKIM, DMARC), create a dedicated SMTP credential, and enter `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` in Render. Staging sends real e-mails: only use test addresses you own.
+
+**4. 50 MB video limit (staging).**
+- `MEDIA_MAX_VIDEO_MB=50` is set for staging in `render.yaml`. The API enforces it (streaming cap, type and size checks, and the Creative worker's video download use the same variable). A 50 MB upload must fit in Vercel's 120 s proxy window, which needs roughly 3.5 Mbps of upstream bandwidth; **[not verified]** the request-body limits of Vercel (rewrites to external origins) and Render.
+- ClamAV scans the whole stream and fails closed, and its stock limit is 25 MB (read from `clamav/clamav:1.4`). The Blueprint therefore sets `CLAMD_CONF_StreamMaxLength` and `CLAMD_CONF_MaxFileSize` to 60M (the image applies `CLAMD_CONF_*` variables to `clamd.conf`; the substitution was checked on the image). This was also a latent problem at the default 200 MB.
+- **Known mismatch (frontend):** the upload form pre-checks against a constant of 200 MB and its help texts (English and French) say 200 MB. With the 50 MB staging limit the API still refuses larger files, but only after streaming up to 50 MB, and the message names the wrong limit. A follow-up change (the API exposing its limits and the form using them) is proposed, not made.
+
+**5. Staging cost, recurring (Render's pricing page, read today; provider free tiers assumed).**
+API `0.5c-512mb` $7 + maintenance worker $7 + AI worker $7 + ClamAV `1c-2g` $25 + its 2 GB disk (about $0.50 at $0.25/GB) + Key Value `256mb` $10 + Postgres `0.1c-256mb` $6 = **about $62.5/month**, plus the Render workspace plan (Hobby $0, Professional $25/month) and Vercel. R2 and SMTP can stay within free tiers at pilot volumes; OpenAI is off. Services bill while they exist: delete or suspend them after testing.
+
+**6. Security checklist before the first deployment.**
+- Secrets only in Render's dashboard (never in git, chat, tickets or screenshots); separate staging and production values; rotate the R2 token and SMTP credential after the pilot.
+- R2 token limited to one bucket and to object read/write; bucket private.
+- PostgreSQL external access only from your IP and only while migrating; `sslmode=require`; strong generated password.
+- `MALWARE_SCANNER=clamav` stays on; no `ALLOW_UNSCANNED_UPLOADS`.
+- Keep `APP_ENV=staging` (same startup checks as production) and the agent in review mode for any later AI pilot.
+
 ### Order of operations (when you decide to apply)
-1. Create the PostgreSQL database, the private R2/S3 bucket (with a token limited to that bucket) and the SMTP account.
+1. Create the PostgreSQL database, the private R2 bucket (token limited to that bucket, `storage:check` passing from your machine) and the SMTP account, as described in "Staging setup" above.
 2. Verify the Redis items above, then create the Blueprint in Render and fill the `sync: false` values.
 3. Run the migration and the seed with the commands above.
 4. Wait for ClamAV signatures, then check `GET /api/v1/health/ready` (database, Redis, storage, scanner and the three worker heartbeats) and run `pnpm --filter @touma/api storage:check` with the staging variables.

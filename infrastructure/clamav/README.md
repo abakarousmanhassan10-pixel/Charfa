@@ -14,3 +14,5 @@ CLAMAV_PORT=3310
 These match only the harmless **EICAR** antivirus test string: `.hdb` matches the exact file, and `.ndb` matches the string embedded anywhere, e.g. appended to a PNG. They let integration tests prove real detection without downloading the official database. Never use them as the only database in production.
 
 `start-test-clamd.sh` starts a local clamd on 127.0.0.1:3310 with these signatures (used by the test suite and CI).
+
+The stock `clamav/clamav` image limits a scanned stream to 25 MB (`StreamMaxLength`), below the 50–200 MB video limits. Its init script applies `CLAMD_CONF_<Option>` environment variables to `clamd.conf`, for example `CLAMD_CONF_StreamMaxLength=60M` and `CLAMD_CONF_MaxFileSize=60M` (set in `render.yaml` for staging).
