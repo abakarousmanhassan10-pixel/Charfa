@@ -1,0 +1,203 @@
+# Render Blueprint for the TOUMA STAGING backend (API, background workers, ClamAV, Redis-compatible Key Value).
+#
+# STATUS: PREPARED ONLY. It has NOT been applied. Applying it creates PAID services (see the plans below),
+# so apply it only after the checks in docs/DEPLOYMENT.md ("Staging on Render and Vercel").
+# The file contains NO secret and NO real value: every entry marked `sync: false` is asked for in the Render
+# dashboard when the Blueprint is created. Never put a secret in this file.
+#
+# The web app is deployed on Vercel (see docs/DEPLOYMENT.md), PostgreSQL is a managed database whose connection
+# string is supplied as DATABASE_URL, and database migrations are NOT run by these services:
+# use infrastructure/docker/migrate.Dockerfile (the runtime images do not contain the Prisma CLI).
+#
+# Everything shares one region so the services reach each other over Render's private network. Change it before applying.
+# Plans are starting points to be checked against Render's current pricing and your load.
+
+envVarGroups:
+  - name: touma-staging-shared
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: staging # staging enforces the same startup checks as production
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_AUTO_CREATE_BUCKET
+        value: "false"
+      - key: EMAIL_TRANSPORT
+        value: smtp
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false" # STARTTLS on 587 (the app requires TLS in staging and production)
+      - key: MALWARE_SCANNER
+        value: clamav # mandatory: do not change, do not set ALLOW_UNSCANNED_UPLOADS
+      - key: CLAMAV_PORT
+        value: "3310"
+      - key: RATE_LIMIT_STORE
+        value: redis
+      - key: AI_PROVIDER
+        value: openai
+      - key: SOCIAL_PROVIDER_MODE
+        value: live # no platform credentials are set below, so social publishing stays "not configured"
+      - key: VIDEO_PROVIDER
+        value: none
+      - key: AI_WORKER_INLINE
+        value: "false"
+
+services:
+  # ── API ────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: touma-api
+    runtime: docker
+    dockerfilePath: ./infrastructure/docker/api.Dockerfile
+    dockerContext: .
+    region: frankfurt
+    plan: starter
+    autoDeploy: false
+    # Liveness only. /api/v1/health/ready also checks the database and Redis and would restart the API during a short outage.
+    healthCheckPath: /api/v1/health
+    envVars:
+      - fromGroup: touma-staging-shared
+      - key: API_PORT
+        value: "10000"
+      - key: PORT
+        value: "10000"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: touma-redis
+          property: connectionString
+      - key: CLAMAV_HOST
+        fromService:
+          type: pserv
+          name: touma-clamav
+          property: host
+      # Secrets and environment-specific values, entered in the dashboard (never in this file):
+      - { key: DATABASE_URL, sync: false }
+      - { key: JWT_ACCESS_SECRET, sync: false }
+      - { key: JWT_REFRESH_SECRET, sync: false }
+      - { key: TOKEN_ENCRYPTION_KEY, sync: false }
+      - { key: WEB_URL, sync: false }
+      - { key: CORS_ORIGINS, sync: false }
+      - { key: S3_PROVIDER, sync: false }
+      - { key: S3_ENDPOINT, sync: false }
+      - { key: S3_REGION, sync: false }
+      - { key: S3_BUCKET, sync: false }
+      - { key: S3_ACCESS_KEY_ID, sync: false }
+      - { key: S3_SECRET_ACCESS_KEY, sync: false }
+      - { key: SMTP_HOST, sync: false }
+      - { key: SMTP_USER, sync: false }
+      - { key: SMTP_PASSWORD, sync: false }
+      - { key: EMAIL_FROM, sync: false }
+      - { key: OPENAI_API_KEY, sync: false }
+      - { key: SALES_AGENT_MODEL, sync: false }
+      - { key: AI_MODEL_PRICING, sync: false }
+
+  # ── Maintenance worker (session purge, storage cleanup) ────────────────────────
+  - type: worker
+    name: touma-worker
+    runtime: docker
+    dockerfilePath: ./infrastructure/docker/worker.Dockerfile
+    dockerContext: .
+    region: frankfurt
+    plan: starter
+    autoDeploy: false
+    envVars:
+      - fromGroup: touma-staging-shared
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: touma-redis
+          property: connectionString
+      - key: CLAMAV_HOST
+        fromService:
+          type: pserv
+          name: touma-clamav
+          property: host
+      # The worker validates the same production rules as the API, so it needs the same secrets and storage/email settings.
+      - { key: DATABASE_URL, sync: false }
+      - { key: JWT_ACCESS_SECRET, sync: false }
+      - { key: JWT_REFRESH_SECRET, sync: false }
+      - { key: TOKEN_ENCRYPTION_KEY, sync: false }
+      - { key: WEB_URL, sync: false }
+      - { key: CORS_ORIGINS, sync: false }
+      - { key: S3_PROVIDER, sync: false }
+      - { key: S3_ENDPOINT, sync: false }
+      - { key: S3_REGION, sync: false }
+      - { key: S3_BUCKET, sync: false }
+      - { key: S3_ACCESS_KEY_ID, sync: false }
+      - { key: S3_SECRET_ACCESS_KEY, sync: false }
+      - { key: SMTP_HOST, sync: false }
+      - { key: EMAIL_FROM, sync: false }
+
+  # ── AI worker (AI text, creative, calendar and social queues) ──────────────────
+  - type: worker
+    name: touma-ai-worker
+    runtime: docker
+    dockerfilePath: ./infrastructure/docker/api.Dockerfile
+    dockerContext: .
+    dockerCommand: node dist/ai-worker.js
+    region: frankfurt
+    plan: starter # sharp and the creative queue may need more memory: check it during staging
+    autoDeploy: false
+    envVars:
+      - fromGroup: touma-staging-shared
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: touma-redis
+          property: connectionString
+      - key: CLAMAV_HOST
+        fromService:
+          type: pserv
+          name: touma-clamav
+          property: host
+      - { key: DATABASE_URL, sync: false }
+      - { key: JWT_ACCESS_SECRET, sync: false }
+      - { key: JWT_REFRESH_SECRET, sync: false }
+      - { key: TOKEN_ENCRYPTION_KEY, sync: false }
+      - { key: WEB_URL, sync: false }
+      - { key: CORS_ORIGINS, sync: false }
+      - { key: S3_PROVIDER, sync: false }
+      - { key: S3_ENDPOINT, sync: false }
+      - { key: S3_REGION, sync: false }
+      - { key: S3_BUCKET, sync: false }
+      - { key: S3_ACCESS_KEY_ID, sync: false }
+      - { key: S3_SECRET_ACCESS_KEY, sync: false }
+      - { key: SMTP_HOST, sync: false }
+      - { key: SMTP_USER, sync: false }
+      - { key: SMTP_PASSWORD, sync: false }
+      - { key: EMAIL_FROM, sync: false }
+      - { key: OPENAI_API_KEY, sync: false }
+      - { key: SALES_AGENT_MODEL, sync: false }
+      - { key: AI_MODEL_PRICING, sync: false }
+
+  # ── ClamAV (mandatory malware scanning; private network only) ──────────────────
+  # clamd loads its whole signature database in memory (plan sized for roughly 2 GB: check current Render plans).
+  # The first start downloads signatures and takes several minutes. The persistent disk keeps them across restarts.
+  # A service with a disk cannot be scaled horizontally and restarts without zero-downtime.
+  - type: pserv
+    name: touma-clamav
+    runtime: image
+    image:
+      url: docker.io/clamav/clamav:1.4
+    region: frankfurt
+    plan: standard
+    disk:
+      name: clamav-signatures
+      mountPath: /var/lib/clamav
+      sizeGB: 2
+
+  # ── Redis-compatible Key Value (BullMQ queues + shared rate limits) ───────────
+  # To verify BEFORE applying (not verified from this repository): BullMQ compatibility, persistence on the chosen plan,
+  # `noeviction` support, and the current price. The free plan must not be used (no persistence guarantees).
+  # Private network only: no external access.
+  - type: keyvalue
+    name: touma-redis
+    region: frankfurt
+    plan: starter
+    maxmemoryPolicy: noeviction # required by BullMQ
+    ipAllowList: []
+
+# Optional, intentionally NOT enabled: a database migration runner as a Render cron job (cost minimum applies).
+# The documented default is to run infrastructure/docker/migrate.Dockerfile from a trusted machine or CI instead.

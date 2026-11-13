@@ -8,3 +8,12 @@
 **/.env
 test-results
 playwright-report
+
+# Never send local state, secrets or dumps to the Docker build context
+**/.env.*
+!**/.env.example
+*.rdb
+*.aof
+**/appendonlydir
+**/*.pem
+**/*.key

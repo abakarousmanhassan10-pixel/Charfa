@@ -6,7 +6,7 @@
 | API | Render / Fly.io / AWS ECS (container) | `infrastructure/docker/api.Dockerfile` target `runtime`; health check `/api/v1/health/ready` |
 | Worker | Same platform as API (background worker) | `infrastructure/docker/worker.Dockerfile`; scale horizontally, since BullMQ handles locking; liveness `GET :4001/health` |
 | AI worker | Same platform as API (background worker), same image | `api.Dockerfile` target `runtime` with command `node dist/ai-worker.js`; consumes the `touma.ai` queue; scale horizontally; health `GET :4002/health`; keep `AI_WORKER_INLINE=false` on the API |
-| Migrations | One-off job before each API release | `api.Dockerfile` target `migrate` (`prisma migrate deploy`) |
+| Migrations | One-off job before each API release | `api.Dockerfile` target `migrate` (local/compose) or, for hosted staging/production, `infrastructure/docker/migrate.Dockerfile` (see "Staging on Render and Vercel"). The `runtime` images do not contain the Prisma CLI |
 | PostgreSQL | Managed (Neon, RDS, Render, Supabase) | PITR on, TLS required (`?sslmode=require`) |
 | Redis | Managed (Upstash, ElastiCache, Render) | `maxmemory-policy noeviction` (required by BullMQ) |
 | Media | AWS S3 / Cloudflare R2 / MinIO | Private bucket, served only through API-signed URLs; verify with `pnpm --filter @touma/api storage:check` |
@@ -63,3 +63,61 @@ No extra service: `node dist/ai-worker.js` also runs the calendar scheduler (que
 
 ### Social publishing
 No extra service: `node dist/ai-worker.js` also runs the social worker (queue `touma.social`). Set `PUBLIC_API_URL` (https) and the credentials of each platform you enable ([SOCIAL-INTEGRATIONS.md](SOCIAL-INTEGRATIONS.md)); keep `SOCIAL_PROVIDER_MODE=live`. The API must be reachable from the internet (OAuth redirects, webhooks and the media URLs platforms download). At least one worker must run for publishing, token refresh and analytics. `/health/ready` reports `socialWorker`.
+
+## Staging on Render and Vercel (prepared, not deployed)
+
+Status: `render.yaml` and `infrastructure/docker/migrate.Dockerfile` are prepared and **have not been applied or built against a real account**. Applying the Blueprint creates paid services. Facts about Render or Vercel below that are not visible in this repository are marked **[verify]**: check them in the provider's current documentation before relying on them.
+
+### What is prepared
+| File | Purpose |
+|---|---|
+| `render.yaml` | Blueprint: `touma-api` (web), `touma-worker` (maintenance), `touma-ai-worker` (AI, creative, calendar, social queues), `touma-clamav` (private service), `touma-redis` (Key Value). No secret or real value: entries marked `sync: false` are entered in the dashboard |
+| `infrastructure/docker/migrate.Dockerfile` | Image with the Prisma CLI and tsx, for `prisma migrate deploy` and the plan seed |
+| `.dockerignore`, `.gitignore` | Local Redis dumps (`*.rdb`, `*.aof`), `.env.*` (except `.env.example`) and key files are kept out of git and out of the Docker build context |
+
+### Services and settings
+| Service | Image / command | Settings |
+|---|---|---|
+| API (web) | `api.Dockerfile`, default command | `API_PORT=10000` and `PORT=10000` (Render's default port is 10000 **[verify]**; the app listens on `API_PORT`). Health check path `/api/v1/health` (liveness). The Dockerfile's own `HEALTHCHECK` is hard-coded to port 4000 and is ignored by Render, which uses its own check |
+| Maintenance worker | `worker.Dockerfile` | Background worker; no port |
+| AI worker | `api.Dockerfile`, command `node dist/ai-worker.js` | Background worker; keep `AI_WORKER_INLINE=false` |
+| ClamAV | `docker.io/clamav/clamav:1.4`, private service on port 3310 | Persistent disk on `/var/lib/clamav`; plan sized for about 2 GB of RAM **[verify]**; first start downloads signatures (several minutes). `MALWARE_SCANNER=clamav` is mandatory: never set `ALLOW_UNSCANNED_UPLOADS` |
+| Redis | Render Key Value | `maxmemoryPolicy: noeviction`, private network only. **[verify before applying]**: BullMQ compatibility, persistence on the chosen plan, `noeviction` support and current price; do not use a plan without persistence guarantees |
+
+Every backend service runs the same startup validation (`loadEnv`), so the maintenance and AI workers need the same secrets, storage and e-mail settings as the API. All services must stay in one region to use the private network.
+
+### Environment variables to enter in the dashboard (names only)
+- **Secrets (never in git):** `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (distinct, 32+ characters), `TOKEN_ENCRYPTION_KEY` (32 random bytes, base64), `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SMTP_USER`, `SMTP_PASSWORD`, `OPENAI_API_KEY`. Generate each value with a random generator (for example `openssl rand -base64 48`; `openssl rand -base64 32` for `TOKEN_ENCRYPTION_KEY`) and use different values for staging and production.
+- **Configuration:** `WEB_URL`, `CORS_ORIGINS` (https only, the exact Vercel domain), `S3_PROVIDER`, `S3_ENDPOINT` (R2 only), `S3_REGION`, `S3_BUCKET`, `SMTP_HOST`, `EMAIL_FROM`, `SALES_AGENT_MODEL`, `AI_MODEL_PRICING`.
+- **Set by the Blueprint:** `NODE_ENV`, `APP_ENV=staging`, `STORAGE_DRIVER`, `S3_AUTO_CREATE_BUCKET=false`, `EMAIL_TRANSPORT=smtp`, `SMTP_PORT`, `SMTP_SECURE`, `MALWARE_SCANNER=clamav`, `CLAMAV_HOST` and `CLAMAV_PORT`, `RATE_LIMIT_STORE=redis`, `REDIS_URL`, `AI_PROVIDER`, `SOCIAL_PROVIDER_MODE`, `VIDEO_PROVIDER=none`, `AI_WORKER_INLINE=false`.
+- Social platform variables (`META_*`, `TIKTOK_*`, `GOOGLE_*`, `LINKEDIN_*`) and `PUBLIC_API_URL` stay unset until the platforms approve the application.
+
+### Database migrations and seed (not run by any service)
+The `runtime` images are built with `pnpm deploy --prod` and contain neither the Prisma CLI nor tsx, so they cannot run migrations. Use the dedicated image from a trusted machine or CI, with a **direct** PostgreSQL connection: the schema has no `directUrl`, and the calendar scheduler uses PostgreSQL advisory locks, which do not work through a transaction-mode pooler.
+```bash
+docker build -f infrastructure/docker/migrate.Dockerfile -t touma-migrate .
+docker run --rm -e DATABASE_URL="$DATABASE_URL" touma-migrate                                    # prisma migrate deploy
+docker run --rm -e DATABASE_URL="$DATABASE_URL" touma-migrate pnpm exec tsx prisma/seed.ts       # plans, once, idempotent
+```
+Migrations are forward-only (there are no down migrations). Rollback means expand-then-contract migrations, a point-in-time restore of the database, and redeploying the previous image.
+
+### Vercel (web)
+- Project root directory `apps/web`, with "include source files outside of the root directory" enabled, Node 22.
+- Install command `pnpm install --frozen-lockfile`; build command `pnpm turbo run build --filter=@touma/web...`; framework Next.js.
+- Environment variable `API_URL` = public https URL of the API. It is read at **build** time (the `/api/v1/*` rewrites are baked into the build), so redeploy the web app whenever the API URL changes. No other variable is needed; no secret belongs in Vercel.
+- The browser only talks to the web origin (CSP `connect-src 'self'`); the refresh cookie is `SameSite=Strict` and works because the API is proxied under the same origin.
+- **[verify in staging]** the following are not tested from this repository: `Set-Cookie` passing through the rewrite; uploads of large videos (up to 200 MB) through a Vercel rewrite (size and duration limits; `experimental.proxyTimeout` only applies to self-hosting); and the Vercel Hobby plan is for non-commercial use only.
+
+### Known risks to test before real users
+1. **Client IP behind Vercel then Render.** The API sets `trust proxy` to 1 hop and uses `req.ip` for login throttling, lockout and the public-chat flood limits. Behind two proxies `req.ip` may be the proxy's address, which would make those limits shared by all users. Test from two different networks; the fix is a `trust proxy` configuration change.
+2. **E-mail ports.** Some hosting plans block outbound SMTP ports **[verify]**. Test a real verification e-mail.
+3. **Docker Hub pull limits** for the ClamAV image **[verify]**.
+4. Nothing has been verified against real OpenAI, S3/R2, SMTP, Render Key Value or Vercel: only MinIO, Mailpit and simulated providers have been used.
+
+### Order of operations (when you decide to apply)
+1. Create the PostgreSQL database, the private R2/S3 bucket (with a token limited to that bucket) and the SMTP account.
+2. Verify the Redis items above, then create the Blueprint in Render and fill the `sync: false` values.
+3. Run the migration and the seed with the commands above.
+4. Wait for ClamAV signatures, then check `GET /api/v1/health/ready` (database, Redis, storage, scanner and the three worker heartbeats) and run `pnpm --filter @touma/api storage:check` with the staging variables.
+5. Deploy the web app on Vercel with `API_URL`.
+6. Run the staging checks (sign-up with a real e-mail, image upload, EICAR rejection, IP throttling) before any AI or customer-data test.
