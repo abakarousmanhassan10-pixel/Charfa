@@ -131,6 +131,10 @@ export const appEnvSchema = z.object({
   CALENDAR_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   // ── Social platforms. Credentials come from each platform's developer portal and are server-side secrets. ──
   /** live (default): official platform APIs. fake: deterministic TEST-ONLY providers, refused unless APP_ENV=test. */
+  /** Master switch for publishing to social platforms (Phase N18). OFF by default: with it off nothing is ever handed to a platform. */
+  SOCIAL_PUBLISHING_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  /** Publications one business may start per rolling 24 hours (resource control). */
+  SOCIAL_MAX_PUBLICATIONS_PER_DAY: z.coerce.number().int().min(1).max(1000).default(50),
   SOCIAL_PROVIDER_MODE: z.enum(['live', 'fake']).default('live'),
   /** The public https base URL of this API, used for OAuth redirect URIs, webhooks and media URLs that platforms download from. */
   PUBLIC_API_URL: z.string().url().optional(),

@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { PublicationGate } from '../src/calendar/publication-gate';
 import { loadEnv } from '@touma/config';
 import { AuditService } from '../src/audit/audit.service';
 import { NotificationsService } from '../src/notifications/notifications.service';
@@ -41,6 +42,8 @@ describe('Calendar scheduler (e2e)', () => {
     admin = await h.member(owner, 'ADMIN');
     editor = await h.member(owner, 'EDITOR');
     await h.setTimezone(owner, 'Africa/Ndjamena');
+    // Authorizing binds the entry to a connected account of its platform (Phase N18); the gateway below is a stub, so the accounts are plain rows.
+    for (const platform of ['INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'YOUTUBE', 'LINKEDIN'] as const) await prisma.socialAccount.create({ data: { businessId: owner.businessId, platform, externalAccountId: `stub-${platform}`, accessTokenEnc: 'x', status: 'CONNECTED' } });
   });
   beforeEach(() => {
     calls = [];
@@ -115,7 +118,7 @@ describe('Calendar scheduler (e2e)', () => {
     await settle(e.id, ['DISPATCHED']);
     expect(calls.filter((c) => c.entryId === e.id)).toHaveLength(1);
     // A second worker process: same database, same queue.
-    const other = new CalendarWorkerService(app.get(PrismaService), queue, app.get(NotificationsService), app.get(AuditService), app.get(CalendarResultsService), gateway, loadEnv());
+    const other = new CalendarWorkerService(app.get(PrismaService), queue, app.get(NotificationsService), app.get(AuditService), app.get(CalendarResultsService), app.get(PublicationGate), gateway, loadEnv());
     const e2 = await due();
     const more = await Promise.all([worker.tick(), other.tick(), worker.tick(), other.tick()]);
     expect(more.reduce((a, r) => a + r.handed, 0)).toBe(1);
@@ -148,7 +151,7 @@ describe('Calendar scheduler (e2e)', () => {
     await request(h.http).patch(`/api/v1/calendar/entries/${e.id}`).set(as(admin)).send({ caption: 'Changed after approval' }).expect(200);
     await worker.tick();
     expect(calls).toHaveLength(0);
-    expect((await row(e.id)).content?.status).toBe('DRAFT');
+    expect((await row(e.id)).content?.status).toBe('IN_REVIEW');
     // A hand-off already queued for the old version is dropped at execution time.
     const f = await due({ title: 'Edited in the queue' });
     await prisma.calendarEvent.update({ where: { id: f.id }, data: { dispatchState: 'QUEUED', dispatchKey: `${f.id}-stale` } });

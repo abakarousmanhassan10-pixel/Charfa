@@ -1,3 +1,4 @@
+import { PublicationGate } from '../calendar/publication-gate';
 import { ConflictException, Inject, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { Prisma, type Publication, type SocialAccount } from '@touma/database';
 import { PLATFORM_CAPABILITIES, roleHasPermission, type TikTokPostSettings, type ContentKind, type SocialPlatformId, type VideoSurface } from '@touma/shared';
@@ -65,12 +66,14 @@ export class SocialPublisherService {
     private readonly results: CalendarResultsService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly gate: PublicationGate,
     @Inject(SOCIAL_ADAPTERS) private readonly adapters: SocialAdapters,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
 
-  /** True when at least one platform can publish. */
+  /** True when publishing is switched on (SOCIAL_PUBLISHING_ENABLED, off by default) and at least one platform can publish. */
   available() {
+    if (!this.env.SOCIAL_PUBLISHING_ENABLED) return false;
     return Object.values(this.adapters).some((a) => a.isConfigured());
   }
 
@@ -87,6 +90,8 @@ export class SocialPublisherService {
     if (!candidates.length) return { status: 'REJECTED', code: 'ACCOUNT_NOT_CONNECTED', message: `No connected ${PLATFORM_CAPABILITIES[platform].label} account. Connect one, then retry.`, retryable: false };
     if (candidates.length > 1) return { status: 'REJECTED', code: 'ACCOUNT_SELECTION_REQUIRED', message: 'Several accounts are connected for this platform. Choose which one this entry publishes to, then retry.', retryable: false };
     const account = candidates[0]!;
+    // The account is part of what the person authorized: a different (or no) approved account is never used.
+    if (!entry.authorizedAccountId || entry.authorizedAccountId !== account.id) return { status: 'REJECTED', code: 'ACCOUNT_NOT_AUTHORIZED', message: 'The social account was not approved for this publication. Choose the account and authorize it again.', retryable: false };
     const c = entry.content;
     const kind: ContentKind | null = c.type === 'TEXT' || c.type === 'IMAGE' || c.type === 'VIDEO' || c.type === 'CAROUSEL' ? c.type : null;
     if (!kind) return { status: 'REJECTED', code: 'CONTENT_INVALID', message: 'This content type cannot be published directly', retryable: false };
@@ -95,7 +100,7 @@ export class SocialPublisherService {
       const pub = await this.prisma.publication.create({
         data: {
           businessId: req.businessId, contentId: req.contentId, socialAccountId: account.id, calendarEventId: req.entryId, platform: req.platform, mode: 'API', status: 'QUEUED', scheduledAt: req.scheduledAt, timezone: req.timezone,
-          idempotencyKey: req.idempotencyKey, payload: payload as unknown as Prisma.InputJsonValue,
+          idempotencyKey: req.idempotencyKey, payload: payload as unknown as Prisma.InputJsonValue, simulated: this.env.SOCIAL_PROVIDER_MODE === 'fake',
         },
       });
       await this.queue.enqueue(pub.id);
@@ -198,6 +203,7 @@ export class SocialPublisherService {
               await this.prisma.publication.update({ where: { id }, data: { providerStage: stage, providerRef: ref } });
             },
             beforeCreate: async () => {
+              await this.assertAuthorized(pub); // last check before anything leaves: an approval withdrawn a moment ago stops the request
               await this.prisma.publication.update({ where: { id }, data: { submitStartedAt: new Date() } });
             },
           });
@@ -222,16 +228,14 @@ export class SocialPublisherService {
     }
   }
 
-  private async assertAuthorized(pub: Publication & { content: { status: string; version: number; approvedVersion: number | null } | null; calendarEvent: { authorizedById: string | null; authorizedVersion: number | null; status: string; deletedAt: Date | null } | null }) {
+  /** The publication gate, then the check that the payload still carries the current content version. Called before the account is loaded and again right before the platform request. */
+  private async assertAuthorized(pub: Pick<Publication, 'id' | 'businessId' | 'calendarEventId' | 'socialAccountId' | 'payload'>) {
+    if (!pub.calendarEventId) throw new Final('ACCOUNT_NOT_AUTHORIZED', 'The calendar entry was cancelled or deleted');
+    const gate = await this.gate.check({ businessId: pub.businessId, entryId: pub.calendarEventId, expectedAccountId: pub.socialAccountId, excludePublicationId: pub.id, allowPublishing: true });
+    if (!gate.ok) throw new Final(gate.code, gate.message);
     const payload = pub.payload as unknown as Payload;
-    const c = pub.content;
-    const e = pub.calendarEvent;
-    if (!e || e.deletedAt || e.status === 'CANCELLED' || !c) throw new Final('ACCOUNT_NOT_AUTHORIZED', 'The calendar entry was cancelled or deleted');
-    if (!['SCHEDULED', 'PUBLISHING'].includes(c.status) || c.version !== payload.contentVersion || c.approvedVersion !== c.version || e.authorizedVersion !== c.version || !e.authorizedById) {
-      throw new Final('CONTENT_INVALID', 'The content changed or its approval or authorization was withdrawn after it was scheduled. It was not published.');
-    }
-    const m = await this.prisma.membership.findUnique({ where: { userId_businessId: { userId: e.authorizedById, businessId: pub.businessId } } });
-    if (!m || m.status !== 'ACTIVE' || !roleHasPermission(m.role, 'publication.schedule')) throw new Final('ACCOUNT_NOT_AUTHORIZED', 'The person who authorized this publication is no longer allowed to schedule publications');
+    const c = await this.prisma.content.findFirst({ where: { businessId: pub.businessId, calendarEvents: { some: { id: pub.calendarEventId } } }, select: { version: true } });
+    if (!c || c.version !== payload.contentVersion) throw new Final('CONTENT_INVALID', 'The content changed or its approval or authorization was withdrawn after it was scheduled. It was not published.');
   }
 
   private async mediaItems(pub: Publication, platform: SocialPlatformId, ids: string[]): Promise<MediaItem[]> {
@@ -492,7 +496,7 @@ export class SocialPublisherService {
     const payload = (p.payload ?? {}) as Partial<Payload>;
     const out = {
       id: p.id, platform: p.platform, status: p.status, mode: p.mode, scheduledAt: p.scheduledAt.toISOString(), timezone: p.timezone, attempts: p.attempts, entryId: p.calendarEventId, entryTitle: p.calendarEvent?.title ?? null,
-      accountId: p.socialAccountId, accountName: p.socialAccount?.displayName ?? p.socialAccount?.username ?? null, kind: payload.kind ?? null, errorCode: p.errorCode, error: p.lastError, outcomeUnknown: p.outcomeUnknown,
+      simulated: p.simulated, accountId: p.socialAccountId, accountName: p.socialAccount?.displayName ?? p.socialAccount?.username ?? null, kind: payload.kind ?? null, errorCode: p.errorCode, error: p.lastError, outcomeUnknown: p.outcomeUnknown,
       confirmedByProvider: p.confirmedByProvider, visibilityNote: p.visibilityNote, reconcile: p.reconcileResult ? { result: p.reconcileResult, note: p.reconcileNote, attempts: p.reconcileAttempts, at: p.reconciledAt?.toISOString() ?? null, foundOnPlatform: p.reconciledFound } : null, externalPostId: p.externalPostId, externalUrl: p.externalUrl, publishedAt: p.publishedAt?.toISOString() ?? null, nextCheckAt: p.nextCheckAt?.toISOString() ?? null, createdAt: p.createdAt.toISOString(),
     };
     if (!detail || p.status !== 'MANUAL_REQUIRED') return out;

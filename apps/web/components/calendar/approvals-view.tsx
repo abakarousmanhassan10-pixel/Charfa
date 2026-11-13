@@ -29,6 +29,7 @@ export function ApprovalsView() {
   const decided = useResource<{ items: DecidedRecord[] }>('/calendar/approvals?view=decided&pageSize=10', active?.id);
   const [open, setOpen] = useState<Entry | null>(null);
   const [rejecting, setRejecting] = useState<Entry | null>(null);
+  const [approving, setApproving] = useState<Entry | null>(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export function ApprovalsView() {
     try {
       await send<Entry>(`/entries/${e.id}/${action}`, 'POST', body);
       setRejecting(null);
+      setApproving(null);
       setReason('');
     } catch (err) {
       setError(errorText(err));
@@ -81,7 +83,7 @@ export function ApprovalsView() {
               {pending.data!.items.map((e) =>
                 row(e, can('content.approve') ? (
                   <>
-                    <Button size="sm" onClick={() => void act(e, 'approve')} disabled={busy === e.id} data-testid="quick-approve"><Check className="h-4 w-4" aria-hidden />{t('calendar.actions.approve')}</Button>
+                    <Button size="sm" onClick={() => setApproving(e)} disabled={busy === e.id} data-testid="quick-approve"><Check className="h-4 w-4" aria-hidden />{t('calendar.actions.approve')}</Button>
                     <Button size="sm" variant="outline" onClick={() => { setRejecting(e); setReason(''); }} disabled={busy === e.id} data-testid="quick-reject"><X className="h-4 w-4" aria-hidden />{t('calendar.actions.reject')}</Button>
                   </>
                 ) : <span className="text-xs text-muted-foreground">{t('calendar.entry.needsApprover')}</span>),
@@ -121,6 +123,22 @@ export function ApprovalsView() {
         </CardContent>
       </Card>
 
+      <Dialog open={approving !== null} onClose={() => setApproving(null)} title={t('calendar.approvals.approveTitle')} description={t('calendar.approvals.approveText')} closeLabel={t('common.close')}>
+        {approving && (
+          <div className="grid gap-3" data-testid="approve-dialog">
+            <dl className="grid gap-1 rounded-md bg-muted/50 p-3 text-sm">
+              <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t('calendar.approvals.what')}</dt><dd className="min-w-0 truncate font-medium">{approving.title}</dd></div>
+              <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t('calendar.approvals.where')}</dt><dd>{approving.platform && t(`calendar.platforms.${approving.platform}`)}</dd></div>
+              <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t('calendar.approvals.when')}</dt><dd>{fmt(approving.scheduledAt, approving.timezone)} ({approving.timezone})</dd></div>
+            </dl>
+            {approving.content?.caption && <p className="line-clamp-4 whitespace-pre-line text-sm text-muted-foreground" dir="auto">{approving.content.caption}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setApproving(null)}>{t('common.cancel')}</Button>
+              <Button disabled={busy === approving.id} onClick={() => void act(approving, 'approve')} data-testid="quick-approve-confirm"><Check className="h-4 w-4" aria-hidden />{t('calendar.approvals.confirmApprove')}</Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
       <Dialog open={rejecting !== null} onClose={() => setRejecting(null)} title={t('calendar.approvals.rejectTitle')} closeLabel={t('common.close')}>
         <div className="grid gap-3">
           <Field id="qr-reason" label={t('calendar.entry.rejectReason')}><Textarea id="qr-reason" rows={3} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>

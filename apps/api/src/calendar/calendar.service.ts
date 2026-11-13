@@ -1,3 +1,4 @@
+import { snapshotHash } from './approval-snapshot';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { checkGrounding, type BusinessContext } from '@touma/ai-engine';
 import { Prisma, type CalendarEvent, type Content, type SocialPlatform } from '@touma/database';
@@ -205,6 +206,7 @@ export class CalendarService {
       recurrenceId: e.recurrenceId,
       socialAccountId: e.socialAccountId,
       authorizedAt: e.authorizedAt?.toISOString() ?? null,
+      authorizedAccountId: e.authorizedAccountId,
       authorizedById: e.authorizedById,
       dispatchState: e.dispatchState,
       dispatchAttempts: e.dispatchAttempts,
@@ -239,8 +241,39 @@ export class CalendarService {
     return { start: zonedToUtc(q.from, '00:00', tz).utc, end: zonedToUtc(addDays(q.to, 1), '00:00', tz).utc };
   }
 
-  private async record(tx: Prisma.TransactionClient, tenant: TenantContext, e: EventWithContent, decision: 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'AUTHORIZED' | 'REVOKED' | 'CANCELLED', note?: string | null, version?: number) {
-    await tx.approvalRecord.create({ data: { businessId: tenant.businessId, contentId: e.contentId!, calendarEventId: e.id, version: version ?? e.content!.version, decision, actorId: tenant.userId, note: note ?? null } });
+  private async record(tx: Prisma.TransactionClient, tenant: TenantContext, e: EventWithContent, decision: 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'AUTHORIZED' | 'REVOKED' | 'CANCELLED', note?: string | null, version?: number, snap?: { hash: string; accountId: string | null; scheduledAt: Date }) {
+    await tx.approvalRecord.create({
+      data: {
+        businessId: tenant.businessId, contentId: e.contentId!, calendarEventId: e.id, version: version ?? e.content!.version, decision, actorId: tenant.userId, note: note ?? null,
+        ...(snap ? { snapshotHash: snap.hash, platform: e.platform, socialAccountId: snap.accountId, mediaIds: e.content!.media.map((m) => m.mediaId), scheduledAt: snap.scheduledAt, timezone: e.timezone } : {}),
+      },
+    });
+  }
+
+  /** The account an authorization binds to: the one chosen for the entry, else the only connected account of the platform. Null when there is none or the choice is ambiguous. */
+  async targetAccountId(db: Prisma.TransactionClient | PrismaService, e: EventWithContent): Promise<string | null> {
+    if (!e.platform) return null;
+    if (e.socialAccountId) {
+      const acc = await db.socialAccount.findFirst({ where: { id: e.socialAccountId, businessId: e.businessId, platform: e.platform, deletedAt: null, status: { not: 'DISCONNECTED' } }, select: { id: true } });
+      return acc?.id ?? null;
+    }
+    const all = await db.socialAccount.findMany({ where: { businessId: e.businessId, platform: e.platform, status: 'CONNECTED', deletedAt: null }, select: { id: true }, take: 2 });
+    return all.length === 1 ? all[0]!.id : null;
+  }
+
+  /** Everything a person approves by authorizing: the exact content version, media, platform, account, time and zone, as one hash. */
+  async snapshotFor(db: Prisma.TransactionClient | PrismaService, e: EventWithContent, at: Date = e.scheduledAt) {
+    const c = e.content!;
+    const accountId = await this.targetAccountId(db, e);
+    const hash = snapshotHash({ contentId: c.id, version: c.version, type: c.type, title: c.title, caption: c.caption, hashtags: c.hashtags, callToAction: c.callToAction, platformOptions: c.platformOptions, mediaIds: c.media.map((m) => m.mediaId), platform: e.platform, socialAccountId: accountId, scheduledAt: at, timezone: e.timezone });
+    return { hash, accountId, scheduledAt: at };
+  }
+
+  /** Withdraws an authorization because the account or the time changed: the content stays approved, but a person must authorize it again. */
+  private async withdrawAuthorization(tx: Prisma.TransactionClient, tenant: TenantContext, e: EventWithContent, note: string) {
+    await tx.content.updateMany({ where: { id: e.contentId!, status: 'SCHEDULED' }, data: { status: 'APPROVED' } });
+    await tx.calendarEvent.update({ where: { id: e.id }, data: { authorizedById: null, authorizedAt: null, authorizedVersion: null, authorizedHash: null, authorizedAccountId: null, dispatchState: 'NONE', dispatchKey: null, lockedUntil: null } });
+    await this.record(tx, tenant, e, 'REVOKED', note);
   }
 
   private async conflictNotice(tenant: TenantContext, e: { id: string; title: string; scheduledAt: Date }, conflicts: Conflict[]) {
@@ -324,7 +357,7 @@ export class CalendarService {
     const records = await this.prisma.approvalRecord.findMany({ where: { businessId: tenant.businessId, calendarEventId: id }, orderBy: { createdAt: 'asc' } });
     const users = await this.prisma.user.findMany({ where: { id: { in: [...new Set(records.map((r) => r.actorId).filter((x): x is string => !!x))] } }, select: { id: true, fullName: true } });
     const names = new Map(users.map((u) => [u.id, u.fullName]));
-    return { items: records.map((r) => ({ id: r.id, decision: r.decision, version: r.version, note: r.note, actorId: r.actorId, actorName: r.actorId ? (names.get(r.actorId) ?? null) : null, createdAt: r.createdAt.toISOString() })) };
+    return { items: records.map((r) => ({ id: r.id, decision: r.decision, version: r.version, note: r.note, actorId: r.actorId, actorName: r.actorId ? (names.get(r.actorId) ?? null) : null, createdAt: r.createdAt.toISOString(), snapshotHash: r.snapshotHash, platform: r.platform, socialAccountId: r.socialAccountId, mediaIds: r.mediaIds, scheduledAt: r.scheduledAt?.toISOString() ?? null, timezone: r.timezone })) };
   }
 
   async approvals(tenant: TenantContext, q: { view: 'pending' | 'decided'; page: number; pageSize: number }) {
@@ -393,7 +426,7 @@ export class CalendarService {
             ...next,
             ...(dto.contentType ? { type: dto.contentType as never } : {}),
             version: { increment: 1 },
-            ...(wasApproved || status === 'REJECTED' ? { status: 'DRAFT' as const, approvedById: null, approvedAt: null, approvedVersion: null, rejectionReason: null } : {}),
+            ...(wasApproved || status === 'REJECTED' ? { status: (status === 'APPROVED' || status === 'SCHEDULED' ? 'IN_REVIEW' : 'DRAFT') as 'IN_REVIEW' | 'DRAFT', approvedById: null, approvedAt: null, approvedVersion: null, rejectionReason: null } : {}),
             ...(dto.mediaIds ? { media: { deleteMany: {}, create: dto.mediaIds.map((mediaId, position) => ({ mediaId, position })) } } : {}),
           },
         });
@@ -407,7 +440,7 @@ export class CalendarService {
           ...(dto.brief !== undefined ? { brief: dto.brief || null } : {}),
           ...(dto.notes !== undefined ? { notes: dto.notes || null } : {}),
           ...(dto.pillar ? { pillar: dto.pillar as ContentPillar } : {}),
-          ...(textChanged && wasApproved ? { authorizedById: null, authorizedAt: null, authorizedVersion: null, dispatchState: 'NONE' as const, dispatchKey: null, lockedUntil: null } : {}),
+          ...(textChanged && wasApproved ? { authorizedById: null, authorizedAt: null, authorizedVersion: null, authorizedHash: null, authorizedAccountId: null, dispatchState: 'NONE' as const, dispatchKey: null, lockedUntil: null } : {}),
         },
       });
       if (textChanged && wasApproved) await tx.approvalRecord.create({ data: { businessId: tenant.businessId, contentId: c.id, calendarEventId: e.id, version: c.version, decision: 'REVOKED', actorId: tenant.userId, note: 'Content was edited; approval and authorization were withdrawn' } });
@@ -459,6 +492,10 @@ export class CalendarService {
         data: { scheduledAt: time.at, timezone: bt.timezone, timeSource: time.source, timeNote: time.note, dispatchState: e.dispatchState === 'BLOCKED' || e.dispatchState === 'QUEUED' ? 'NONE' : e.dispatchState, dispatchKey: null, lockedUntil: null, reminderSentAt: null },
         include: EVENT_INCLUDE,
       });
+      if (status === 'SCHEDULED') {
+        await this.withdrawAuthorization(tx, tenant, e, 'Rescheduled: the new time must be authorized again');
+        return { updated: await this.load(tenant, id, tx), from: e.scheduledAt, conflicts };
+      }
       return { updated: updated as EventWithContent, from: e.scheduledAt, conflicts };
     });
     await this.audit.record({ action: 'calendar.rescheduled', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id, metadata: { from: out.from.toISOString(), to: out.updated.scheduledAt.toISOString() } });
@@ -495,11 +532,11 @@ export class CalendarService {
         where: { id: c.id },
         data: {
           platformOptions: { ...((c.platformOptions as object | null) ?? {}), tiktok: value } as Prisma.InputJsonValue, version: { increment: 1 },
-          ...(wasApproved || status === 'REJECTED' ? { status: 'DRAFT' as const, approvedById: null, approvedAt: null, approvedVersion: null, rejectionReason: null } : {}),
+          ...(wasApproved || status === 'REJECTED' ? { status: (status === 'APPROVED' || status === 'SCHEDULED' ? 'IN_REVIEW' : 'DRAFT') as 'IN_REVIEW' | 'DRAFT', approvedById: null, approvedAt: null, approvedVersion: null, rejectionReason: null } : {}),
         },
       });
       if (wasApproved) {
-        await tx.calendarEvent.update({ where: { id: e.id }, data: { authorizedById: null, authorizedAt: null, authorizedVersion: null, dispatchState: 'NONE', dispatchKey: null, lockedUntil: null } });
+        await tx.calendarEvent.update({ where: { id: e.id }, data: { authorizedById: null, authorizedAt: null, authorizedVersion: null, authorizedHash: null, authorizedAccountId: null, dispatchState: 'NONE', dispatchKey: null, lockedUntil: null } });
         await tx.approvalRecord.create({ data: { businessId: tenant.businessId, contentId: c.id, calendarEventId: e.id, version: c.version, decision: 'REVOKED', actorId: tenant.userId, note: 'TikTok posting settings were changed; approval and authorization were withdrawn' } });
       }
       return { changed: true, reverted: wasApproved };
@@ -546,7 +583,7 @@ export class CalendarService {
       const c = e.content!;
       const res = await tx.content.updateMany({ where: { id: c.id, status: 'IN_REVIEW', version: c.version }, data: { status: 'APPROVED', approvedById: tenant.userId, approvedAt: new Date(), approvedVersion: c.version, rejectionReason: null } });
       if (!res.count) throw new ConflictException({ code: 'INVALID_STATE', message: 'Only an entry in review can be approved (it may have been edited or decided already)' });
-      await this.record(tx, tenant, e, 'APPROVED', note);
+      await this.record(tx, tenant, e, 'APPROVED', note, undefined, await this.snapshotFor(tx, e));
     });
     await this.audit.record({ action: 'calendar.approved', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id, metadata: { version: e0.content!.version } });
     return this.get(tenant, id);
@@ -581,14 +618,15 @@ export class CalendarService {
       const conflicts = await this.scheduling.detect(tx, { businessId: tenant.businessId, platform: e.platform!, scheduledAt: e.scheduledAt, timezone: bt.timezone, contentId: e.contentId, excludeEventId: e.id });
       this.enforce(conflicts.filter((x) => x.code !== 'ACCOUNT_NOT_CONNECTED'), acknowledge);
       if (e.scheduledAt.getTime() < Date.now() + CALENDAR_LIMITS.minLeadMinutes * 60_000) throw new ConflictException({ code: 'CALENDAR_CONFLICT', message: 'This time is too close or in the past. Move the entry first.', conflicts: [{ code: 'PAST_TIME', severity: 'hard', message: 'This time is too close or in the past.' }] });
+      const snap = await this.snapshotFor(tx, e);
       const res = await tx.content.updateMany({ where: { id: c.id, status: 'APPROVED', version: c.version, approvedVersion: c.version }, data: { status: 'SCHEDULED' } });
       if (!res.count) throw new ConflictException({ code: 'INVALID_STATE', message: 'This entry was changed by someone else' });
       const updated = await tx.calendarEvent.update({
         where: { id: e.id },
-        data: { authorizedById: tenant.userId, authorizedAt: new Date(), authorizedVersion: c.version, dispatchState: 'NONE', dispatchAttempts: 0, dispatchKey: null, lockedUntil: null, lastError: null, reminderSentAt: null },
+        data: { authorizedById: tenant.userId, authorizedAt: new Date(), authorizedVersion: c.version, authorizedHash: snap.hash, authorizedAccountId: snap.accountId, dispatchState: 'NONE', dispatchAttempts: 0, dispatchKey: null, lockedUntil: null, lastError: null, reminderSentAt: null },
         include: EVENT_INCLUDE,
       });
-      await this.record(tx, tenant, e, 'AUTHORIZED');
+      await this.record(tx, tenant, e, 'AUTHORIZED', undefined, undefined, snap);
       return { updated: updated as EventWithContent, conflicts };
     });
     await this.audit.record({ action: 'calendar.authorized', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id, metadata: { version: out.updated.authorizedVersion, scheduledAt: out.updated.scheduledAt.toISOString() } });
@@ -604,7 +642,7 @@ export class CalendarService {
       if (c.status !== 'SCHEDULED') throw new ConflictException({ code: 'INVALID_STATE', message: 'Only a scheduled entry can be unscheduled' });
       if (e.dispatchState === 'DISPATCHING' || e.dispatchState === 'DISPATCHED') throw new ConflictException({ code: 'TOO_LATE', message: 'This entry is already being handed to the publisher' });
       await tx.content.update({ where: { id: c.id }, data: { status: 'APPROVED' } });
-      await tx.calendarEvent.update({ where: { id: e.id }, data: { authorizedById: null, authorizedAt: null, authorizedVersion: null, dispatchState: 'NONE', dispatchKey: null, lockedUntil: null } });
+      await tx.calendarEvent.update({ where: { id: e.id }, data: { authorizedById: null, authorizedAt: null, authorizedVersion: null, authorizedHash: null, authorizedAccountId: null, dispatchState: 'NONE', dispatchKey: null, lockedUntil: null } });
       await this.record(tx, tenant, e, 'REVOKED', 'Unscheduled');
     });
     await this.audit.record({ action: 'calendar.unscheduled', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id });
@@ -641,13 +679,14 @@ export class CalendarService {
       const time = hasTime ? await this.resolveTime(tx, { businessId: tenant.businessId, platform: e.platform!, timezone: bt.timezone, ...dto }) : { at: new Date(), source: 'MANUAL' as TimeSource, note: 'Retry' };
       const conflicts = await this.scheduling.detect(tx, { businessId: tenant.businessId, platform: e.platform!, scheduledAt: time.at, timezone: bt.timezone, contentId: e.contentId, excludeEventId: e.id });
       this.enforce(conflicts.filter((x) => x.code !== 'ACCOUNT_NOT_CONNECTED' && (hasTime || (x.code !== 'PAST_TIME' && x.code !== 'SLOT_TOO_CLOSE' && x.code !== 'DAILY_LIMIT'))), dto.acknowledgeConflicts);
+      const snap = await this.snapshotFor(tx, e, time.at);
       await tx.content.update({ where: { id: c.id }, data: { status: 'SCHEDULED' } });
       const updated = await tx.calendarEvent.update({
         where: { id: e.id },
-        data: { scheduledAt: time.at, timeSource: time.source, timeNote: time.note, authorizedById: tenant.userId, authorizedAt: new Date(), authorizedVersion: c.version, dispatchState: 'NONE', dispatchAttempts: 0, dispatchKey: null, lockedUntil: null, lastError: null, reminderSentAt: null },
+        data: { scheduledAt: time.at, timeSource: time.source, timeNote: time.note, authorizedById: tenant.userId, authorizedAt: new Date(), authorizedVersion: c.version, authorizedHash: snap.hash, authorizedAccountId: snap.accountId, dispatchState: 'NONE', dispatchAttempts: 0, dispatchKey: null, lockedUntil: null, lastError: null, reminderSentAt: null },
         include: EVENT_INCLUDE,
       });
-      await this.record(tx, tenant, e, 'AUTHORIZED', 'Retry after failure');
+      await this.record(tx, tenant, e, 'AUTHORIZED', 'Retry after failure', undefined, snap);
       return { updated: updated as EventWithContent, conflicts };
     });
     await this.audit.record({ action: 'calendar.retried', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id });
@@ -678,7 +717,11 @@ export class CalendarService {
       const acc = await this.prisma.socialAccount.findFirst({ where: { id: socialAccountId, businessId: tenant.businessId, platform: e.platform ?? undefined, deletedAt: null, status: { not: 'DISCONNECTED' } } });
       if (!acc) throw new NotFoundException({ code: 'ACCOUNT_NOT_FOUND', message: 'That account is not connected for this platform' });
     }
-    await this.prisma.calendarEvent.update({ where: { id }, data: { socialAccountId } });
+    await this.prisma.$transaction(async (tx) => {
+      const fresh = await this.load(tenant, id, tx);
+      await tx.calendarEvent.update({ where: { id }, data: { socialAccountId } });
+      if (CalendarService.status(fresh) === 'SCHEDULED' && fresh.socialAccountId !== socialAccountId) await this.withdrawAuthorization(tx, tenant, fresh, 'The target account changed: authorize again');
+    });
     await this.audit.record({ action: 'calendar.account_set', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id, metadata: { socialAccountId } });
     return this.get(tenant, id);
   }
@@ -697,14 +740,16 @@ export class CalendarService {
       if (['SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'CANCELLED'].includes(c.status)) throw new ConflictException({ code: 'INVALID_STATE', message: `A ${c.status} entry cannot be published now` });
       if (c.status !== 'APPROVED' || c.approvedVersion !== c.version || !c.approvedById) throw new ConflictException({ code: 'APPROVAL_REQUIRED', message: 'This content must be approved (in its current version) before it can be published' });
       this.assertPlatformReady(e);
+      const at = new Date();
+      const snap = await this.snapshotFor(tx, e, at);
       const res = await tx.content.updateMany({ where: { id: c.id, status: 'APPROVED', version: c.version, approvedVersion: c.version }, data: { status: 'SCHEDULED' } });
       if (!res.count) throw new ConflictException({ code: 'INVALID_STATE', message: 'This entry was changed by someone else' });
       const updated = await tx.calendarEvent.update({
         where: { id: e.id },
-        data: { scheduledAt: new Date(), timeSource: 'MANUAL', timeNote: 'Publish now', authorizedById: tenant.userId, authorizedAt: new Date(), authorizedVersion: c.version, dispatchState: 'NONE', dispatchAttempts: 0, dispatchKey: null, lockedUntil: null, lastError: null, reminderSentAt: new Date() },
+        data: { scheduledAt: at, timeSource: 'MANUAL', timeNote: 'Publish now', authorizedById: tenant.userId, authorizedAt: new Date(), authorizedVersion: c.version, authorizedHash: snap.hash, authorizedAccountId: snap.accountId, dispatchState: 'NONE', dispatchAttempts: 0, dispatchKey: null, lockedUntil: null, lastError: null, reminderSentAt: new Date() },
         include: EVENT_INCLUDE,
       });
-      await this.record(tx, tenant, e, 'AUTHORIZED', 'Publish now');
+      await this.record(tx, tenant, e, 'AUTHORIZED', 'Publish now', undefined, snap);
       return updated as EventWithContent;
     });
     await this.audit.record({ action: 'calendar.authorized', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'CalendarEvent', entityId: id, metadata: { version: out.authorizedVersion, publishNow: true } });

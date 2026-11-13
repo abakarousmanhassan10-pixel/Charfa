@@ -262,6 +262,7 @@ export function EntryDialog({
                       <span>{h.actorName ?? t('calendar.entry.system')}</span>
                       <span>· {fmt(h.createdAt)}</span>
                       <span>· v{h.version}</span>
+                      {h.snapshotHash && <span title={h.snapshotHash} data-testid="snapshot">· {t('calendar.entry.snapshot', { hash: h.snapshotHash.slice(0, 8) })}</span>}
                       {h.note && <span className="w-full ps-0 text-xs">“{h.note}”</span>}
                     </li>
                   ))}

@@ -48,7 +48,7 @@ describe('Social publishing (e2e)', () => {
   }
   /** A fresh day/time so entries of one business never conflict with each other. */
   const slot = (b: Biz) => ({ localDate: h.day(2 + b.slot++), localTime: '10:00' });
-  const publish = (b: Biz, body: Record<string, unknown>, statuses?: string[]) => h.publishEntry(b.editor, b.admin, { ...slot(b), ...body }, statuses);
+  const publish = (b: Biz, body: Record<string, unknown>, statuses?: string[]) => h.publishEntry(b.editor, b.admin, { ...slot(b), ...body }, statuses ?? ['PUBLISHED', 'FAILED', 'MANUAL_REQUIRED', 'AWAITING_PROVIDER']); // QUEUED is a transient state: the extra authorization checks made a poll catch it
   const waitUntil = async (entryId: string, pred: (p: NonNullable<Awaited<ReturnType<typeof h.publicationOf>>>) => boolean, timeoutMs = 10_000) =>
     h.waitFor(async () => {
       const p = await prisma.publication.findFirst({ where: { calendarEventId: entryId }, orderBy: { createdAt: 'desc' } });
@@ -684,7 +684,7 @@ describe('Social publishing (e2e)', () => {
       await h.act(b.editor, e.id, 'submit').expect(200);
       await h.act(b.admin, e.id, 'approve').expect(200);
       const changed = (await h.setTikTok(b.editor, e.id, { privacyLevel: 'SELF_ONLY' }).expect(200)).body;
-      expect(changed.status).toBe('DRAFT');
+      expect(changed.status).toBe('IN_REVIEW'); // back to pending approval (Phase N18)
       expect(changed.content.approvedVersion).toBeNull();
       expect((await h.act(b.admin, e.id, 'authorize', {})).status).toBe(409); // approval was withdrawn by the change
       const log = await prisma.auditLog.findMany({ where: { entityId: e.id, action: 'calendar.tiktok_settings_saved' } });

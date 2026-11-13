@@ -86,3 +86,6 @@ process.env.OPS_RETENTION_DAYS = '7';
 
 process.env.AI_MAX_INFLIGHT_PER_BUSINESS = '8';
 process.env.CREATIVE_MAX_INFLIGHT_PER_BUSINESS = '25';
+
+process.env.SOCIAL_PUBLISHING_ENABLED = 'true';
+process.env.SOCIAL_MAX_PUBLICATIONS_PER_DAY = '1000';

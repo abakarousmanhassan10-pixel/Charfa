@@ -211,16 +211,17 @@ describe('Calendar (e2e)', () => {
       const e = await h.scheduled(editor, admin, { title: 'Edit after approval', localDate: h.day(9, 'Africa/Ndjamena') });
       await request(h.http).patch(`/api/v1/calendar/entries/${e.id}`).set(as(editor)).send({ caption: 'A different caption' }).expect(403); // editing authorized content cancels the authorization
       const res = await request(h.http).patch(`/api/v1/calendar/entries/${e.id}`).set(as(admin)).send({ caption: 'A different caption' }).expect(200);
-      expect(res.body.status).toBe('DRAFT');
+      expect(res.body.status).toBe('IN_REVIEW'); // back to PENDING_APPROVAL (Phase N18): a new explicit approval is required
       expect(res.body.authorizedAt).toBeNull();
       expect(res.body.content.approvedVersion).toBeNull();
       expect(res.body.content.version).toBe(e.content.version + 1);
       expect((await h.post(admin, e.id, 'authorize').expect(409)).body.code).toBe('APPROVAL_REQUIRED');
       const hist = await request(h.http).get(`/api/v1/calendar/entries/${e.id}/history`).set(as(admin)).expect(200);
       expect(hist.body.items.map((r: { decision: string }) => r.decision)).toContain('REVOKED');
-      // Notes and the brief do not touch the approval.
-      await h.post(editor, e.id, 'submit').expect(200);
+      // The edit put it back in review (PENDING_APPROVAL): approving again is the new explicit decision.
+      await h.post(editor, e.id, 'submit').expect(409);
       await h.post(admin, e.id, 'approve').expect(200);
+      // Notes and the brief do not touch the approval.
       const noteOnly = await request(h.http).patch(`/api/v1/calendar/entries/${e.id}`).set(as(editor)).send({ notes: 'Remember the photo' }).expect(200);
       expect(noteOnly.body.status).toBe('APPROVED');
     });
@@ -292,8 +293,10 @@ describe('Calendar (e2e)', () => {
       const s = await h.scheduled(editor, admin, { title: 'Scheduled move', localDate: h.day(17, 'Africa/Ndjamena'), localTime: '08:00' });
       await h.post(editor, s.id, 'reschedule', { localDate: h.day(17, 'Africa/Ndjamena'), localTime: '12:00' }).expect(403);
       const m = (await h.post(admin, s.id, 'reschedule', { localDate: h.day(17, 'Africa/Ndjamena'), localTime: '12:00' }).expect(200)).body as Entry;
-      expect(m.status).toBe('SCHEDULED');
+      expect(m.status).toBe('APPROVED'); // Phase N18: a moved authorized entry must be authorized again at the new time
+      expect(m.authorizedAt).toBeNull();
       expect(m.local.time).toBe('12:00');
+      await h.post(admin, s.id, 'authorize').expect(200);
       await h.post(admin, s.id, 'reschedule', { scheduledAt: new Date(Date.now() + 30_000).toISOString() }).expect(409); // too close to now
     });
   });

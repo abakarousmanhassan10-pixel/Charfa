@@ -124,6 +124,9 @@ export interface DecidedRecord {
 export interface HistoryRecord {
   id: string;
   decision: string;
+  snapshotHash?: string | null;
+  scheduledAt?: string | null;
+  timezone?: string | null;
   version: number;
   note: string | null;
   actorName: string | null;

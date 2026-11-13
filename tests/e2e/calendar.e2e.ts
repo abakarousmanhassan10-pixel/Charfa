@@ -94,7 +94,7 @@ test('plan a post, get it approved and authorized, with its history', async ({ p
   // Editing the text withdraws approval and authorization.
   await dialog.getByLabel('Caption').fill('A different caption');
   await dialog.getByTestId('entry-save').click();
-  await expect(dialog).toHaveAttribute('data-status', 'DRAFT');
+  await expect(dialog).toHaveAttribute('data-status', 'IN_REVIEW'); // pending approval again (Phase N18)
   await expect(dialog.getByTestId('entry-history')).toContainText('Withdrawn');
 });
 
@@ -193,6 +193,7 @@ test('approvals page: approve and reject with a reason, with the decisions recor
   await expect(page.getByTestId('pending-count')).toHaveText('2');
   const a = page.locator('[data-testid="approval-item"]', { hasText: 'Needs review A' });
   await a.getByTestId('quick-approve').click();
+  await page.getByTestId('quick-approve-confirm').click(); // Phase N18: approving asks for an explicit confirmation
   await expect(page.getByTestId('ready-list')).toContainText('Needs review A');
   const b = page.locator('[data-testid="approval-item"]', { hasText: 'Needs review B' });
   await b.getByTestId('quick-reject').click();

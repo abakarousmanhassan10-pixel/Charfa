@@ -40,6 +40,8 @@ const testEnv = {
   CALENDAR_RATE_LIMIT_PER_MINUTE: '1000',
   // TEST-ONLY platform simulator (the API refuses it unless APP_ENV=test). No real platform is contacted.
   SOCIAL_PROVIDER_MODE: 'fake',
+  SOCIAL_PUBLISHING_ENABLED: 'true', // the master switch is OFF by default; the simulator needs it on
+  SOCIAL_MAX_PUBLICATIONS_PER_DAY: '1000',
   SOCIAL_RATE_LIMIT_PER_MINUTE: '1000',
   SALES_PUBLIC_RATE_LIMIT_PER_MINUTE: '10000',
   SOCIAL_TICK_MS: '1000',

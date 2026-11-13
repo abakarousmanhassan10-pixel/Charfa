@@ -127,6 +127,7 @@ export function PublicationList({ items, onChanged, testId = 'publication-list' 
                 {p.accountName} · {fmt(p.scheduledAt)} ({p.timezone}) {p.attempts > 0 && `· ${t('social.history.attempts', { count: p.attempts })}`}
                 {p.status === 'PUBLISHED' && p.publishedAt && ` · ${t('social.history.publishedAt', { when: fmt(p.publishedAt) })}`}
               </p>
+              {p.simulated && <p className="mt-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs" data-testid="simulated">{t('social.history.simulated')}</p>}
               {p.status === 'PUBLISHED' && !p.confirmedByProvider && <p className="mt-1 text-xs text-muted-foreground">{t('social.history.notConfirmed')}</p>}
               {p.error && p.status !== 'PUBLISHED' && <p className={`mt-1 text-xs ${p.status === 'FAILED' ? 'text-destructive' : 'text-muted-foreground'}`} data-testid="publication-message">{p.errorCode && t(`social.publishErrors.${p.errorCode}`).indexOf('social.') !== 0 ? `${t(`social.publishErrors.${p.errorCode}`)} ` : ''}<span className="text-muted-foreground">{p.error}</span></p>}
               {p.outcomeUnknown && <p className="mt-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs" data-testid="outcome-unknown">{t('social.history.outcomeUnknown')}</p>}

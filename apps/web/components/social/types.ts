@@ -101,6 +101,8 @@ export interface Publication {
   errorCode: string | null;
   error: string | null;
   outcomeUnknown: boolean;
+  /** True when the platform was the test simulator: nothing was posted anywhere. */
+  simulated?: boolean;
   visibilityNote?: string | null;
   reconcile?: { result: "FOUND" | "NOT_FOUND" | "AMBIGUOUS" | "UNAVAILABLE"; note: string | null; attempts: number; at: string | null; foundOnPlatform: boolean } | null;
   confirmedByProvider: boolean;

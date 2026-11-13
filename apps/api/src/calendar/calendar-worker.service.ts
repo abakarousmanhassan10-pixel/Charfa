@@ -1,3 +1,4 @@
+import { PublicationGate } from './publication-gate';
 import { Inject, Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { UnrecoverableError, Worker, type Job } from 'bullmq';
 import type IORedis from 'ioredis';
@@ -38,6 +39,7 @@ export class CalendarWorkerService implements OnApplicationBootstrap, OnApplicat
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
     private readonly results: CalendarResultsService,
+    private readonly gate: PublicationGate,
     @Inject(PUBLISHING_GATEWAY) private readonly gateway: PublishingGateway,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
@@ -170,22 +172,23 @@ export class CalendarWorkerService implements OnApplicationBootstrap, OnApplicat
     const e = await this.prisma.calendarEvent.findFirst({ where: { id: job.data.entryId, deletedAt: null }, include: { content: { include: { media: { select: { mediaId: true }, orderBy: { position: 'asc' } } } } } });
     if (!e || e.dispatchKey !== job.data.dispatchKey || e.dispatchState !== 'QUEUED') return; // duplicate or stale delivery
     const c = e.content;
-    // The authorization is for one approved version at one time. Anything else stops here.
-    if (!c || c.status !== 'SCHEDULED' || c.approvedVersion !== c.version || e.authorizedVersion !== c.version || !e.authorizedById || !e.platform) {
-      await this.prisma.calendarEvent.updateMany({ where: { id: e.id, dispatchKey: e.dispatchKey }, data: { dispatchState: 'NONE', dispatchKey: null, lockedUntil: null } });
-      return;
+    // The single publication gate: tenant, approved version and snapshot, approved account, schedule, cancellation, switch, limits.
+    const gate = await this.gate.check({ businessId: e.businessId, entryId: e.id });
+    if (!gate.ok) {
+      if (gate.code === 'CONTENT_INVALID' || gate.blocked) {
+        await this.prisma.calendarEvent.updateMany({ where: { id: e.id, dispatchKey: e.dispatchKey }, data: { dispatchState: 'NONE', dispatchKey: null, lockedUntil: null, ...(gate.blocked ? { lastError: `${gate.code}: ${gate.message}`.slice(0, 500) } : {}) } });
+        return;
+      }
+      const code = gate.revoked ? 'AUTHORIZATION_REVOKED' : gate.code;
+      await this.fail(e.id, code, gate.message);
+      throw new UnrecoverableError(code);
     }
     const claim = await this.prisma.calendarEvent.updateMany({
       where: { id: e.id, dispatchKey: job.data.dispatchKey, dispatchState: 'QUEUED' },
       data: { dispatchState: 'DISPATCHING', dispatchAttempts: { increment: 1 }, lockedUntil: new Date(Date.now() + this.env.CALENDAR_LOCK_SECONDS * 1000) },
     });
     if (!claim.count) return;
-
-    const m = await this.prisma.membership.findUnique({ where: { userId_businessId: { userId: e.authorizedById, businessId: e.businessId } } });
-    if (!m || m.status !== 'ACTIVE' || !roleHasPermission(m.role, 'publication.schedule')) {
-      await this.fail(e.id, 'AUTHORIZATION_REVOKED', 'The person who authorized this publication is no longer allowed to schedule publications');
-      throw new UnrecoverableError('AUTHORIZATION_REVOKED');
-    }
+    if (!c || !e.platform || !e.authorizedById) return;
 
     let outcome;
     try {

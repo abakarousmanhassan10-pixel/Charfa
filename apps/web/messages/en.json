@@ -1371,7 +1371,8 @@
       "rejectReason": "Reason (shown to the author)",
       "rejectedWith": "Rejected: {reason}",
       "failedWith": "The publication failed: {error}",
-      "noPublisher": "Publishing is not connected yet, so this entry will wait instead of being published."
+      "noPublisher": "Publishing is not connected yet, so this entry will wait instead of being published.",
+      "snapshot": "approved version {hash}"
     },
     "actions": {
       "save": "Save changes",
@@ -1467,7 +1468,13 @@
       "decisions": "Recent decisions",
       "decisionsEmpty": "No decisions yet.",
       "rejectTitle": "Reject this entry",
-      "aiNote": "AI-assisted: the text is checked against your verified business data when approved."
+      "aiNote": "AI-assisted: the text is checked against your verified business data when approved.",
+      "approveTitle": "Approve this publication?",
+      "approveText": "Approving does not publish anything. It only allows this exact content to be scheduled. Any later change to the text, media, account or time will ask for a new approval.",
+      "what": "Publication",
+      "where": "Platform",
+      "when": "Planned for",
+      "confirmApprove": "Approve"
     }
   },
   "notifications": {
@@ -1700,7 +1707,8 @@
       "retry": "Retry",
       "iPublished": "I published it",
       "metrics": "Metrics",
-      "limitedVisibility": "Not public:"
+      "limitedVisibility": "Not public:",
+      "simulated": "Simulated: this was run against the test simulator. Nothing was posted on a real platform."
     },
     "manual": {
       "title": "Publish manually",

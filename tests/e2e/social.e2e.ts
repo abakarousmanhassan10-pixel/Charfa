@@ -308,7 +308,7 @@ test.describe('TikTok posting screen (audit readiness)', () => {
     await expect(settings.getByTestId('tiktok-privacy')).toHaveValue('FOLLOWER_OF_CREATOR');
     await settings.getByTestId('tiktok-privacy').selectOption('SELF_ONLY');
     await settings.getByTestId('tiktok-save').click();
-    await expect(row).toHaveAttribute('data-status', 'DRAFT');
+    await expect(row).toHaveAttribute('data-status', 'IN_REVIEW');
   });
 });
 

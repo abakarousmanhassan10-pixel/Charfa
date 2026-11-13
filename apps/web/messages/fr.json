@@ -1371,7 +1371,8 @@
       "rejectReason": "Motif (visible par l’auteur)",
       "rejectedWith": "Refusé : {reason}",
       "failedWith": "La publication a échoué : {error}",
-      "noPublisher": "La publication n’est pas encore connectée : cette entrée attendra au lieu d’être publiée."
+      "noPublisher": "La publication n’est pas encore connectée : cette entrée attendra au lieu d’être publiée.",
+      "snapshot": "version approuvée {hash}"
     },
     "actions": {
       "save": "Enregistrer",
@@ -1467,7 +1468,13 @@
       "decisions": "Décisions récentes",
       "decisionsEmpty": "Aucune décision pour l’instant.",
       "rejectTitle": "Refuser cette entrée",
-      "aiNote": "Assisté par IA : le texte est vérifié avec vos données validées à l’approbation."
+      "aiNote": "Assisté par IA : le texte est vérifié avec vos données validées à l’approbation.",
+      "approveTitle": "Approuver cette publication ?",
+      "approveText": "Approuver ne publie rien. Cela autorise seulement la planification de ce contenu exact. Toute modification ultérieure du texte, des médias, du compte ou de l'heure demandera une nouvelle approbation.",
+      "what": "Publication",
+      "where": "Plateforme",
+      "when": "Prévue le",
+      "confirmApprove": "Approuver"
     }
   },
   "notifications": {
@@ -1700,7 +1707,8 @@
       "retry": "Réessayer",
       "iPublished": "Je l’ai publié",
       "metrics": "Statistiques",
-      "limitedVisibility": "Pas public :"
+      "limitedVisibility": "Pas public :",
+      "simulated": "Simulé : exécuté sur le simulateur de test. Rien n'a été publié sur une vraie plateforme."
     },
     "manual": {
       "title": "Publier manuellement",

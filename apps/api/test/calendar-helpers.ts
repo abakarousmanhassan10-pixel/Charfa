@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { snapshotHash } from '../src/calendar/approval-snapshot';
 import { addDays, todayIn } from '@touma/shared';
 import { aiHelpers, as, type Ctx } from './ai-helpers';
 import { prisma } from './helpers';
@@ -38,7 +39,17 @@ export function calendarHelpers(app: INestApplication) {
   }
 
   /** Makes an entry due by moving its time into the past (what waiting would do). */
-  const makeDue = (id: string, minutesAgo = 1) => prisma.calendarEvent.update({ where: { id }, data: { scheduledAt: new Date(Date.now() - minutesAgo * 60_000), reminderSentAt: new Date() } });
+  const makeDue = async (id: string, minutesAgo = 1) => {
+    const at = new Date(Date.now() - minutesAgo * 60_000);
+    const e = await prisma.calendarEvent.update({ where: { id }, data: { scheduledAt: at, reminderSentAt: new Date() }, include: { content: { include: { media: { orderBy: { position: 'asc' } } } } } });
+    // Waiting is simulated by moving the clock, not by editing what was authorized: keep the authorization snapshot in step with the new time.
+    if (e.authorizedHash && e.content) {
+      const c = e.content;
+      const authorizedHash = snapshotHash({ contentId: c.id, version: c.version, type: c.type, title: c.title, caption: c.caption, hashtags: c.hashtags, callToAction: c.callToAction, platformOptions: c.platformOptions, mediaIds: c.media.map((m) => m.mediaId), platform: e.platform, socialAccountId: e.authorizedAccountId, scheduledAt: at, timezone: e.timezone });
+      await prisma.calendarEvent.update({ where: { id }, data: { authorizedHash } });
+    }
+    return e;
+  };
 
   const notifications = (userId: string, type?: string) => prisma.notification.findMany({ where: { userId, ...(type ? { type } : {}) }, orderBy: { createdAt: 'asc' } });
   const userIdOf = async (c: Ctx) => {

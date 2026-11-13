@@ -893,6 +893,10 @@ model CalendarEvent {
   authorizedById    String?
   authorizedAt      DateTime?           @db.Timestamptz(3)
   authorizedVersion Int?
+  /// Hash of the exact tuple the person authorized (content version, media, platform, target account, schedule, timezone). Checked again before every dispatch.
+  authorizedHash      String?
+  /// The social account the person authorized publishing to.
+  authorizedAccountId String?
   dispatchState     DispatchState       @default(NONE)
   dispatchAttempts  Int                 @default(0)
   /// Idempotency key of the hand-off: `${id}:${version}:${scheduledAt epoch}`.
@@ -1009,6 +1013,13 @@ model ApprovalRecord {
   decision        ApprovalDecision
   actorId         String?
   note            String?
+  /// Snapshot of exactly what was approved or authorized (Phase N18): hash of the content, target account, media, schedule.
+  snapshotHash    String?
+  platform        SocialPlatform?
+  socialAccountId String?
+  mediaIds        String[]         @default([])
+  scheduledAt     DateTime?        @db.Timestamptz(3)
+  timezone        String?
   createdAt       DateTime         @default(now()) @db.Timestamptz(3)
 
   business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -1033,6 +1044,8 @@ model Publication {
   scheduledAt         DateTime          @db.Timestamptz(3)
   timezone            String
   idempotencyKey      String            @unique
+  /// True when the platform was the test simulator: nothing was posted anywhere (never shown as a real publication).
+  simulated           Boolean           @default(false)
   jobId               String?
   attempts            Int               @default(0)
   lockedUntil         DateTime?         @db.Timestamptz(3)
