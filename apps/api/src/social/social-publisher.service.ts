@@ -1,7 +1,7 @@
 import { PublicationGate } from '../calendar/publication-gate';
 import { ConflictException, Inject, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { Prisma, type Publication, type SocialAccount } from '@touma/database';
-import { PLATFORM_CAPABILITIES, roleHasPermission, type TikTokPostSettings, type ContentKind, type SocialPlatformId, type VideoSurface } from '@touma/shared';
+import { PLATFORM_CAPABILITIES, type TikTokPostSettings, type ContentKind, type SocialPlatformId, type VideoSurface } from '@touma/shared';
 import { composeText, probeMedia, SocialApiError, type MediaItem, type PlatformAdapter, type PublishableContent, type PublishOutcome as AdapterOutcome } from '@touma/social-connectors';
 import { AuditService } from '../audit/audit.service';
 import type { PublishingOutcome, PublishingRequest } from '../calendar/publishing';

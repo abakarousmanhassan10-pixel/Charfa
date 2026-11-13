@@ -2,7 +2,6 @@ import { PublicationGate } from './publication-gate';
 import { Inject, Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { UnrecoverableError, Worker, type Job } from 'bullmq';
 import type IORedis from 'ioredis';
-import { roleHasPermission } from '@touma/shared';
 import { AuditService } from '../audit/audit.service';
 import { bullConnection } from '../ai/ai-queue';
 import { AppEnv, InjectEnv } from '../config';
