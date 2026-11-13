@@ -100,7 +100,8 @@
       "creative": "Creative Studio",
       "workflows": "Workflows",
       "market": "Market intelligence",
-      "sales": "AI sales agent"
+      "sales": "AI sales agent",
+      "operations": "Operations"
     },
     "analyticsTitle": "Performance",
     "noAnalytics": "No data yet. Metrics appear here once social accounts are connected and posts are published — we never display estimated numbers as measured results.",
@@ -2435,5 +2436,54 @@
       "shipping": "Shipping feasibility",
       "quality": "Data quality and freshness"
     }
+  },
+  "ops": {
+    "title": "Operations",
+    "subtitle": "Queues, workers and alerts, measured live. Platform administrators only.",
+    "forbidden": "This page is for platform administrators.",
+    "source": "Measured live at {at}. Nothing on this page is simulated.",
+    "queues": "Queues and workers",
+    "collect": "Take a sample now",
+    "unavailableNote": "“Unavailable” means the value could not be read; it is not zero.",
+    "tile": {
+      "database": "Database",
+      "redis": "Redis",
+      "maintenanceWorker": "Maintenance worker",
+      "openAlerts": "Open alerts"
+    },
+    "state": {
+      "up": "Up",
+      "down": "Down",
+      "stale": "Stale",
+      "unknown": "No signal",
+      "unavailable": "Unavailable"
+    },
+    "col": {
+      "queue": "Queue",
+      "waiting": "Waiting",
+      "active": "Active",
+      "delayed": "Delayed",
+      "failed": "Failed",
+      "worker": "Worker",
+      "data": "Data"
+    },
+    "sourceLabel": {
+      "measured": "Measured",
+      "unavailable": "Unavailable"
+    },
+    "alerts": "Alerts",
+    "noAlerts": "No alerts.",
+    "alertStatus": {
+      "OPEN": "Open",
+      "ACKNOWLEDGED": "Acknowledged",
+      "RESOLVED": "Resolved"
+    },
+    "alertDetail": "{observed} failed jobs (threshold {threshold}) · seen {count} time(s) since {since}",
+    "acknowledge": "Acknowledge",
+    "resolve": "Resolve",
+    "rule": "Failed jobs alert",
+    "ruleHint": "An alert is raised when a queue holds at least {threshold} failed jobs. One alert per queue: it updates while the problem lasts and clears itself when the queue recovers.",
+    "threshold": "Failed jobs threshold",
+    "saveRule": "Save"
   }
 }

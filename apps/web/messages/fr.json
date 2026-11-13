@@ -100,7 +100,8 @@
       "creative": "Studio créatif",
       "workflows": "Workflows",
       "market": "Veille de marché",
-      "sales": "Agent commercial IA"
+      "sales": "Agent commercial IA",
+      "operations": "Exploitation"
     },
     "analyticsTitle": "Performances",
     "noAnalytics": "Aucune donnée pour l'instant. Les statistiques apparaîtront une fois vos comptes connectés et vos publications en ligne — nous n'affichons jamais d'estimations comme des résultats mesurés.",
@@ -2435,5 +2436,54 @@
       "shipping": "Faisabilité de livraison",
       "quality": "Qualité et fraîcheur des données"
     }
+  },
+  "ops": {
+    "title": "Exploitation",
+    "subtitle": "Files, workers et alertes, mesurés en direct. Réservé aux administrateurs de la plateforme.",
+    "forbidden": "Cette page est réservée aux administrateurs de la plateforme.",
+    "source": "Mesuré en direct le {at}. Rien sur cette page n'est simulé.",
+    "queues": "Files et workers",
+    "collect": "Prélever un échantillon",
+    "unavailableNote": "« Indisponible » signifie que la valeur n'a pas pu être lue ; ce n'est pas zéro.",
+    "tile": {
+      "database": "Base de données",
+      "redis": "Redis",
+      "maintenanceWorker": "Worker de maintenance",
+      "openAlerts": "Alertes ouvertes"
+    },
+    "state": {
+      "up": "Actif",
+      "down": "Arrêté",
+      "stale": "Périmé",
+      "unknown": "Aucun signal",
+      "unavailable": "Indisponible"
+    },
+    "col": {
+      "queue": "File",
+      "waiting": "En attente",
+      "active": "Actifs",
+      "delayed": "Différés",
+      "failed": "Échoués",
+      "worker": "Worker",
+      "data": "Donnée"
+    },
+    "sourceLabel": {
+      "measured": "Mesurée",
+      "unavailable": "Indisponible"
+    },
+    "alerts": "Alertes",
+    "noAlerts": "Aucune alerte.",
+    "alertStatus": {
+      "OPEN": "Ouverte",
+      "ACKNOWLEDGED": "Prise en compte",
+      "RESOLVED": "Résolue"
+    },
+    "alertDetail": "{observed} jobs échoués (seuil {threshold}) · vue {count} fois depuis {since}",
+    "acknowledge": "Prendre en compte",
+    "resolve": "Résoudre",
+    "rule": "Alerte jobs échoués",
+    "ruleHint": "Une alerte est levée quand une file contient au moins {threshold} jobs échoués. Une seule alerte par file : elle se met à jour tant que le problème dure et se clôt seule au retour à la normale.",
+    "threshold": "Seuil de jobs échoués",
+    "saveRule": "Enregistrer"
   }
 }

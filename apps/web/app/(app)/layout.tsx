@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3, BookOpenCheck, Bot, BriefcaseBusiness, Building2, CalendarDays, CreditCard, FolderTree, Image as ImageIcon,
-  LayoutDashboard, Loader2, LogOut, Menu, Package, Palette, Share2, UserRound, Wand2, X, Workflow, TrendingUp } from 'lucide-react';
+  LayoutDashboard, Loader2, LogOut, Menu, Package, Palette, Share2, UserRound, Wand2, X, Workflow, TrendingUp, Activity } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { useBusiness } from '@/components/business-provider';
 import { EmailVerificationBanner } from '@/components/email-verification-banner';
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
-type NavItem = { key: string; icon: typeof LayoutDashboard; href?: string };
+type NavItem = { key: string; icon: typeof LayoutDashboard; href?: string; platformOnly?: boolean };
 
 // Only implemented routes are links; upcoming modules are visibly disabled so nothing pretends to work.
 const NAV: NavItem[] = [
@@ -33,6 +33,7 @@ const NAV: NavItem[] = [
   { key: 'sales', href: '/dashboard/sales', icon: Bot },
   { key: 'workflows', href: '/dashboard/workflows', icon: Workflow },
   { key: 'market', href: '/dashboard/market', icon: TrendingUp },
+  { key: 'operations', href: '/dashboard/operations', icon: Activity, platformOnly: true },
   { key: 'analytics', icon: BarChart3 },
   { key: 'billing', icon: CreditCard },
   { key: 'profile', href: '/settings/profile', icon: UserRound },
@@ -49,9 +50,11 @@ function Spinner({ label }: { label: string }) {
 function Nav({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useI18n();
   const pathname = usePathname();
+  const { user } = useAuth();
+  const isPlatform = user?.platformRole === 'SUPER_ADMIN' || user?.platformRole === 'SUPPORT';
   return (
     <nav className="flex flex-1 flex-col gap-1" aria-label={t('common.menu')}>
-      {NAV.map(({ key, href, icon: Icon }) => {
+      {NAV.filter((n) => !n.platformOnly || isPlatform).map(({ key, href, icon: Icon }) => {
         const label = t(`dashboard.nav.${key}`);
         if (!href) {
           return (

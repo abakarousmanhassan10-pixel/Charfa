@@ -2102,3 +2102,67 @@ model SalesFollowUp {
   @@index([businessId, status, createdAt])
   @@index([conversationId])
 }
+
+// ── Operations control center (Phase N6) ──────────────────────────────────────────────────────────────────────────────
+// Platform-level operational telemetry. No tenant data: queues are identified by name only (a fixed, small set).
+
+enum OpsAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+/// One reading of a BullMQ queue's job counts (real telemetry, sampled on a schedule). Bounded by retention.
+model OpsQueueSample {
+  id         String   @id @default(cuid())
+  queue      String
+  capturedAt DateTime @default(now()) @db.Timestamptz(3)
+  waiting    Int
+  active     Int
+  delayed    Int
+  failed     Int
+  completed  Int
+
+  @@index([queue, capturedAt])
+  @@index([capturedAt])
+}
+
+/// A configurable threshold: alert when a queue has at least `threshold` failed jobs. queue = null applies to each queue.
+model OpsAlertRule {
+  id          String   @id @default(cuid())
+  kind        String   @default("QUEUE_FAILED")
+  queue       String?
+  threshold   Int
+  enabled     Boolean  @default(true)
+  updatedById String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  alerts OpsAlert[]
+
+  @@unique([kind, queue])
+}
+
+/// An alert instance. `dedupeKey` is set only while the alert is open or acknowledged, so a condition that persists
+/// updates one alert instead of creating a new one each time it is sampled.
+model OpsAlert {
+  id             String         @id @default(cuid())
+  ruleId         String
+  queue          String
+  status         OpsAlertStatus @default(OPEN)
+  dedupeKey      String?        @unique
+  observed       Int
+  threshold      Int
+  occurrences    Int            @default(1)
+  firstSeenAt    DateTime       @default(now()) @db.Timestamptz(3)
+  lastSeenAt     DateTime       @default(now()) @db.Timestamptz(3)
+  acknowledgedAt DateTime?      @db.Timestamptz(3)
+  acknowledgedBy String?
+  resolvedAt     DateTime?      @db.Timestamptz(3)
+  resolvedBy     String?
+  resolution     String?
+
+  rule OpsAlertRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([status, lastSeenAt])
+}
