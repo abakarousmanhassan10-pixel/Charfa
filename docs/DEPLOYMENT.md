@@ -78,7 +78,7 @@ Status: `render.yaml` and `infrastructure/docker/migrate.Dockerfile` are prepare
 ### Services and settings
 | Service | Image / command | Settings |
 |---|---|---|
-| API (web) | `api.Dockerfile`, default command | `API_PORT=10000` and `PORT=10000` (Render's default port is 10000 **[verify]**; the app listens on `API_PORT`). Health check path `/api/v1/health` (liveness). The Dockerfile's own `HEALTHCHECK` is hard-coded to port 4000 and is ignored by Render, which uses its own check |
+| API (web) | `api.Dockerfile`, default command | `API_PORT=10000` (the app also accepts the host's `PORT`; Render's default port 10000 is **[verify]**). Health check path `/api/v1/health` (liveness). Render uses its own health check, not the Dockerfile `HEALTHCHECK` |
 | Maintenance worker | `worker.Dockerfile` | Background worker; no port |
 | AI worker | `api.Dockerfile`, command `node dist/ai-worker.js` | Background worker; keep `AI_WORKER_INLINE=false` |
 | ClamAV | `docker.io/clamav/clamav:1.4`, private service on port 3310 | Persistent disk on `/var/lib/clamav`; plan sized for about 2 GB of RAM **[verify]**; first start downloads signatures (several minutes). `MALWARE_SCANNER=clamav` is mandatory: never set `ALLOW_UNSCANNED_UPLOADS` |
@@ -108,11 +108,15 @@ Migrations are forward-only (there are no down migrations). Rollback means expan
 - The browser only talks to the web origin (CSP `connect-src 'self'`); the refresh cookie is `SameSite=Strict` and works because the API is proxied under the same origin.
 - **[verify in staging]** the following are not tested from this repository: `Set-Cookie` passing through the rewrite; uploads of large videos (up to 200 MB) through a Vercel rewrite (size and duration limits; `experimental.proxyTimeout` only applies to self-hosting); and the Vercel Hobby plan is for non-commercial use only.
 
+### Port, proxy and database connection (checked in this repository)
+- **Port.** The API listens on `API_PORT` and falls back to the host's `PORT` when `API_PORT` is unset (an explicit `API_PORT` wins), then 4000. It binds to `0.0.0.0`. The Dockerfile `HEALTHCHECK` follows the same variables. Covered by `packages/config/src/env.spec.ts`.
+- **Proxy.** `TRUST_PROXY_HOPS` (default 1, unchanged behaviour) sets how many reverse-proxy hops are believed for the client IP (Express `trust proxy`): only that many entries counted from the API are trusted, anything a client puts further left in `X-Forwarded-For` is ignored. The client IP feeds login throttling, lockout, the public-chat flood limits and audit records. Cookie security does not depend on it (`Secure` comes from `NODE_ENV`/`COOKIE_SECURE`). With Vercel in front of Render the real hop count is **not verified**: in staging, send requests from two networks, read the IP recorded in the audit log, and raise `TRUST_PROXY_HOPS` (for example to 2) only if it shows the proxy's address. Never set a value higher than the real number of proxies.
+- **Prisma `directUrl`.** Deliberately not configured: with `directUrl = env(...)` every Prisma command would require that variable and the migration image would stop working without it. Migrations use `DATABASE_URL`, which must be a **direct** (or session-mode) PostgreSQL connection; the calendar scheduler's advisory locks also require it at run time. Do not point `DATABASE_URL` at a transaction-mode pooler.
+
 ### Known risks to test before real users
-1. **Client IP behind Vercel then Render.** The API sets `trust proxy` to 1 hop and uses `req.ip` for login throttling, lockout and the public-chat flood limits. Behind two proxies `req.ip` may be the proxy's address, which would make those limits shared by all users. Test from two different networks; the fix is a `trust proxy` configuration change.
-2. **E-mail ports.** Some hosting plans block outbound SMTP ports **[verify]**. Test a real verification e-mail.
-3. **Docker Hub pull limits** for the ClamAV image **[verify]**.
-4. Nothing has been verified against real OpenAI, S3/R2, SMTP, Render Key Value or Vercel: only MinIO, Mailpit and simulated providers have been used.
+1. **E-mail ports.** Some hosting plans block outbound SMTP ports **[verify]**. Test a real verification e-mail.
+2. **Docker Hub pull limits** for the ClamAV image **[verify]**.
+3. Nothing has been verified against real OpenAI, S3/R2, SMTP, Render Key Value or Vercel: only MinIO, Mailpit and simulated providers have been used.
 
 ### Order of operations (when you decide to apply)
 1. Create the PostgreSQL database, the private R2/S3 bucket (with a token limited to that bucket) and the SMTP account.

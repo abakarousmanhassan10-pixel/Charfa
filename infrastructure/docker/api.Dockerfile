@@ -36,5 +36,5 @@ COPY --from=build --chown=node:node /repo/apps/api/dist ./dist
 USER node
 EXPOSE 4000
 # Liveness only; readiness (/api/v1/health/ready) checks the database, Redis and dependencies.
-HEALTHCHECK --interval=15s --timeout=3s CMD node -e "fetch('http://localhost:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+HEALTHCHECK --interval=15s --timeout=3s CMD node -e "fetch('http://127.0.0.1:'+(process.env.API_PORT||process.env.PORT||4000)+'/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "dist/main.js"]

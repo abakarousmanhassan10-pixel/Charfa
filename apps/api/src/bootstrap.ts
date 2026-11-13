@@ -33,7 +33,8 @@ export async function createApp(env: AppEnv, opts: { logger?: false } = {}): Pro
     rawBody: true,
   });
 
-  app.set('trust proxy', 1);
+  // Only the configured number of proxy hops is believed (TRUST_PROXY_HOPS); client-supplied X-Forwarded-For entries beyond it are ignored.
+  app.set('trust proxy', env.TRUST_PROXY_HOPS);
   app.disable('x-powered-by');
   app.use((req: Request & { id?: string }, res: Response, next: NextFunction) => {
     const incoming = req.headers['x-request-id'];

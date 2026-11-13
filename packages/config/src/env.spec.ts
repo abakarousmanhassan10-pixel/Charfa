@@ -14,6 +14,21 @@ describe('loadEnv', () => {
     expect(env.CORS_ORIGINS).toEqual(['http://localhost:3000']);
   });
 
+  it('uses the host PORT when API_PORT is unset, and API_PORT wins when both are set', () => {
+    expect(loadEnv({ ...valid, PORT: '10000' }).API_PORT).toBe(10000);
+    expect(loadEnv({ ...valid, PORT: '10000', API_PORT: '4100' }).API_PORT).toBe(4100);
+    expect(loadEnv({ ...valid, PORT: '', API_PORT: '' }).API_PORT).toBe(4000);
+    expect(() => loadEnv({ ...valid, PORT: 'abc' })).toThrow(EnvValidationError);
+  });
+
+  it('keeps one trusted proxy hop by default and validates TRUST_PROXY_HOPS', () => {
+    expect(loadEnv(valid).TRUST_PROXY_HOPS).toBe(1);
+    expect(loadEnv({ ...valid, TRUST_PROXY_HOPS: '2' }).TRUST_PROXY_HOPS).toBe(2);
+    expect(loadEnv({ ...valid, TRUST_PROXY_HOPS: '0' }).TRUST_PROXY_HOPS).toBe(0);
+    expect(() => loadEnv({ ...valid, TRUST_PROXY_HOPS: '-1' })).toThrow(EnvValidationError);
+    expect(() => loadEnv({ ...valid, TRUST_PROXY_HOPS: '50' })).toThrow(EnvValidationError);
+  });
+
   it('rejects short secrets', () => {
     expect(() => loadEnv({ ...valid, JWT_ACCESS_SECRET: 'short' })).toThrow(EnvValidationError);
   });

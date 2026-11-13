@@ -16,7 +16,15 @@ export const appEnvSchema = z.object({
   APP_ENV: z.enum(['local', 'development', 'staging', 'production', 'test']).default('local'),
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url().default('redis://localhost:6379'),
+  /** Port the API listens on. When unset, the platform's PORT variable is used (Render, Heroku-style hosts), then 4000. */
   API_PORT: z.coerce.number().int().positive().default(4000),
+  /**
+   * Number of reverse proxies in front of the API whose X-Forwarded-For entries are trusted (Express `trust proxy`).
+   * Only that many hops, counted from the API, are believed: anything a client puts further left is ignored.
+   * 1 = a single platform load balancer (default). Raise it only after checking the real hop count in staging
+   * (for example 2 when another proxy such as the web host sits in front of the platform). 0 = trust no proxy header.
+   */
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
   WEB_URL: z.string().url().default('http://localhost:3000'),
   CORS_ORIGINS: z
     .string()
@@ -260,7 +268,13 @@ export class EnvValidationError extends Error {
   }
 }
 
-export function loadEnv(source: Record<string, string | undefined> = process.env): AppEnv {
+export function loadEnv(rawSource: Record<string, string | undefined> = process.env): AppEnv {
+  // Hosts such as Render inject PORT; an explicit API_PORT always wins.
+  const source = { ...rawSource };
+  if (!source.API_PORT?.trim()) {
+    if (source.PORT?.trim()) source.API_PORT = source.PORT;
+    else delete source.API_PORT;
+  }
   const parsed = appEnvSchema.safeParse(source);
   if (!parsed.success) {
     throw new EnvValidationError(

@@ -9,7 +9,8 @@ async function main() {
   loadDotEnv();
   const env = loadEnv();
   const app = await createApp(env);
-  await app.listen(env.API_PORT);
+  // All IPv4 interfaces: required for a container behind a platform load balancer.
+  await app.listen(env.API_PORT, '0.0.0.0');
   Logger.log(`${BRAND.productName} API listening on :${env.API_PORT}`, 'Bootstrap');
 }
 
