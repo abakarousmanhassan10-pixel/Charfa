@@ -79,7 +79,8 @@ services:
           type: pserv
           name: touma-clamav
           property: host
-      # Secrets and environment-specific values, entered in the dashboard (never in this file):
+      # Secrets and environment-specific values, entered in the dashboard (never in this file).
+      # OpenAI (OPENAI_API_KEY, SALES_AGENT_MODEL, AI_MODEL_PRICING) is deliberately absent: it is added only for the AI pilot.
       - { key: DATABASE_URL, sync: false }
       - { key: JWT_ACCESS_SECRET, sync: false }
       - { key: JWT_REFRESH_SECRET, sync: false }
@@ -94,9 +95,6 @@ services:
       - { key: SMTP_USER, sync: false }
       - { key: SMTP_PASSWORD, sync: false }
       - { key: EMAIL_FROM, sync: false }
-      - { key: OPENAI_API_KEY, sync: false }
-      - { key: SALES_AGENT_MODEL, sync: false }
-      - { key: AI_MODEL_PRICING, sync: false }
 
   # ── Maintenance worker (session purge, storage cleanup) ────────────────────────
   - type: worker
@@ -114,11 +112,6 @@ services:
           type: keyvalue
           name: touma-redis
           property: connectionString
-      - key: CLAMAV_HOST
-        fromService:
-          type: pserv
-          name: touma-clamav
-          property: host
       # The worker validates the same production rules as the API, so it needs the same secrets and storage/email settings.
       - { key: DATABASE_URL, sync: false }
       - { key: JWT_ACCESS_SECRET, sync: false }
@@ -155,6 +148,7 @@ services:
           type: pserv
           name: touma-clamav
           property: host
+      # No SMTP credentials here: only the API sends e-mail. SMTP_HOST and EMAIL_FROM are still needed by the startup validation.
       - { key: DATABASE_URL, sync: false }
       - { key: JWT_ACCESS_SECRET, sync: false }
       - { key: JWT_REFRESH_SECRET, sync: false }
@@ -166,12 +160,7 @@ services:
       - { key: S3_ACCESS_KEY_ID, sync: false }
       - { key: S3_SECRET_ACCESS_KEY, sync: false }
       - { key: SMTP_HOST, sync: false }
-      - { key: SMTP_USER, sync: false }
-      - { key: SMTP_PASSWORD, sync: false }
       - { key: EMAIL_FROM, sync: false }
-      - { key: OPENAI_API_KEY, sync: false }
-      - { key: SALES_AGENT_MODEL, sync: false }
-      - { key: AI_MODEL_PRICING, sync: false }
 
   # ── ClamAV (mandatory malware scanning; private network only) ──────────────────
   # clamd loads its whole signature database in memory (1c-2g = 2 GB of RAM; check the memory use during staging).

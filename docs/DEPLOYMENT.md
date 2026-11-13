@@ -66,6 +66,8 @@ No extra service: `node dist/ai-worker.js` also runs the social worker (queue `t
 
 ## Staging on Render and Vercel (prepared, not deployed)
 
+Step-by-step manual procedure, creation order with costs and the pre-launch test list: [STAGING-RUNBOOK.md](STAGING-RUNBOOK.md).
+
 Status: `render.yaml` and `infrastructure/docker/migrate.Dockerfile` are prepared and **have not been applied to a real account**. Applying the Blueprint creates paid services. `render.yaml` was checked against Render's published Blueprint specification, Key Value, web-service, private-network, disk and health-check documentation, and against Vercel's monorepo, rewrite and header documentation (read on the date of this change). Anything not confirmed there is marked **[not verified]**; a Blueprint validation or a real staging run is still needed.
 
 ### What is prepared
