@@ -99,6 +99,7 @@
       "ai": "TOUMA AI",
       "creative": "Studio créatif",
       "workflows": "Workflows",
+      "market": "Veille de marché",
       "sales": "Agent commercial IA"
     },
     "analyticsTitle": "Performances",
@@ -2257,6 +2258,116 @@
       "PAUSED": "En pause",
       "CANCELLED": "Annulée",
       "SKIPPED": "Ignorée"
+    }
+  },
+  "market": {
+    "title": "Veille de marché",
+    "subtitle": "Étudiez un produit, voyez sa marge et un score d'opportunité vérifiable.",
+    "notice": "Les chiffres viennent des fiches que vous saisissez, avec la source que vous indiquez. Rien n'est recherché, collecté ni estimé : ce que vous laissez vide reste inconnu.",
+    "disabled": "La veille de marché n'est pas encore activée sur cette plateforme.",
+    "import": "Ajouter un produit étudié",
+    "importHint": "Saisissez ce que vous avez trouvé et où vous l'avez trouvé.",
+    "save": "Enregistrer le produit",
+    "analyze": "Analyser",
+    "analyzeAll": "Analyser",
+    "f": {
+      "name": "Nom du produit",
+      "country": "Marché (code pays)",
+      "category": "Catégorie",
+      "supplier": "Fournisseur",
+      "sourceUrl": "URL de la source",
+      "sourceName": "Description de la source",
+      "observedAt": "Chiffres relevés le",
+      "costCurrency": "Devise du coût",
+      "unitCost": "Coût unitaire",
+      "shippingCost": "Livraison par unité",
+      "sellingCurrency": "Devise de vente",
+      "sellingPrice": "Prix de vente",
+      "deliveryDays": "Livraison (jours)",
+      "rating": "Note fournisseur (0-5)",
+      "ratingSource": "Source de la note",
+      "searches": "Recherches mensuelles",
+      "searchesSource": "Source des recherches",
+      "competitors": "Concurrents",
+      "competitorsSource": "Source des concurrents"
+    },
+    "a": {
+      "title": "Hypothèses",
+      "hint": "Remplacez les valeurs d'exemple par les vôtres. Un champ vide reste inconnu.",
+      "feePercent": "Frais de paiement (%)",
+      "feeFixed": "Frais fixes de paiement",
+      "returns": "Provision retours (%)",
+      "cpa": "Coût publicitaire par acquisition",
+      "fxRate": "Taux de change (devise de vente pour 1 unité de la devise du coût)",
+      "fxSource": "Source du taux",
+      "fxDate": "Date du taux"
+    },
+    "filters": {
+      "country": "Marché",
+      "category": "Catégorie",
+      "freshness": "Fraîcheur",
+      "search": "Recherche",
+      "all": "Tous",
+      "export": "Exporter en CSV"
+    },
+    "th": {
+      "product": "Produit",
+      "market": "Marché",
+      "freshness": "Fraîcheur",
+      "margin": "Marge",
+      "breakEven": "Pub max",
+      "score": "Score",
+      "source": "Source"
+    },
+    "fresh": {
+      "FRESH": "Frais",
+      "RECENT": "Récent",
+      "STALE": "Ancien",
+      "OUTDATED": "Périmé"
+    },
+    "verdict": {
+      "PROMISING": "Prometteur",
+      "MIXED": "Mitigé",
+      "WEAK": "Faible",
+      "INSUFFICIENT_EVIDENCE": "Preuves insuffisantes"
+    },
+    "unknown": "Inconnu",
+    "none": "Aucun produit étudié pour l'instant.",
+    "details": "Détails",
+    "hide": "Masquer",
+    "days": "jours",
+    "coverage": "Couverture des preuves",
+    "confidence": "Confiance",
+    "components": "Comment le score est construit",
+    "points": "points",
+    "weight": "poids",
+    "economics": "Économie unitaire",
+    "history": "Historique des analyses",
+    "noAnalysis": "Pas encore analysé.",
+    "provenance": "Source",
+    "observed": "Relevé le",
+    "possibleDuplicates": "Produits similaires déjà étudiés :",
+    "error": "Une erreur s'est produite",
+    "duplicate": "Ce produit figure déjà dans vos recherches.",
+    "line": {
+      "revenue": "Prix de vente",
+      "acquisitionCost": "Coût unitaire",
+      "shippingCost": "Livraison",
+      "paymentFees": "Frais de paiement",
+      "returnsAllowance": "Provision retours",
+      "contributionBeforeAds": "Contribution avant publicité",
+      "advertisingCost": "Coût publicitaire",
+      "contributionAfterAds": "Contribution après publicité",
+      "marginPercent": "Marge (%)",
+      "breakEvenAdCost": "Coût publicitaire de rentabilité"
+    },
+    "comp": {
+      "demand": "Demande",
+      "margin": "Marge",
+      "competition": "Concurrence",
+      "supplier": "Fiabilité du fournisseur",
+      "shipping": "Faisabilité de livraison",
+      "quality": "Qualité et fraîcheur des données"
     }
   }
 }

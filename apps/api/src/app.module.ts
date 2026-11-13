@@ -30,6 +30,7 @@ import { EmailModule } from './email/email.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { RunsModule } from './runs/runs.module';
 import { WorkflowsModule } from './workflows/workflows.module';
+import { MarketModule } from './market/market.module';
 
 @Global()
 @Module({})
@@ -78,6 +79,7 @@ export class AppModule {
         SalesModule,
         RunsModule,
         WorkflowsModule,
+        MarketModule,
         AdminModule,
         HealthModule,
       ],

@@ -218,6 +218,12 @@ export const appEnvSchema = z.object({
   /** Shortest allowed interval of a schedule trigger. */
   WORKFLOWS_MIN_SCHEDULE_MINUTES: z.coerce.number().int().min(1).default(15),
   WORKFLOWS_TICK_MS: z.coerce.number().int().min(20).default(30_000),
+  // ─── Market intelligence (Phase N4): off by default; manual data only, no provider, no scraping ───
+  MARKET_INTELLIGENCE_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  MARKET_MAX_PRODUCTS_PER_BUSINESS: z.coerce.number().int().min(1).max(10_000).default(200),
+  /** Analyses one business may run per rolling 24 hours (resource and cost control). */
+  MARKET_MAX_ANALYSES_PER_DAY: z.coerce.number().int().min(1).max(10_000).default(100),
+  MARKET_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   /** Health endpoint of the standalone AI worker (node dist/ai-worker.js). */
   AI_WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(4002),
   /** Reservations of jobs that never finished are released after this many minutes by the reconciler. */

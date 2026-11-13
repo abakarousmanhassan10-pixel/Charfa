@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3, BookOpenCheck, Bot, BriefcaseBusiness, Building2, CalendarDays, CreditCard, FolderTree, Image as ImageIcon,
-  LayoutDashboard, Loader2, LogOut, Menu, Package, Palette, Share2, UserRound, Wand2, X, Workflow } from 'lucide-react';
+  LayoutDashboard, Loader2, LogOut, Menu, Package, Palette, Share2, UserRound, Wand2, X, Workflow, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { useBusiness } from '@/components/business-provider';
 import { EmailVerificationBanner } from '@/components/email-verification-banner';
@@ -32,6 +32,7 @@ const NAV: NavItem[] = [
   { key: 'social', href: '/dashboard/social', icon: Share2 },
   { key: 'sales', href: '/dashboard/sales', icon: Bot },
   { key: 'workflows', href: '/dashboard/workflows', icon: Workflow },
+  { key: 'market', href: '/dashboard/market', icon: TrendingUp },
   { key: 'analytics', icon: BarChart3 },
   { key: 'billing', icon: CreditCard },
   { key: 'profile', href: '/settings/profile', icon: UserRound },

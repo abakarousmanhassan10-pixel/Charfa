@@ -545,6 +545,7 @@ model Business {
   creativeGenerations CreativeGeneration[]
   agentRuns           AgentRun[]
   workflowDefinitions WorkflowDefinition[]
+  marketProducts      MarketProduct[]
   customers           Customer[]
   salesAgentConfig    SalesAgentConfig?
 
@@ -1927,4 +1928,73 @@ model WorkflowVersion {
 
   @@unique([workflowId, version])
   @@index([businessId])
+}
+
+// ─────────────────────────── Market intelligence (Phase N4) ───────────────────────────
+// A product researched for a target market, entered by a person from a source they name (Phase N4 has no data provider
+// and no scraper). Nothing is inferred: a number that was not supplied stays NULL and is reported as UNKNOWN.
+
+model MarketProduct {
+  id                    String   @id @default(cuid())
+  businessId            String
+  createdById           String?
+  name                  String
+  /// Lower-case, accent-free, punctuation-free name; with the market and supplier it forms the duplicate key.
+  normalizedName        String
+  dedupeKey             String
+  category              String?
+  /// Target market, ISO 3166-1 alpha-2.
+  country               String
+  supplierName          String?
+  /// Provenance: MANUAL for now. `sourceUrl` is only stored and shown, never fetched.
+  sourceType            String   @default("MANUAL")
+  sourceName            String?
+  sourceUrl             String
+  sourceUrlKey          String
+  /// When the figures were true at the source (set by the person, not by the server).
+  observedAt            DateTime @db.Timestamptz(3)
+  /// Supplier-side amounts (unit cost and shipping per unit), in `costCurrency`.
+  costCurrency          String
+  unitCost              Decimal? @db.Decimal(14, 2)
+  shippingCost          Decimal? @db.Decimal(14, 2)
+  /// The planned or observed selling price in the target market, in `sellingCurrency`.
+  sellingCurrency       String
+  sellingPrice          Decimal? @db.Decimal(14, 2)
+  estimatedDeliveryDays Int?
+  supplierRating        Decimal? @db.Decimal(3, 2)
+  supplierRatingSource  String?
+  monthlySearches       Int?
+  demandSource          String?
+  competitorCount       Int?
+  competitorSource      String?
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime @updatedAt @db.Timestamptz(3)
+
+  business Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  analyses MarketAnalysis[]
+
+  @@unique([businessId, dedupeKey])
+  @@index([businessId, country, createdAt])
+  @@index([businessId, sourceUrlKey])
+}
+
+/// One research run: the assumptions used and the deterministic results, kept as history. Same inputs and `asOf` give the same results.
+model MarketAnalysis {
+  id            String   @id @default(cuid())
+  businessId    String
+  productId     String
+  createdById   String?
+  modelVersion  String
+  /// The instant freshness was measured against (stored so a result can be reproduced).
+  asOf          DateTime @db.Timestamptz(3)
+  assumptions   Json
+  profitability Json
+  score         Json
+  quality       Json
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  product MarketProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt])
+  @@index([businessId, createdAt])
 }

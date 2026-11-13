@@ -99,6 +99,7 @@
       "ai": "TOUMA AI",
       "creative": "Creative Studio",
       "workflows": "Workflows",
+      "market": "Market intelligence",
       "sales": "AI sales agent"
     },
     "analyticsTitle": "Performance",
@@ -2257,6 +2258,116 @@
       "PAUSED": "Paused",
       "CANCELLED": "Cancelled",
       "SKIPPED": "Skipped"
+    }
+  },
+  "market": {
+    "title": "Market intelligence",
+    "subtitle": "Research a product, see its margin and an opportunity score you can verify.",
+    "notice": "Figures come from the records you enter, with the source you name. Nothing is looked up, scraped or estimated: what you leave empty stays unknown.",
+    "disabled": "Market intelligence is not enabled for this platform yet.",
+    "import": "Add a researched product",
+    "importHint": "Enter what you found and where you found it.",
+    "save": "Save product",
+    "analyze": "Analyze",
+    "analyzeAll": "Analyze",
+    "f": {
+      "name": "Product name",
+      "country": "Market (country code)",
+      "category": "Category",
+      "supplier": "Supplier",
+      "sourceUrl": "Source URL",
+      "sourceName": "Source description",
+      "observedAt": "Figures observed on",
+      "costCurrency": "Cost currency",
+      "unitCost": "Unit cost",
+      "shippingCost": "Shipping per unit",
+      "sellingCurrency": "Selling currency",
+      "sellingPrice": "Selling price",
+      "deliveryDays": "Delivery (days)",
+      "rating": "Supplier rating (0-5)",
+      "ratingSource": "Rating source",
+      "searches": "Monthly searches",
+      "searchesSource": "Searches source",
+      "competitors": "Competitors",
+      "competitorsSource": "Competitors source"
+    },
+    "a": {
+      "title": "Assumptions",
+      "hint": "Replace the example values with your own. Empty fields stay unknown.",
+      "feePercent": "Payment fee (%)",
+      "feeFixed": "Payment fixed fee",
+      "returns": "Returns allowance (%)",
+      "cpa": "Advertising cost per acquisition",
+      "fxRate": "Exchange rate (selling currency per 1 unit of cost currency)",
+      "fxSource": "Rate source",
+      "fxDate": "Rate date"
+    },
+    "filters": {
+      "country": "Market",
+      "category": "Category",
+      "freshness": "Freshness",
+      "search": "Search",
+      "all": "All",
+      "export": "Export CSV"
+    },
+    "th": {
+      "product": "Product",
+      "market": "Market",
+      "freshness": "Freshness",
+      "margin": "Margin",
+      "breakEven": "Max ad cost",
+      "score": "Score",
+      "source": "Source"
+    },
+    "fresh": {
+      "FRESH": "Fresh",
+      "RECENT": "Recent",
+      "STALE": "Stale",
+      "OUTDATED": "Outdated"
+    },
+    "verdict": {
+      "PROMISING": "Promising",
+      "MIXED": "Mixed",
+      "WEAK": "Weak",
+      "INSUFFICIENT_EVIDENCE": "Not enough evidence"
+    },
+    "unknown": "Unknown",
+    "none": "No researched product yet.",
+    "details": "Details",
+    "hide": "Hide",
+    "days": "days old",
+    "coverage": "Evidence coverage",
+    "confidence": "Confidence",
+    "components": "How the score is built",
+    "points": "points",
+    "weight": "weight",
+    "economics": "Unit economics",
+    "history": "Research history",
+    "noAnalysis": "Not analyzed yet.",
+    "provenance": "Source",
+    "observed": "Observed",
+    "possibleDuplicates": "Similar products already researched:",
+    "error": "Something went wrong",
+    "duplicate": "This product is already in your research.",
+    "line": {
+      "revenue": "Selling price",
+      "acquisitionCost": "Unit cost",
+      "shippingCost": "Shipping",
+      "paymentFees": "Payment fees",
+      "returnsAllowance": "Returns allowance",
+      "contributionBeforeAds": "Contribution before advertising",
+      "advertisingCost": "Advertising cost",
+      "contributionAfterAds": "Contribution after advertising",
+      "marginPercent": "Margin (%)",
+      "breakEvenAdCost": "Break-even advertising cost"
+    },
+    "comp": {
+      "demand": "Demand",
+      "margin": "Margin",
+      "competition": "Competition",
+      "supplier": "Supplier reliability",
+      "shipping": "Shipping feasibility",
+      "quality": "Data quality and freshness"
     }
   }
 }

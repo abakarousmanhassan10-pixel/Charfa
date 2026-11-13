@@ -73,4 +73,9 @@ process.env.ORCHESTRATOR_STEP_TIMEOUT_MS = '800';
 process.env.WORKFLOWS_ENABLED = 'true';
 process.env.WORKFLOWS_TICK_MS = '600000';
 process.env.WORKFLOWS_MIN_SCHEDULE_MINUTES = '1';
+// Market intelligence (Phase N4): enabled for its tests, with small quotas so they can be reached.
+process.env.MARKET_INTELLIGENCE_ENABLED = 'true';
+process.env.MARKET_MAX_PRODUCTS_PER_BUSINESS = '8';
+process.env.MARKET_MAX_ANALYSES_PER_DAY = '6';
+process.env.MARKET_RATE_LIMIT_PER_MINUTE = '1000';
 
