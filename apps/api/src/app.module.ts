@@ -28,6 +28,7 @@ import { SalesModule } from './sales/sales.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { EmailModule } from './email/email.module';
 import { InvitationsModule } from './invitations/invitations.module';
+import { RunsModule } from './runs/runs.module';
 
 @Global()
 @Module({})
@@ -74,6 +75,7 @@ export class AppModule {
         NotificationsModule,
         SocialModule,
         SalesModule,
+        RunsModule,
         AdminModule,
         HealthModule,
       ],

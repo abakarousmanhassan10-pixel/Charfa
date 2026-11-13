@@ -543,6 +543,7 @@ model Business {
   approvalRecords     ApprovalRecord[]
   socialSessions      SocialConnectionSession[]
   creativeGenerations CreativeGeneration[]
+  agentRuns           AgentRun[]
   customers           Customer[]
   salesAgentConfig    SalesAgentConfig?
 
@@ -1761,4 +1762,103 @@ model CreativeOutput {
 
   @@unique([generationId, index])
   @@index([businessId, mediaId])
+}
+
+// ─────────────────────────── AI Orchestrator MVP ───────────────────────────
+// A run is a small plan of steps with dependencies, executed by BullMQ workers. Phase N2 ships simulated adapters only:
+// no real model call and no external action. Steps that act outside TOUMA must wait for a human approval.
+
+enum AgentRunStatus {
+  PENDING
+  RUNNING
+  WAITING_APPROVAL
+  COMPLETED
+  FAILED
+}
+
+enum AgentRunStepStatus {
+  PENDING
+  RUNNING
+  WAITING_APPROVAL
+  COMPLETED
+  FAILED
+}
+
+model AgentRun {
+  id              String         @id @default(cuid())
+  businessId      String
+  /// Requesting user (id only; no relation so deleting a user never touches the history).
+  createdById     String?
+  template        String
+  templateVersion Int
+  status          AgentRunStatus @default(PENDING)
+  /// Client-supplied key: the same key with the same request returns the same run; with another request it is refused.
+  idempotencyKey  String
+  /// SHA-256 of the canonical request, to detect a key reused with a different payload.
+  requestHash     String
+  /// Validated, size-limited business input. Never contains credentials.
+  input           Json
+  errorCode       String?
+  errorMessage    String?
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  startedAt       DateTime?      @db.Timestamptz(3)
+  completedAt     DateTime?      @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
+
+  business Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  steps    AgentRunStep[]
+  events   AgentRunEvent[]
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, status, createdAt])
+  @@index([status, updatedAt])
+}
+
+model AgentRunStep {
+  id               String             @id @default(cuid())
+  runId            String
+  /// Denormalised so every step query can be scoped by tenant.
+  businessId       String
+  key              String
+  adapter          String
+  dependsOn        String[]
+  requiresApproval Boolean            @default(false)
+  status           AgentRunStepStatus @default(PENDING)
+  attempts         Int                @default(0)
+  maxAttempts      Int
+  nextAttemptAt    DateTime?          @db.Timestamptz(3)
+  output           Json?
+  errorCode        String?
+  errorMessage     String?
+  /// APPROVED | REJECTED, with who decided and when.
+  approvalDecision String?
+  decidedById      String?
+  decidedAt        DateTime?          @db.Timestamptz(3)
+  startedAt        DateTime?          @db.Timestamptz(3)
+  completedAt      DateTime?          @db.Timestamptz(3)
+  createdAt        DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @db.Timestamptz(3)
+
+  run AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, key])
+  @@index([businessId, status])
+  @@index([status, startedAt])
+}
+
+/// Append-only history of a run. `detail` holds codes and counters only, never business input or credentials.
+model AgentRunEvent {
+  id         String   @id @default(cuid())
+  runId      String
+  businessId String
+  stepKey    String?
+  type       String
+  actorId    String?
+  detail     Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  run AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt])
+  @@index([businessId, createdAt])
 }

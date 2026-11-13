@@ -198,6 +198,19 @@ export const appEnvSchema = z.object({
         return z.NEVER;
       }
     }),
+  // ─── AI Orchestrator MVP (runs): off by default. Phase N2 has simulated adapters only: no model call, no external action. ───
+  ORCHESTRATOR_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  ORCHESTRATOR_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(2),
+  /** Attempts per step for transient failures (never for steps that act outside TOUMA). */
+  ORCHESTRATOR_STEP_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(3),
+  ORCHESTRATOR_STEP_BACKOFF_MS: z.coerce.number().int().min(10).default(5_000),
+  ORCHESTRATOR_STEP_TIMEOUT_MS: z.coerce.number().int().min(100).max(300_000).default(30_000),
+  /** A step still RUNNING after this long belongs to a dead worker and is recovered (or failed when its outcome is unknown). */
+  ORCHESTRATOR_STEP_LEASE_SECONDS: z.coerce.number().int().min(1).default(300),
+  /** Runs one business may have in progress at once (consumption limit). */
+  ORCHESTRATOR_MAX_ACTIVE_RUNS_PER_BUSINESS: z.coerce.number().int().min(1).max(100).default(5),
+  ORCHESTRATOR_TICK_MS: z.coerce.number().int().min(20).default(30_000),
+  ORCHESTRATOR_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
   /** Health endpoint of the standalone AI worker (node dist/ai-worker.js). */
   AI_WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(4002),
   /** Reservations of jobs that never finished are released after this many minutes by the reconciler. */

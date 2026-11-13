@@ -61,3 +61,11 @@ process.env.PUBLIC_API_URL = 'https://api.touma.test';
 
 // Sales agent public chat: the per-IP limit is raised for tests (all requests share one address).
 process.env.SALES_PUBLIC_RATE_LIMIT_PER_MINUTE = '10000';
+// AI Orchestrator MVP: enabled for its tests (simulated adapters). Reconciliation is driven by the tests.
+process.env.ORCHESTRATOR_ENABLED = 'true';
+process.env.ORCHESTRATOR_TICK_MS = '600000';
+process.env.ORCHESTRATOR_STEP_BACKOFF_MS = '30';
+process.env.ORCHESTRATOR_STEP_LEASE_SECONDS = '60';
+process.env.ORCHESTRATOR_RATE_LIMIT_PER_MINUTE = '1000';
+
+process.env.ORCHESTRATOR_STEP_TIMEOUT_MS = '800';
