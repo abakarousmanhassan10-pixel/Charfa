@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { api, ApiError } from '@/lib/api-client';
 import { qs, useResource, type Paged } from '@/lib/use-resource';
 import { cn } from '@/lib/utils';
+import { AssistPanel } from './assist-panel';
 import { IntentBadge, LeadBadge, ModeBadge, flag } from './badges';
 import type { Card as ProductCard, ConversationDetail, ConversationRow, SalesMessage } from './types';
 
@@ -235,6 +236,7 @@ function Detail({ id, onBack, onChanged, canReply, locale }: { id: string; onBac
             </div>
           </form>
         )}
+        {!c.isTest && <AssistPanel conversationId={id} canAct={canReply} onChanged={onChanged} />}
         {d.customer && (
           <details className="rounded-lg border p-3" data-testid="customer-panel">
             <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium"><StickyNote className="h-4 w-4" aria-hidden />{t('sales.customerPanel')}</summary>

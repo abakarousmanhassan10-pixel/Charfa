@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { Prisma } from '@touma/database';
 import { AppEnv, InjectEnv } from '../config';
+import { SalesAssistService } from './sales-assist.service';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -28,6 +29,7 @@ export class SalesRetentionService implements OnApplicationBootstrap, OnApplicat
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly assist: SalesAssistService,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
 
@@ -56,8 +58,9 @@ export class SalesRetentionService implements OnApplicationBootstrap, OnApplicat
         this.prisma.message.updateMany({ where: { conversationId: { in: ids } }, data: { body: '[erased]', aiMetadata: Prisma.DbNull } }),
         this.prisma.conversation.updateMany({ where: { id: { in: ids } }, data: { publicTokenHash: null, customerName: null } }),
         this.prisma.agentFeedback.deleteMany({ where: { conversationId: { in: ids } } }),
+        ...this.assist.scrubOps({ OR: [{ id: { in: ids } }, { customerId: { in: staleCustomers } }] }),
         this.prisma.customerNote.deleteMany({ where: { customerId: { in: staleCustomers } } }),
-        this.prisma.customer.updateMany({ where: { id: { in: staleCustomers }, anonymizedAt: null }, data: { name: null, email: null, phone: null, interests: [], consentAt: null, assignedToId: null, followUpAt: null, anonymizedAt: now } }),
+        this.prisma.customer.updateMany({ where: { id: { in: staleCustomers }, anonymizedAt: null }, data: { name: null, email: null, phone: null, interests: [], consentAt: null, followUpConsentAt: null, optedOutAt: null, assignedToId: null, followUpAt: null, anonymizedAt: now } }),
       ]);
       total.businesses++;
       total.conversationsErased += ids.length;

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@touma/database';
+import { SalesAssistService } from './sales-assist.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TenantContext } from '../tenancy/tenant-context';
 import { AuditService } from '../audit/audit.service';
@@ -12,6 +13,7 @@ const norm = (t: string) => t.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerC
 export class SalesInsightsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly assist: SalesAssistService,
     private readonly audit: AuditService,
   ) {}
 
@@ -45,6 +47,7 @@ export class SalesInsightsService {
       leads: toMap(leads, 'leadStatus'),
       daily: series.map((r) => ({ day: r.day.toISOString().slice(0, 10), conversations: Number(r.n) })),
       note: 'Counted from stored conversations of the period. Conversion to a sale is not measured: TOUMA has no order data.',
+      ...(this.assist.enabled ? { assist: await this.assist.analyticsExtras(tenant, since) } : {}),
     };
   }
 

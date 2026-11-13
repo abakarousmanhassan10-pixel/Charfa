@@ -625,7 +625,9 @@ describe('Sales agent (e2e)', () => {
       const a = await chat(s.slug).send('How much is the Bissap juice?').expect(200);
       const text = JSON.stringify(a.body);
       for (const internal of ['aiMetadata', 'publicTokenHash', 'businessId', 'sources', 'confidence', 'promptVersion', 'model', s.owner.businessId]) expect(text).not.toContain(internal);
-      expect(Object.keys(a.body).sort()).toEqual(['aiMode', 'messages', 'outcome', 'status', 'token']);
+      // `assist` (two booleans: can a person be offered, follow-up choice) exists only while SALES_ASSIST_ENABLED, which the test environment turns on (Phase N5); it is absent by default.
+      expect(Object.keys(a.body).sort()).toEqual(['aiMode', 'assist', 'messages', 'outcome', 'status', 'token']);
+      expect(Object.keys(a.body.assist).sort()).toEqual(['followUpConsent', 'handoffOffered']);
       await chat(s.slug).send('').expect(400);
       await chat(s.slug).send('x'.repeat(2001)).expect(400);
       await chat(s.slug).send('hello', { token: 'short' }).expect(400);

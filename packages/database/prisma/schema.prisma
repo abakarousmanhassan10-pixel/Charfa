@@ -1121,6 +1121,9 @@ model Conversation {
   customer      Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
   messages      Message[]
   notes         CustomerNote[]
+  qualification LeadQualification?
+  handoffs SalesHandoff[]
+  followUps SalesFollowUp[]
   feedback      AgentFeedback[]
 
   @@unique([socialAccountId, externalThreadId])
@@ -1205,6 +1208,12 @@ model Customer {
   firstSeenAt    DateTime            @default(now()) @db.Timestamptz(3)
   lastSeenAt     DateTime            @default(now()) @db.Timestamptz(3)
   /// Personal data was erased at the customer's or merchant's request.
+  /// Phase N5: follow-up messages need this explicit consent (separate from storing contact details) and stop at an opt-out.
+  followUpConsentAt DateTime? @db.Timestamptz(3)
+  optedOutAt DateTime? @db.Timestamptz(3)
+  /// Phase N5: a conversion counts only when a person marked the customer WON (never the AI).
+  conversionVerifiedAt DateTime? @db.Timestamptz(3)
+  conversionVerifiedById String?
   anonymizedAt   DateTime?           @db.Timestamptz(3)
   createdAt      DateTime            @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime            @updatedAt @db.Timestamptz(3)
@@ -1997,4 +2006,99 @@ model MarketAnalysis {
 
   @@index([productId, createdAt])
   @@index([businessId, createdAt])
+}
+
+// ─────────────────────────── Sales assistant 2.0 (Phase N5) ───────────────────────────
+// Explainable lead qualification, handoff records with a factual summary, and follow-up drafts that need consent and a
+// person's authorization. Nothing here sends a message: there is no outbound channel.
+
+enum SalesHandoffStatus {
+  REQUESTED
+  ACCEPTED
+  RESOLVED
+  CANCELLED
+}
+
+enum SalesFollowUpStatus {
+  /// Prepared; waiting for a person.
+  SUGGESTED
+  /// A person authorised it. Phase N5 has no channel to send it through.
+  APPROVED
+  REJECTED
+  /// Could not be prepared or released (no consent, opted out, erased).
+  BLOCKED
+}
+
+/// Rule-based qualification of one conversation: a 0-100 score built from named rules, each with its points and evidence.
+model LeadQualification {
+  id                String   @id @default(cuid())
+  businessId        String
+  conversationId    String   @unique
+  customerId        String?
+  score             Int
+  /// UNKNOWN | COLD | WARM | HOT: a summary of the rules that fired, not a prediction.
+  level             String
+  /// What the customer volunteered (budget, quantity, urgency, preferences, interests). Erased with the conversation.
+  signals           Json
+  reasons           Json
+  modelVersion      String
+  evaluatedMessages Int
+  computedAt        DateTime @db.Timestamptz(3)
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, level])
+}
+
+model SalesHandoff {
+  id             String             @id @default(cuid())
+  businessId     String
+  conversationId String
+  customerId     String?
+  status         SalesHandoffStatus @default(REQUESTED)
+  reason         String
+  /// AI | CUSTOMER | STAFF
+  requestedBy    String
+  /// Factual summary compiled from stored data (no model text). Erased with the conversation; the record stays for statistics.
+  summary        Json?
+  requestedAt    DateTime           @default(now()) @db.Timestamptz(3)
+  acceptedById   String?
+  acceptedAt     DateTime?          @db.Timestamptz(3)
+  resolvedById   String?
+  resolvedAt     DateTime?          @db.Timestamptz(3)
+  resolutionNote String?
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @db.Timestamptz(3)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, status, requestedAt])
+  @@index([conversationId, status])
+}
+
+model SalesFollowUp {
+  id             String              @id @default(cuid())
+  businessId     String
+  conversationId String
+  customerId     String
+  status         SalesFollowUpStatus @default(SUGGESTED)
+  language       String
+  /// Built from a template and verified catalog names only: no price, no discount, no promise.
+  suggestedText  String
+  basis          Json
+  blockedReason  String?
+  /// STAFF | WORKFLOW
+  source         String
+  createdById    String?
+  decidedById    String?
+  decidedAt      DateTime?           @db.Timestamptz(3)
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @db.Timestamptz(3)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, status, createdAt])
+  @@index([conversationId])
 }

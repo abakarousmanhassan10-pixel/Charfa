@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 interface Info { businessName: string; agentName: string; languages: string[]; defaultLanguage: string; greeting: string; disclosure: Record<string, string>; replyMode: 'REVIEW' | 'AUTO'; privacy: { retentionDays: number; url: string | null; notice: Record<string, string> }; captcha: { provider: 'turnstile'; siteKey: string } | null }
 declare global { interface Window { turnstile?: { render: (el: HTMLElement, o: { sitekey: string; callback: (token: string) => void; 'expired-callback'?: () => void }) => string; reset: (id?: string) => void } } }
 interface PublicMessage { id: string; role: 'customer' | 'assistant' | 'team' | 'system'; text: string; at: string; cards: Array<{ name?: string; price?: string | null; discountPrice?: string | null; currency?: string | null; availability?: string | null; url?: string | null }> }
-interface ChatState { messages: PublicMessage[]; aiMode: 'AI' | 'TEAM' | 'WAITING_FOR_TEAM'; token?: string | null }
+interface ChatState { messages: PublicMessage[]; aiMode: 'AI' | 'TEAM' | 'WAITING_FOR_TEAM'; token?: string | null; assist?: { handoffOffered: boolean; followUpConsent: boolean } }
 
 /** The customer-facing chat of a shop. No account: the conversation is held by a secret kept in this browser. */
 export default function ChatPage() {
@@ -87,6 +87,18 @@ export default function ChatPage() {
     setState({ messages: [], aiMode: 'AI' });
   }
 
+  async function askForPerson() {
+    if (!token) return;
+    setError(null);
+    const r = await fetch(`/api/v1/public/chat/${slug}/handoff`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) }).catch(() => null);
+    if (r?.ok) setState(await r.json()); else setError(t('sales.chat.error'));
+  }
+  async function setFollowUp(granted: boolean) {
+    if (!token) return;
+    const r = await fetch(`/api/v1/public/chat/${slug}/follow-up-consent`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, granted }) }).catch(() => null);
+    if (r?.ok) setState((s) => ({ ...s, assist: { handoffOffered: s.assist?.handoffOffered ?? false, followUpConsent: granted } })); else setError(t('sales.chat.error'));
+  }
+
   if (missing) return <main className="grid min-h-screen place-items-center p-6 text-center" data-testid="chat-unavailable"><div><h1 className="text-xl font-semibold">{t('sales.chat.unavailableTitle')}</h1><p className="mt-2 text-muted-foreground">{t('sales.chat.unavailableText')}</p></div></main>;
   if (!info) return <main className="grid min-h-screen place-items-center" aria-busy="true"><Loader2 className="h-6 w-6 animate-spin" aria-label={t('common.loading')} /></main>;
   const disclosure = info.disclosure[locale] ?? info.disclosure[info.defaultLanguage] ?? Object.values(info.disclosure)[0];
@@ -125,6 +137,12 @@ export default function ChatPage() {
           <Input value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder={t('sales.chat.placeholder')} aria-label={t('sales.chat.placeholder')} data-testid="chat-input" autoComplete="off" />
           <Button type="submit" disabled={busy || !text.trim() || Boolean(info.captcha && !token && !captchaToken)} data-testid="chat-send">{busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}<span className="sr-only">{t('sales.reply.send')}</span></Button>
         </form>
+        {token && state.assist && (
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" data-testid="chat-assist">
+            {state.assist.handoffOffered && <Button type="button" size="sm" variant="outline" onClick={() => void askForPerson()} data-testid="chat-talk-to-person">{t('sales.chat.talkToPerson')}</Button>}
+            <label className="flex items-center gap-2"><input type="checkbox" checked={state.assist.followUpConsent} onChange={(e) => void setFollowUp(e.target.checked)} data-testid="chat-followup-consent" />{t('sales.chat.followUpConsent')}</label>
+          </div>
+        )}
         {token && <button type="button" className="mt-2 text-xs text-muted-foreground underline" onClick={() => void erase()} data-testid="chat-erase">{t('sales.chat.erase')}</button>}
       </footer>
     </main>

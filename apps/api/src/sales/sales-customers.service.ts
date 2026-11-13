@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type Customer, type LeadStatus } from '@touma/database';
+import { SalesAssistService } from './sales-assist.service';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TenantContext } from '../tenancy/tenant-context';
@@ -11,6 +12,7 @@ export class SalesCustomersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly assist: SalesAssistService,
   ) {}
 
   dto(c: Customer & { _count?: { conversations: number } }) {
@@ -66,7 +68,7 @@ export class SalesCustomersService {
     }
     const updated = await this.prisma.customer.update({
       where: { id },
-      data: { ...(dto.name !== undefined ? { name: dto.name } : {}), ...(dto.email !== undefined ? { email: dto.email } : {}), ...(dto.phone !== undefined ? { phone: dto.phone } : {}), ...(dto.leadStatus ? { leadStatus: dto.leadStatus as LeadStatus } : {}), ...(followUpAt !== undefined ? { followUpAt } : {}), ...(dto.assignedToId !== undefined ? { assignedToId: dto.assignedToId } : {}) },
+      data: { ...(dto.name !== undefined ? { name: dto.name } : {}), ...(dto.email !== undefined ? { email: dto.email } : {}), ...(dto.phone !== undefined ? { phone: dto.phone } : {}), ...(dto.leadStatus ? { leadStatus: dto.leadStatus as LeadStatus, ...(dto.leadStatus === 'WON' ? { conversionVerifiedAt: new Date(), conversionVerifiedById: tenant.userId } : { conversionVerifiedAt: null, conversionVerifiedById: null }) } : {}), ...(followUpAt !== undefined ? { followUpAt } : {}), ...(dto.assignedToId !== undefined ? { assignedToId: dto.assignedToId } : {}) },
       include: { _count: { select: { conversations: true } } },
     });
     await this.audit.record({ action: 'sales.customer_updated', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'Customer', entityId: id, metadata: { fields: Object.keys(dto), leadStatus: dto.leadStatus } });
@@ -95,7 +97,8 @@ export class SalesCustomersService {
   async erase(tenant: TenantContext, id: string) {
     const c = await this.find(tenant, id);
     await this.prisma.$transaction([
-      this.prisma.customer.update({ where: { id }, data: { name: null, email: null, phone: null, interests: [], consentAt: null, anonymizedAt: new Date(), assignedToId: null, followUpAt: null } }),
+      this.prisma.customer.update({ where: { id }, data: { name: null, email: null, phone: null, interests: [], consentAt: null, followUpConsentAt: null, optedOutAt: null, anonymizedAt: new Date(), assignedToId: null, followUpAt: null } }),
+      ...this.assist.scrubOps({ customerId: id }),
       this.prisma.customerNote.deleteMany({ where: { customerId: id } }),
       this.prisma.message.updateMany({ where: { businessId: tenant.businessId, authorType: 'CUSTOMER', conversation: { customerId: id } }, data: { body: '[erased]', aiMetadata: Prisma.DbNull } }),
       this.prisma.conversation.updateMany({ where: { customerId: id }, data: { customerName: null, publicTokenHash: null } }),

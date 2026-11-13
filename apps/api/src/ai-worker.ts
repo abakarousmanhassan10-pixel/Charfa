@@ -14,6 +14,7 @@ import { SocialWorkerService } from './social/social-worker.service';
 import { CreativeCoreModule } from './creative/creative.module';
 import { CreativeWorkerService } from './creative/creative-worker.service';
 import { RunsCoreModule } from './runs/runs.module';
+import { SalesAssistCoreModule } from './sales/sales.module';
 import { WorkflowSchedulerService } from './workflows/workflow-scheduler.service';
 import { WorkflowsCoreModule } from './workflows/workflows.module';
 import { RunsWorkerService } from './runs/runs-worker.service';
@@ -28,7 +29,7 @@ import { PrismaModule } from './prisma/prisma.module';
  */
 async function main() {
   const env = loadEnv();
-  @Module({ imports: [EnvModule.forRoot(env), PrismaModule, AuditModule, StorageModule, AiCoreModule, CreativeCoreModule, CalendarCoreModule, SocialCoreModule, RunsCoreModule, WorkflowsCoreModule] })
+  @Module({ imports: [EnvModule.forRoot(env), PrismaModule, AuditModule, StorageModule, AiCoreModule, CreativeCoreModule, CalendarCoreModule, SocialCoreModule, RunsCoreModule, WorkflowsCoreModule, SalesAssistCoreModule] })
   class AiWorkerRootModule {}
 
   const app = await NestFactory.createApplicationContext(AiWorkerRootModule, { logger: ['log', 'warn', 'error'] });

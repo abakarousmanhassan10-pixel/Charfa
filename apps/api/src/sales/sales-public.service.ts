@@ -1,12 +1,13 @@
 import { createHash, randomBytes } from 'crypto';
 import { ConflictException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import type { Conversation, Message } from '@touma/database';
-import { agentMessage, resolveReplyLanguage, AGENT_LANGUAGES, type AgentLanguage } from '@touma/shared';
+import { agentMessage, escalationMessage, resolveReplyLanguage, AGENT_LANGUAGES, type AgentLanguage } from '@touma/shared';
 import { SalesCaptchaService } from './sales-captcha.service';
 import { AppEnv, InjectEnv } from '../config';
 import { PrismaService } from '../prisma/prisma.service';
 import type { PublicMessageDto } from './sales.dto';
 import { SalesAgentService } from './sales-agent.service';
+import { SalesAssistService } from './sales-assist.service';
 
 const hash = (token: string) => createHash('sha256').update(token).digest('hex');
 
@@ -23,6 +24,7 @@ export class SalesPublicService {
     private readonly prisma: PrismaService,
     private readonly agent: SalesAgentService,
     private readonly captcha: SalesCaptchaService,
+    private readonly assist: SalesAssistService,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
 
@@ -99,7 +101,8 @@ export class SalesPublicService {
     }
     const turn = await this.agent.handleCustomerMessage({ businessId: b.id, conversationId: conv.id, text: dto.message });
     const fresh = await this.prisma.conversation.findUniqueOrThrow({ where: { id: conv.id } });
-    return { token, messages: await this.visible(conv.id), ...this.state(fresh), outcome: turn.outcome };
+    const assist = await this.assist.publicState(conv.id);
+    return { token, messages: await this.visible(conv.id), ...this.state(fresh), outcome: turn.outcome, ...(assist ? { assist } : {}) };
   }
 
   private async updateCustomer(customerId: string, dto: PublicMessageDto, contact: { email: string | null; phone: string | null }) {
@@ -114,7 +117,30 @@ export class SalesPublicService {
   async poll(slug: string, token: string) {
     const { b } = await this.business(slug);
     const conv = await this.conversationByToken(b.id, token);
-    return { messages: await this.visible(conv.id), ...this.state(conv) };
+    const assist = await this.assist.publicState(conv.id);
+    return { messages: await this.visible(conv.id), ...this.state(conv), ...(assist ? { assist } : {}) };
+  }
+
+  /** The customer asks for a person (the "talk to a person" button). Same effect as asking in words: the AI stops, a fixed message is shown, the team is told and a handoff record is opened. */
+  async requestHandoff(slug: string, token: string) {
+    if (!this.assist.enabled) throw new NotFoundException({ code: 'FEATURE_DISABLED', message: 'Not found' });
+    const { b, cfg } = await this.business(slug);
+    const conv = await this.conversationByToken(b.id, token);
+    if (conv.status !== 'PENDING_HUMAN') {
+      const lang = resolveReplyLanguage(conv.language as AgentLanguage | null, cfg.languages, cfg.defaultLanguage as AgentLanguage).language;
+      await this.agent.handoff(conv, 'CUSTOMER_REQUESTED', lang, escalationMessage('CUSTOMER_REQUESTED', lang), null);
+    }
+    const fresh = await this.prisma.conversation.findUniqueOrThrow({ where: { id: conv.id } });
+    const assist = await this.assist.publicState(conv.id);
+    return { requested: conv.status !== 'PENDING_HUMAN', messages: await this.visible(conv.id), ...this.state(fresh), ...(assist ? { assist } : {}) };
+  }
+
+  /** The customer's own choice about follow-up messages. */
+  async followUpConsent(slug: string, token: string, granted: boolean) {
+    if (!this.assist.enabled) throw new NotFoundException({ code: 'FEATURE_DISABLED', message: 'Not found' });
+    const { b } = await this.business(slug);
+    const conv = await this.conversationByToken(b.id, token);
+    return this.assist.setFollowUpConsent(b.id, conv.customerId, granted);
   }
 
   /** The customer asks for their data to be deleted. */
@@ -124,7 +150,8 @@ export class SalesPublicService {
     if (!conv.customerId) throw new ConflictException({ code: 'NOTHING_TO_ERASE', message: 'Nothing to erase' });
     const id = conv.customerId;
     await this.prisma.$transaction([
-      this.prisma.customer.update({ where: { id }, data: { name: null, email: null, phone: null, interests: [], consentAt: null, anonymizedAt: new Date() } }),
+      this.prisma.customer.update({ where: { id }, data: { name: null, email: null, phone: null, interests: [], consentAt: null, followUpConsentAt: null, optedOutAt: null, anonymizedAt: new Date() } }),
+      ...this.assist.scrubOps({ customerId: id }),
       this.prisma.customerNote.deleteMany({ where: { customerId: id } }),
       this.prisma.message.updateMany({ where: { businessId: b.id, authorType: 'CUSTOMER', conversation: { customerId: id } }, data: { body: '[erased]' } }),
       this.prisma.conversation.updateMany({ where: { customerId: id }, data: { customerName: null, publicTokenHash: null } }),

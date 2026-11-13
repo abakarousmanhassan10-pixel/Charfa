@@ -28,6 +28,8 @@ export interface RunAdapter {
 
 export interface RunAdapterRegistry {
   get(name: string): RunAdapter | undefined;
+  /** Lets a module contribute its own adapters at start-up (Phase N5: the sales assistant). A name can be registered only once. */
+  register?(adapter: RunAdapter): void;
 }
 
 /** true = acts outside TOUMA, false = internal, undefined = no such adapter. */
@@ -57,6 +59,11 @@ export class SimulatedRunAdapters implements RunAdapterRegistry {
 
   get(name: string) {
     return this.adapters[name];
+  }
+
+  register(adapter: RunAdapter) {
+    if (this.adapters[adapter.name]) return;
+    this.adapters[adapter.name] = adapter;
   }
 
   /** Test hook: the next `times` executions of an adapter fail. */

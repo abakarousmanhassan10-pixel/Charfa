@@ -180,6 +180,14 @@ export class PublicMessageDto {
   captchaToken?: string;
 }
 
+export class PublicConsentDto {
+  @ApiProperty() @IsString() @Matches(/^[A-Za-z0-9_-]{40,60}$/)
+  token: string;
+
+  @ApiProperty({ description: 'true: the customer agrees to follow-up messages about their request; false: they opt out' }) @IsBoolean()
+  granted: boolean;
+}
+
 export class PublicPollDto {
   @ApiProperty() @IsString() @Matches(/^[A-Za-z0-9_-]{40,60}$/)
   token: string;

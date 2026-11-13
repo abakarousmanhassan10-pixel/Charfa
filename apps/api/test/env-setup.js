@@ -78,4 +78,7 @@ process.env.MARKET_INTELLIGENCE_ENABLED = 'true';
 process.env.MARKET_MAX_PRODUCTS_PER_BUSINESS = '8';
 process.env.MARKET_MAX_ANALYSES_PER_DAY = '6';
 process.env.MARKET_RATE_LIMIT_PER_MINUTE = '1000';
+// Sales assistant 2.0 (Phase N5): enabled for its tests; follow-up drafts are capped low so the cap can be reached.
+process.env.SALES_ASSIST_ENABLED = 'true';
+process.env.SALES_ASSIST_MAX_FOLLOWUPS_PER_DAY = '5';
 

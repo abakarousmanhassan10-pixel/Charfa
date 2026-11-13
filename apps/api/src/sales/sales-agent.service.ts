@@ -10,6 +10,7 @@ import { AppEnv, InjectEnv } from '../config';
 import { TEXT_PROVIDER } from '../ai/ai-provider';
 import { AiUsageService } from '../ai/ai-usage.service';
 import { errorKind } from './sales-monitoring.service';
+import { SalesAssistService } from './sales-assist.service';
 import { AuditService } from '../audit/audit.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -63,6 +64,7 @@ export class SalesAgentService {
     private readonly usage: AiUsageService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly assist: SalesAssistService,
     @Inject(TEXT_PROVIDER) private readonly provider: TextModelProvider,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
@@ -247,6 +249,8 @@ export class SalesAgentService {
     });
     await this.audit.record({ action: 'sales.handoff', actorId: null, businessId: conv.businessId, entityType: 'Conversation', entityId: conv.id, metadata: { reason, intent } });
     await this.notifyHumanWaiting(conv, 'handoff', reason);
+    // Phase N5: the handoff record with its factual summary. Best effort: it must never break the conversation.
+    await this.assist.openHandoff(conv, reason, reason === 'CUSTOMER_REQUESTED' ? 'CUSTOMER' : 'AI').catch((e) => this.logger.warn(`handoff record failed: ${(e as Error).name}`));
     return msg.id;
   }
 
@@ -273,5 +277,7 @@ export class SalesAgentService {
     const interests = [...new Set([...c.interests, ...s.interests])].slice(0, 30);
     const status = nextLeadStatus(c.leadStatus, { customerMessages: s.customerMessages, purchaseIntent: maxIntent(c.purchaseIntent as PurchaseIntentId, purchase), hasContact: Boolean(c.email || c.phone), productInterest: interests.length > 0 });
     await this.prisma.customer.update({ where: { id: c.id }, data: { lastIntent: s.intent ?? c.lastIntent, purchaseIntent: maxIntent(c.purchaseIntent as PurchaseIntentId, purchase) as PurchaseIntent, interests, leadStatus: status } });
+    // Phase N5: explainable qualification from what the customer volunteered. Best effort, off unless SALES_ASSIST_ENABLED.
+    await this.assist.evaluate(conv.id).catch((e) => this.logger.warn(`qualification failed: ${(e as Error).name}`));
   }
 }

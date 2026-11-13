@@ -12,7 +12,9 @@ interface Analytics {
   byStatus: Record<string, number>; byAiMode: Record<string, number>; byLanguage: Record<string, number>; byIntent: Record<string, number>;
   handoffs: { total: number; rate: number | null; byReason: Record<string, number> };
   aiReplies: { sentAutomatically: number; drafts: number; draftsApproved: number; draftsRejected: number; humanReplies: number };
-  leads: Record<string, number>; daily: Array<{ day: string; conversations: number }>; note: string;
+  leads: Record<string, number>;
+  assist?: { qualification: { byLevel: Record<string, number> }; handoffRecords: { byStatus: Record<string, number>; medianMinutesToAccept: number | null }; followUps: { byStatus: Record<string, number>; sent: number }; verifiedConversions: number; aiUsage: { calls: number; inputTokens: number; outputTokens: number; costUsd: number | null }; notes: string[] };
+  daily: Array<{ day: string; conversations: number }>; note: string;
 }
 
 function Bars({ data, label }: { data: Record<string, number>; label: (k: string) => string }) {
@@ -57,6 +59,15 @@ export function AnalyticsView() {
         <Card><CardHeader><CardTitle>{t('sales.analytics.leads')}</CardTitle></CardHeader><CardContent><Bars data={a.leads} label={(k) => t(`sales.lead.${k}`)} /></CardContent></Card>
         <Card><CardHeader><CardTitle>{t('sales.analytics.aiWork')}</CardTitle></CardHeader><CardContent><dl className="grid gap-2 text-sm">{(['sentAutomatically', 'drafts', 'draftsApproved', 'draftsRejected', 'humanReplies'] as const).map((k) => <div key={k} className="flex justify-between"><dt>{t(`sales.analytics.ai.${k}`)}</dt><dd className="font-medium">{a.aiReplies[k]}</dd></div>)}</dl></CardContent></Card>
       </div>
+      {a.assist && (
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3" data-testid="assist-analytics">
+          <Card><CardHeader><CardTitle>{t('sales.assist.analytics.qualification')}</CardTitle></CardHeader><CardContent><Bars data={a.assist.qualification.byLevel} label={(k) => t(`sales.assist.level.${k}`)} /></CardContent></Card>
+          <Card><CardHeader><CardTitle>{t('sales.assist.analytics.handoffs')}</CardTitle></CardHeader><CardContent><Bars data={a.assist.handoffRecords.byStatus} label={(k) => t(`sales.assist.handoffStatus.${k}`)} />{a.assist.handoffRecords.medianMinutesToAccept !== null && <p className="mt-2 text-xs text-muted-foreground">{t('sales.assist.analytics.median', { minutes: a.assist.handoffRecords.medianMinutesToAccept })}</p>}</CardContent></Card>
+          <Card><CardHeader><CardTitle>{t('sales.assist.analytics.followUps')}</CardTitle></CardHeader><CardContent><Bars data={a.assist.followUps.byStatus} label={(k) => t(`sales.assist.followStatus.${k}`)} /><p className="mt-2 text-xs text-muted-foreground">{t('sales.assist.analytics.sent', { count: a.assist.followUps.sent })}</p></CardContent></Card>
+          <Card data-testid="assist-conversions"><CardHeader><CardTitle>{t('sales.assist.analytics.conversions')}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{a.assist.verifiedConversions}</p><p className="mt-1 text-xs text-muted-foreground">{t('sales.assist.analytics.conversionsNote')}</p></CardContent></Card>
+          <Card data-testid="assist-usage"><CardHeader><CardTitle>{t('sales.assist.analytics.usage')}</CardTitle></CardHeader><CardContent><dl className="grid gap-2 text-sm"><div className="flex justify-between"><dt>{t('sales.assist.analytics.calls')}</dt><dd className="font-medium">{a.assist.aiUsage.calls}</dd></div><div className="flex justify-between"><dt>{t('sales.assist.analytics.tokens')}</dt><dd className="font-medium">{a.assist.aiUsage.inputTokens + a.assist.aiUsage.outputTokens}</dd></div><div className="flex justify-between"><dt>{t('sales.assist.analytics.cost')}</dt><dd className="font-medium">{a.assist.aiUsage.costUsd === null ? '—' : `$${a.assist.aiUsage.costUsd.toFixed(4)}`}</dd></div></dl></CardContent></Card>
+        </div>
+      )}
       <p className="text-xs text-muted-foreground" data-testid="analytics-note">{t('sales.analytics.note')}</p>
     </div>
   );

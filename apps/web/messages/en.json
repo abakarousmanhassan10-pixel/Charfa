@@ -2142,7 +2142,8 @@
       "CUSTOMER_REQUESTED": "customer asked for a person",
       "LOW_CONFIDENCE": "low confidence",
       "AI_UNAVAILABLE": "AI unavailable",
-      "OTHER": "other"
+      "OTHER": "other",
+      "STAFF_REQUEST": "requested by the team"
     },
     "chat": {
       "placeholder": "Type your message",
@@ -2158,7 +2159,9 @@
       "unavailableTitle": "Chat not available",
       "unavailableText": "This chat is not available right now.",
       "privacyTitle": "How your data is used",
-      "privacyLink": "Read the privacy policy"
+      "privacyLink": "Read the privacy policy",
+      "talkToPerson": "Talk to a person",
+      "followUpConsent": "You may follow up with me about this"
     },
     "monitoring": {
       "title": "AI monitoring",
@@ -2211,6 +2214,69 @@
         "pending": "Waiting",
         "heldBecauseOfConfidence": "Held for low confidence",
         "approvalRate": "Approval rate"
+      }
+    },
+    "assist": {
+      "title": "Sales assistant",
+      "noScore": "Not evaluated yet.",
+      "basis": "Based on {count} customer message(s). Only what the customer wrote is used.",
+      "rulesNote": "Points come from fixed rules, not from a model. This is a score of what was said, not a prediction of a sale.",
+      "level": {
+        "UNKNOWN": "Not enough information",
+        "COLD": "Cold",
+        "WARM": "Warm",
+        "HOT": "Hot"
+      },
+      "rule": {
+        "buyCue": "Says they want to buy",
+        "productInterest": "Interest in a catalog product",
+        "budget": "Shared a budget",
+        "contact": "Shared contact details",
+        "quantity": "Mentioned a quantity",
+        "urgency": "Mentioned a deadline"
+      },
+      "handoffs": "Handoffs to a person",
+      "noHandoffs": "No handoff requested.",
+      "openHandoff": "Request a handoff",
+      "accept": "Take it",
+      "resolve": "Mark resolved",
+      "handoffStatus": {
+        "REQUESTED": "Waiting for a person",
+        "ACCEPTED": "Taken by a person",
+        "RESOLVED": "Resolved",
+        "CANCELLED": "Cancelled"
+      },
+      "summary": "{count} customer message(s)",
+      "followUps": "Follow-up drafts",
+      "suggest": "Prepare a draft",
+      "approve": "Authorize",
+      "reject": "Reject",
+      "consentYes": "The customer agreed to be followed up.",
+      "consentNo": "The customer has not agreed to a follow-up: no draft can be prepared.",
+      "optedOut": "The customer opted out: no follow-up.",
+      "neverSent": "TOUMA sends nothing: a draft is only authorized here, and you contact the customer yourself.",
+      "followStatus": {
+        "SUGGESTED": "Draft to review",
+        "APPROVED": "Authorized",
+        "REJECTED": "Rejected",
+        "BLOCKED": "Blocked"
+      },
+      "blocked": {
+        "NO_CONSENT": "no consent",
+        "OPTED_OUT": "customer opted out"
+      },
+      "analytics": {
+        "qualification": "Leads by score level",
+        "handoffs": "Handoff records",
+        "median": "Median time to take over: {minutes} min",
+        "followUps": "Follow-up drafts",
+        "sent": "Sent by TOUMA: {count}",
+        "conversions": "Verified conversions",
+        "conversionsNote": "Customers a person marked as won. The AI never sets this.",
+        "usage": "AI usage (sales agent)",
+        "calls": "Calls",
+        "tokens": "Tokens",
+        "cost": "Estimated cost"
       }
     }
   },

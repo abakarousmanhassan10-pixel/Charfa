@@ -3,7 +3,7 @@ import type { Request } from 'express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../common/decorators/current-user.decorator';
-import { PublicMessageDto, PublicPollDto } from './sales.dto';
+import { PublicMessageDto, PublicPollDto, PublicConsentDto } from './sales.dto';
 import { SalesPublicService } from './sales-public.service';
 
 const slug = (s: string) => (/^[a-z0-9][a-z0-9-]{0,80}$/.test(s) ? s : '__invalid__');
@@ -35,6 +35,22 @@ export class SalesPublicController {
   @Throttle(publicThrottle())
   poll(@Param('slug') s: string, @Query() q: PublicPollDto) {
     return this.chat.poll(slug(s), q.token);
+  }
+
+  @Post(':slug/handoff')
+  @HttpCode(200)
+  @Throttle(publicThrottle())
+  @ApiOperation({ summary: 'The customer asks to talk to a person (Phase N5)' })
+  handoff(@Param('slug') s: string, @Body() dto: PublicPollDto) {
+    return this.chat.requestHandoff(slug(s), dto.token);
+  }
+
+  @Post(':slug/follow-up-consent')
+  @HttpCode(200)
+  @Throttle(publicThrottle())
+  @ApiOperation({ summary: 'The customer agrees to, or opts out of, follow-up messages (Phase N5)' })
+  consent(@Param('slug') s: string, @Body() dto: PublicConsentDto) {
+    return this.chat.followUpConsent(slug(s), dto.token, dto.granted);
   }
 
   @Delete(':slug/data')

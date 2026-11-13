@@ -2142,7 +2142,8 @@
       "CUSTOMER_REQUESTED": "le client a demandé une personne",
       "LOW_CONFIDENCE": "confiance faible",
       "AI_UNAVAILABLE": "IA indisponible",
-      "OTHER": "autre"
+      "OTHER": "autre",
+      "STAFF_REQUEST": "demandé par l'équipe"
     },
     "chat": {
       "placeholder": "Écrivez votre message",
@@ -2158,7 +2159,9 @@
       "unavailableTitle": "Chat indisponible",
       "unavailableText": "Ce chat n’est pas disponible pour le moment.",
       "privacyTitle": "Comment vos données sont utilisées",
-      "privacyLink": "Lire la politique de confidentialité"
+      "privacyLink": "Lire la politique de confidentialité",
+      "talkToPerson": "Parler à une personne",
+      "followUpConsent": "Vous pouvez me recontacter à ce sujet"
     },
     "monitoring": {
       "title": "Suivi de l’IA",
@@ -2211,6 +2214,69 @@
         "pending": "En attente",
         "heldBecauseOfConfidence": "Retenus pour faible confiance",
         "approvalRate": "Taux d’approbation"
+      }
+    },
+    "assist": {
+      "title": "Assistant commercial",
+      "noScore": "Pas encore évalué.",
+      "basis": "Basé sur {count} message(s) du client. Seul ce que le client a écrit est utilisé.",
+      "rulesNote": "Les points viennent de règles fixes, pas d'un modèle. C'est un score de ce qui a été dit, pas une prédiction de vente.",
+      "level": {
+        "UNKNOWN": "Pas assez d'informations",
+        "COLD": "Froid",
+        "WARM": "Tiède",
+        "HOT": "Chaud"
+      },
+      "rule": {
+        "buyCue": "Dit vouloir acheter",
+        "productInterest": "Intérêt pour un produit du catalogue",
+        "budget": "A donné un budget",
+        "contact": "A donné ses coordonnées",
+        "quantity": "A mentionné une quantité",
+        "urgency": "A mentionné une échéance"
+      },
+      "handoffs": "Transferts vers une personne",
+      "noHandoffs": "Aucun transfert demandé.",
+      "openHandoff": "Demander un transfert",
+      "accept": "Prendre en charge",
+      "resolve": "Marquer résolu",
+      "handoffStatus": {
+        "REQUESTED": "En attente d'une personne",
+        "ACCEPTED": "Pris en charge",
+        "RESOLVED": "Résolu",
+        "CANCELLED": "Annulé"
+      },
+      "summary": "{count} message(s) du client",
+      "followUps": "Brouillons de relance",
+      "suggest": "Préparer un brouillon",
+      "approve": "Autoriser",
+      "reject": "Rejeter",
+      "consentYes": "Le client a accepté d'être relancé.",
+      "consentNo": "Le client n'a pas accepté de relance : aucun brouillon ne peut être préparé.",
+      "optedOut": "Le client s'est opposé : pas de relance.",
+      "neverSent": "TOUMA n'envoie rien : un brouillon est seulement autorisé ici, et vous contactez le client vous-même.",
+      "followStatus": {
+        "SUGGESTED": "Brouillon à examiner",
+        "APPROVED": "Autorisé",
+        "REJECTED": "Rejeté",
+        "BLOCKED": "Bloqué"
+      },
+      "blocked": {
+        "NO_CONSENT": "pas de consentement",
+        "OPTED_OUT": "le client s'est opposé"
+      },
+      "analytics": {
+        "qualification": "Prospects par niveau de score",
+        "handoffs": "Transferts enregistrés",
+        "median": "Délai médian de prise en charge : {minutes} min",
+        "followUps": "Brouillons de relance",
+        "sent": "Envoyés par TOUMA : {count}",
+        "conversions": "Conversions vérifiées",
+        "conversionsNote": "Clients qu'une personne a marqués comme gagnés. L'IA ne le fait jamais.",
+        "usage": "Usage IA (agent commercial)",
+        "calls": "Appels",
+        "tokens": "Jetons",
+        "cost": "Coût estimé"
       }
     }
   },
