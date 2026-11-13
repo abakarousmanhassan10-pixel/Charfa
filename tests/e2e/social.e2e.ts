@@ -123,6 +123,27 @@ test('connect an account through OAuth with account selection, then disconnect i
   await expect(account.getByTestId('reconnect-button')).toBeVisible();
 });
 
+test('N19: an account shows demo vs real, granted permissions, supported features and verifies on demand; TikTok comments are not offered', async ({ page }) => {
+  await setup(page);
+  await simulatePlatform(page);
+  await connect(page, 'INSTAGRAM');
+  const ig = page.locator('[data-testid="account-item"][data-platform="INSTAGRAM"]');
+  await ig.getByTestId('capabilities-toggle').click();
+  await expect(ig.getByTestId('connection-kind')).toHaveText('Demo connection');
+  await expect(ig.getByTestId('capabilities-panel')).toContainText('Nothing is sent to the real platform');
+  await expect(ig.getByTestId('capabilities-panel')).toContainText('Last verified: never');
+  await expect(ig.locator('[data-feature="commentsReply"]')).toHaveAttribute('data-state', 'AVAILABLE');
+  await expect(ig.locator('[data-feature="directMessages"]')).not.toHaveAttribute('data-state', 'AVAILABLE');
+  await ig.getByTestId('verify-button').click();
+  await expect(ig.getByTestId('capabilities-panel')).not.toContainText('Last verified: never');
+  const html = await page.content();
+  expect(html).not.toMatch(/INSTAGRAM-token|accessToken/);
+  await connect(page, 'TIKTOK');
+  const tt = page.locator('[data-testid="account-item"][data-platform="TIKTOK"]');
+  await tt.getByTestId('capabilities-toggle').click();
+  await expect(tt.locator('[data-feature="commentsReply"]')).not.toHaveAttribute('data-state', 'AVAILABLE');
+});
+
 test('a platform that refuses the connection connects nothing and says so', async ({ page }) => {
   await setup(page);
   await simulatePlatform(page, 'deny');

@@ -3,7 +3,7 @@ import { Http, FORM_HEADERS, JSON_HEADERS, form, redact, type FetchLike, type Ht
 import { composeText, validateAgainstLimits } from './validate';
 import { matchCandidates, unavailable } from './reconcile';
 import {
-  EMPTY_METRICS, SocialApiError, type AdapterConfig, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type PlatformAdapter, type PublishableContent, type PublishContext,
+  EMPTY_METRICS, SocialApiError, type AdapterConfig, type AuthorizedAccount, type CandidateAccount, type CommentPage, type Metrics, type OAuthStart, type PlatformAdapter, type PublishableContent, type PublishContext,
   type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenInspection, type TokenSet, type ValidationIssue,
 } from './types';
 import { createHash, randomBytes } from 'crypto';
@@ -181,6 +181,29 @@ export class YouTubePublisher implements PlatformAdapter {
 
   async status(): Promise<StatusOutcome> {
     return { status: 'FAILED', code: 'PLATFORM_ERROR', message: 'YouTube uploads complete in a single step.' };
+  }
+
+  /** commentThreads.list (1 quota unit): top-level comments of one of the channel's own videos. Read-only. */
+  async fetchComments(a: AuthorizedAccount, videoId: string, opts: { cursor?: string | null; limit?: number } = {}): Promise<CommentPage> {
+    const r = await this.http.ok('https://www.googleapis.com/youtube/v3/commentThreads', { query: { part: 'snippet', videoId, maxResults: String(Math.min(opts.limit ?? 25, 50)), textFormat: 'plainText', ...(opts.cursor ? { pageToken: opts.cursor } : {}) }, headers: { authorization: `Bearer ${a.tokens.accessToken}` } }, mapGoogle);
+    const rows = (r.json?.items ?? []) as Array<{ id: string; snippet?: { topLevelComment?: { id?: string; snippet?: { textDisplay?: string; authorDisplayName?: string; authorChannelId?: { value?: string }; publishedAt?: string } } } }>;
+    return {
+      items: rows.flatMap((t) => {
+        const c = t.snippet?.topLevelComment;
+        const sn = c?.snippet;
+        if (!c?.id || typeof sn?.textDisplay !== 'string') return [];
+        return [{ externalId: c.id, parentExternalId: null, authorExternalId: sn.authorChannelId?.value ?? null, authorName: sn.authorDisplayName ?? null, body: sn.textDisplay, postedAt: sn.publishedAt ? new Date(sn.publishedAt) : null, isFromBusiness: sn.authorChannelId?.value === a.externalAccountId }];
+      }),
+      nextCursor: (r.json?.nextPageToken as string | undefined) ?? null,
+    };
+  }
+
+  /** comments.insert (50 quota units): a public reply to a comment. Needs the youtube.force-ssl scope. */
+  async replyToComment(a: AuthorizedAccount, commentId: string, text: string): Promise<{ externalId: string }> {
+    const r = await this.http.ok('https://www.googleapis.com/youtube/v3/comments', { method: 'POST', query: { part: 'snippet' }, headers: { authorization: `Bearer ${a.tokens.accessToken}`, ...JSON_HEADERS }, body: JSON.stringify({ snippet: { parentId: commentId, textOriginal: text } }) }, mapGoogle);
+    const id = r.json?.id as string | undefined;
+    if (!id) throw new SocialApiError('transient', 'YouTube did not confirm the reply', { outcome: 'unknown' });
+    return { externalId: id };
   }
 
   async fetchMetrics(a: AuthorizedAccount, videoId: string): Promise<Metrics> {

@@ -56,3 +56,13 @@ export class SetEntryAccountDto {
   @ApiProperty() @IsString() @Matches(ID_REGEX)
   socialAccountId: string;
 }
+
+export class CommentsQueryDto extends PageQueryDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @Matches(ID_REGEX)
+  publicationId?: string;
+}
+
+export class ReplyCommentDto {
+  @ApiProperty({ minLength: 1, maxLength: 1000 }) @IsString() @MaxLength(1000)
+  text: string;
+}

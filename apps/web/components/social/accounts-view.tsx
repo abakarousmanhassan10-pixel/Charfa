@@ -12,6 +12,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
 import { api, ApiError } from '@/lib/api-client';
 import { PLATFORMS, type Platform } from '@/components/calendar/types';
+import { AccountCapabilities } from './account-capabilities';
 import { AccountStatusBadge, PlatformLabel } from './platform';
 import type { PendingConnection, SocialAccount } from './types';
 import { useAccounts, useSocialStatus } from './use-social';
@@ -185,6 +186,7 @@ export function AccountsView() {
                     {a.criticalPermissionsMissing.length > 0 && <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{t('social.accounts.missingPermissions')}: {a.criticalPermissionsMissing.join(', ')}</p>}
                     {a.permissionsMissing.length > a.criticalPermissionsMissing.length && <p className="mt-1 text-xs text-muted-foreground">{t('social.accounts.missingOptional')}: {a.permissionsMissing.filter((p) => !a.criticalPermissionsMissing.includes(p)).join(', ')}</p>}
                     {a.lastError && a.status !== 'CONNECTED' && <p className="mt-1 text-xs text-destructive" data-testid="account-error">{a.lastError}</p>}
+                    <AccountCapabilities account={a} canManage={manage} />
                   </div>
                   {manage && (
                     <div className="flex flex-wrap gap-2 sm:justify-end">

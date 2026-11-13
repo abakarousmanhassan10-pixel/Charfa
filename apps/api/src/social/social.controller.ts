@@ -6,8 +6,9 @@ import { SOCIAL_PLATFORMS, type SocialPlatformId } from '@touma/shared';
 import { Public } from '../common/decorators/current-user.decorator';
 import { RequireTenantPermission } from '../tenancy/business-access.guard';
 import { Tenant, type TenantContext } from '../tenancy/tenant-context';
-import { AnalyticsQueryDto, ManualCompleteDto, PublicationsQueryDto, RetryPublicationDto, SelectAccountsDto, StartConnectionDto } from './social.dto';
+import { AnalyticsQueryDto, CommentsQueryDto, ManualCompleteDto, ReplyCommentDto, PublicationsQueryDto, RetryPublicationDto, SelectAccountsDto, StartConnectionDto } from './social.dto';
 import { SocialAccountsService } from './social-accounts.service';
+import { SocialInteractionsService } from './social-interactions.service';
 import { SocialAnalyticsService } from './social-analytics.service';
 import { SocialPublisherService } from './social-publisher.service';
 import { SOCIAL_WORKER_HEARTBEAT_KEY } from './social-queue';
@@ -29,6 +30,7 @@ export class SocialController {
     private readonly accounts: SocialAccountsService,
     private readonly publisher: SocialPublisherService,
     private readonly analytics: SocialAnalyticsService,
+    private readonly interactions: SocialInteractionsService,
   ) {}
 
   @Get('status')
@@ -53,6 +55,46 @@ export class SocialController {
   @RequireTenantPermission('content.write')
   tiktokCreatorInfo(@Tenant() tenant: TenantContext, @Param('id') id: string) {
     return this.accounts.tiktokCreatorInfo(tenant.businessId, id);
+  }
+
+  @Get('accounts/:id/capabilities')
+  @ApiOperation({ summary: 'What this account can do (granted permissions vs documented/unverified/unsupported features)' })
+  @RequireTenantPermission('social.read')
+  capabilities(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.interactions.capabilities(tenant, id);
+  }
+
+  @Post('accounts/:id/validate')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Check the connection with the platform now (read-only)' })
+  @Throttle(socialThrottle())
+  @RequireTenantPermission('social.manage')
+  validate(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.interactions.validate(tenant, id);
+  }
+
+  @Post('publications/:id/comments/sync')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Fetch comments of a published post (officially supported platforms only)' })
+  @Throttle(socialThrottle())
+  @RequireTenantPermission('inbox.read')
+  syncComments(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.interactions.syncComments(tenant, id);
+  }
+
+  @Get('comments')
+  @RequireTenantPermission('inbox.read')
+  comments(@Tenant() tenant: TenantContext, @Query() q: CommentsQueryDto) {
+    return this.interactions.list(tenant, { publicationId: q.publicationId, page: q.page, pageSize: q.pageSize });
+  }
+
+  @Post('comments/:id/reply')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Reply to a comment as a human operator (never automatic)' })
+  @Throttle(socialThrottle())
+  @RequireTenantPermission('inbox.reply')
+  reply(@Tenant() tenant: TenantContext, @Param('id') id: string, @Body() dto: ReplyCommentDto) {
+    return this.interactions.reply(tenant, id, dto.text);
   }
 
   @Get('accounts/:id')

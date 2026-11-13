@@ -2,7 +2,7 @@ import { Http, JSON_HEADERS, FORM_HEADERS, form, paginateGraph, redact, type Fet
 import { composeText, validateAgainstLimits } from './validate';
 import { matchCandidates, unavailable } from './reconcile';
 import {
-  EMPTY_METRICS, SocialApiError, type AdapterConfig, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type PlatformAdapter, type PublishableContent, type PublishContext,
+  EMPTY_METRICS, SocialApiError, type AdapterConfig, type AuthorizedAccount, type CandidateAccount, type CommentPage, type Metrics, type OAuthStart, type PlatformAdapter, type PublishableContent, type PublishContext,
   type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenInspection, type TokenSet, type ValidationIssue,
 } from './types';
 
@@ -202,6 +202,24 @@ export class FacebookPublisher extends MetaAdapter {
     }
   }
 
+  /** GET /{post-id}/comments: needs pages_read_engagement (and, per some sources, more). Read-only. */
+  async fetchComments(a: AuthorizedAccount, postId: string, opts: { cursor?: string | null; limit?: number } = {}): Promise<CommentPage> {
+    const r = await this.get(`/${postId}/comments`, a, { fields: 'id,message,created_time,from{id,name},parent{id}', filter: 'stream', limit: String(Math.min(opts.limit ?? 25, 50)), ...(opts.cursor ? { after: opts.cursor } : {}) });
+    const rows = (r.json?.data ?? []) as Array<{ id: string; message?: string; created_time?: string; from?: { id?: string; name?: string }; parent?: { id?: string } }>;
+    return {
+      items: rows.filter((c) => c.id && typeof c.message === 'string').map((c) => ({ externalId: c.id, parentExternalId: c.parent?.id ?? null, authorExternalId: c.from?.id ?? null, authorName: c.from?.name ?? null, body: c.message!, postedAt: c.created_time ? new Date(c.created_time) : null, isFromBusiness: c.from?.id === a.externalAccountId })),
+      nextCursor: (r.json?.paging?.cursors?.after as string | undefined) && r.json?.paging?.next ? (r.json.paging.cursors.after as string) : null,
+    };
+  }
+
+  /** POST /{comment-id}/comments: a public reply. Needs pages_manage_engagement. */
+  async replyToComment(a: AuthorizedAccount, commentId: string, text: string): Promise<{ externalId: string }> {
+    const r = await this.post(`/${commentId}/comments`, a, { message: text });
+    const id = r.json?.id as string | undefined;
+    if (!id) throw new SocialApiError('transient', 'Facebook did not confirm the reply', { outcome: 'unknown' });
+    return { externalId: id };
+  }
+
   async fetchMetrics(a: AuthorizedAccount, postId: string): Promise<Metrics> {
     try {
       const ins = await this.get(`/${postId}/insights`, a, { metric: 'post_impressions,post_impressions_unique', period: 'lifetime' });
@@ -327,6 +345,24 @@ export class InstagramPublisher extends MetaAdapter {
     } catch (e) {
       return unavailable(e);
     }
+  }
+
+  /** GET /{media-id}/comments (Instagram API with Facebook Login): needs instagram_manage_comments. Read-only. */
+  async fetchComments(a: AuthorizedAccount, mediaId: string, opts: { cursor?: string | null; limit?: number } = {}): Promise<CommentPage> {
+    const r = await this.get(`/${mediaId}/comments`, a, { fields: 'id,text,timestamp,username,from{id,username},parent_id', limit: String(Math.min(opts.limit ?? 25, 50)), ...(opts.cursor ? { after: opts.cursor } : {}) });
+    const rows = (r.json?.data ?? []) as Array<{ id: string; text?: string; timestamp?: string; username?: string; from?: { id?: string; username?: string }; parent_id?: string }>;
+    return {
+      items: rows.filter((c) => c.id && typeof c.text === 'string').map((c) => ({ externalId: c.id, parentExternalId: c.parent_id ?? null, authorExternalId: c.from?.id ?? null, authorName: c.username ?? c.from?.username ?? null, body: c.text!, postedAt: c.timestamp ? new Date(c.timestamp) : null, isFromBusiness: c.from?.id === a.externalAccountId })),
+      nextCursor: (r.json?.paging?.cursors?.after as string | undefined) && r.json?.paging?.next ? (r.json.paging.cursors.after as string) : null,
+    };
+  }
+
+  /** POST /{comment-id}/replies: a public reply. Needs instagram_manage_comments. */
+  async replyToComment(a: AuthorizedAccount, commentId: string, text: string): Promise<{ externalId: string }> {
+    const r = await this.post(`/${commentId}/replies`, a, { message: text });
+    const id = r.json?.id as string | undefined;
+    if (!id) throw new SocialApiError('transient', 'Instagram did not confirm the reply', { outcome: 'unknown' });
+    return { externalId: id };
   }
 
   async fetchMetrics(a: AuthorizedAccount, mediaId: string): Promise<Metrics> {

@@ -1845,6 +1845,32 @@
           "disabled": "Not available yet. LinkedIn must first approve the TOUMA application for its Community Management API. Until then TOUMA publishes to personal profiles only."
         }
       }
+    },
+    "capabilities": {
+      "toggle": "Permissions and features",
+      "demo": "Demo connection",
+      "real": "Real connection",
+      "demoNote": "This account is simulated for testing. Nothing is sent to the real platform and no real customer is contacted.",
+      "lastVerified": "Last verified",
+      "never": "never",
+      "granted": "Granted permissions",
+      "demoScopes": "Simulated (no real permissions)",
+      "none": "none reported",
+      "serverOff": "switched off on this server",
+      "verify": "Verify now",
+      "reviewNote": "Official access:",
+      "feature": {
+        "commentsRead": "Read comments",
+        "commentsReply": "Reply to comments",
+        "directMessages": "Direct messages"
+      },
+      "state": {
+        "AVAILABLE": "Available",
+        "PERMISSION_MISSING": "Permission missing",
+        "UNVERIFIED": "Unverified",
+        "UNSUPPORTED": "Not supported",
+        "NOT_IMPLEMENTED": "Not implemented yet"
+      }
     }
   },
   "sales": {

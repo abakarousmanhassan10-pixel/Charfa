@@ -165,6 +165,22 @@ export interface TokenInspection {
   scopes?: string[];
 }
 
+/** A comment on one of the business's own posts, as a platform reports it. */
+export interface CommentItem {
+  externalId: string;
+  parentExternalId: string | null;
+  authorExternalId: string | null;
+  authorName: string | null;
+  body: string;
+  postedAt: Date | null;
+  /** True when the author is the connected account itself. */
+  isFromBusiness: boolean;
+}
+export interface CommentPage {
+  items: CommentItem[];
+  nextCursor: string | null;
+}
+
 export interface PlatformAdapter {
   readonly platform: Platform;
   /** Names of the missing server configuration (environment variables); empty when ready. */
@@ -198,6 +214,15 @@ export interface PlatformAdapter {
   /** Looks on the platform for a post created by an attempt whose outcome is unknown. Read-only; never creates anything. */
   reconcile(account: AuthorizedAccount, q: ReconcileQuery): Promise<ReconcileOutcome>;
   fetchMetrics(account: AuthorizedAccount, externalPostId: string): Promise<Metrics>;
+
+  /**
+   * Optional (Phase N19): reading and answering comments on the business's own posts. An adapter that does not implement them
+   * (TikTok, LinkedIn) is never asked: callers check the capability first and an unsupported call fails with kind 'unsupported'.
+   * Reading never changes anything. Replying creates a public comment; platforms accept no idempotency key, so the caller records
+   * the intent first and never retries a reply whose outcome is 'unknown'.
+   */
+  fetchComments?(account: AuthorizedAccount, externalPostId: string, opts?: { cursor?: string | null; limit?: number }): Promise<CommentPage>;
+  replyToComment?(account: AuthorizedAccount, commentExternalId: string, text: string): Promise<{ externalId: string }>;
 }
 
 export type ErrorKind = 'auth' | 'permission' | 'rate_limit' | 'validation' | 'transient' | 'timeout' | 'unsupported' | 'not_configured';

@@ -135,6 +135,12 @@ export const appEnvSchema = z.object({
   SOCIAL_PUBLISHING_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   /** Publications one business may start per rolling 24 hours (resource control). */
   SOCIAL_MAX_PUBLICATIONS_PER_DAY: z.coerce.number().int().min(1).max(1000).default(50),
+  /** Reading comments of published posts from the platforms (Phase N19). OFF by default. */
+  SOCIAL_COMMENTS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  /** Posting replies to comments on the platforms. OFF by default; independent of reading. */
+  SOCIAL_COMMENT_REPLIES_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  /** Comment replies one business may post per rolling 24 hours. */
+  SOCIAL_MAX_REPLIES_PER_DAY: z.coerce.number().int().min(1).max(5000).default(100),
   SOCIAL_PROVIDER_MODE: z.enum(['live', 'fake']).default('live'),
   /** The public https base URL of this API, used for OAuth redirect URIs, webhooks and media URLs that platforms download from. */
   PUBLIC_API_URL: z.string().url().optional(),

@@ -1,3 +1,4 @@
+import { SocialInteractionsService } from './social-interactions.service';
 import { PublicationGate } from '../calendar/publication-gate';
 import { Module } from '@nestjs/common';
 import { CalendarResultsModule } from '../calendar/calendar-results.module';
@@ -16,8 +17,8 @@ import { SocialWorkerService } from './social-worker.service';
 /** Everything the social module needs without HTTP (a singleton module shared by the API and the worker process). */
 @Module({
   imports: [SocialProviderModule, MediaModule, NotificationsCoreModule, CalendarResultsModule],
-  providers: [SocialAccountsService, PublicationGate, SocialPublisherService, SocialAnalyticsService, SocialQueueService, SocialWorkerService, SocialPublishingGateway],
-  exports: [SocialAccountsService, SocialPublisherService, SocialAnalyticsService, SocialQueueService, SocialWorkerService, SocialPublishingGateway],
+  providers: [SocialAccountsService, SocialInteractionsService, PublicationGate, SocialPublisherService, SocialAnalyticsService, SocialQueueService, SocialWorkerService, SocialPublishingGateway],
+  exports: [SocialAccountsService, SocialInteractionsService, SocialPublisherService, SocialAnalyticsService, SocialQueueService, SocialWorkerService, SocialPublishingGateway],
 })
 export class SocialCoreModule {}
 

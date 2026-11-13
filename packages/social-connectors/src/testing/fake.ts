@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 import { validateAgainstLimits, composeText } from '../validate';
 import { matchCandidates, unavailable } from '../reconcile';
 import {
-  EMPTY_METRICS, SocialApiError, type ConnectionVariant, type AuthorizedAccount, type CandidateAccount, type Metrics, type OAuthStart, type Platform, type PlatformAdapter, type PublishableContent, type PublishContext,
+  EMPTY_METRICS, SocialApiError, type ConnectionVariant, type AuthorizedAccount, type CandidateAccount, type CommentItem, type CommentPage, type Metrics, type OAuthStart, type Platform, type PlatformAdapter, type PublishableContent, type PublishContext,
   type PublishOutcome, type ReconcileOutcome, type ReconcileQuery, type StatusOutcome, type TokenInspection, type TokenSet,
 } from '../types';
 import { SOCIAL_PLATFORMS, PLATFORM_CAPABILITIES, checkTikTokSettings, type TikTokCreatorInfo } from '@touma/shared';
@@ -12,7 +12,7 @@ import { SOCIAL_PLATFORMS, PLATFORM_CAPABILITIES, checkTikTokSettings, type TikT
  * It never talks to a network. Tests script its behavior and read back what was "sent"; nothing it does is evidence
  * about a real platform.
  */
-export type Step = 'exchange' | 'refresh' | 'list' | 'publish' | 'status' | 'metrics' | 'reconcile';
+export type Step = 'exchange' | 'refresh' | 'list' | 'publish' | 'status' | 'metrics' | 'reconcile' | 'comments' | 'reply';
 export type Scripted = SocialApiError | 'ok' | 'processing' | 'unavailable' | { createThen: SocialApiError };
 
 export interface FakeCall {
@@ -38,6 +38,10 @@ export class FakeSocialHub {
   /** Simulated LinkedIn approval state: organization publishing is off until a test switches it on. */
   linkedinOrgEnabled = false;
   metrics = new Map<string, Metrics>();
+  /** Comments that exist on the simulated platform, by post id. */
+  commentsByPost = new Map<string, CommentItem[]>();
+  /** Replies the simulated platform received. */
+  replies: Array<{ platform: Platform; parentId: string; text: string; id: string }> = [];
   /** What the simulated TikTok creator_info/query returns (an unaudited app typically offers only SELF_ONLY). */
   creatorInfo: TikTokCreatorInfo = { nickname: 'Test Creator', username: 'testcreator', avatarUrl: null, privacyOptions: ['PUBLIC_TO_EVERYONE', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'], commentDisabled: false, duetDisabled: false, stitchDisabled: false, maxVideoPostDurationSec: 600 };
   private scripts = new Map<string, Scripted[]>();
@@ -52,6 +56,8 @@ export class FakeSocialHub {
     this.tokenLifetimeMs = 3_600_000;
     this.rejectedTokens.clear();
     this.metrics.clear();
+    this.commentsByPost.clear();
+    this.replies = [];
     this.linkedinOrgEnabled = false;
     this.restrictedVisibility = {};
     this.creatorInfo = { nickname: 'Test Creator', username: 'testcreator', avatarUrl: null, privacyOptions: ['PUBLIC_TO_EVERYONE', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'], commentDisabled: false, duetDisabled: false, stitchDisabled: false, maxVideoPostDurationSec: 600 };
@@ -94,6 +100,7 @@ export class FakeAdapter implements PlatformAdapter {
   constructor(readonly platform: Platform, private readonly hub: FakeSocialHub) {
     this.supportsRefresh = platform !== 'FACEBOOK' && platform !== 'INSTAGRAM';
     this.refreshLeadMs = platform === 'YOUTUBE' ? 10 * 60_000 : 2 * 3_600_000;
+    this.installComments();
   }
 
   missingConfiguration() {
@@ -220,6 +227,34 @@ export class FakeAdapter implements PlatformAdapter {
     }
     const mine = this.hub.posts.filter((p) => p.platform === this.platform && p.accountId === a.externalAccountId);
     return matchCandidates(mine.map((p) => ({ id: p.id, text: composeText(p.content), at: p.at.toISOString(), url: `https://fake-platform.test/${this.platform}/${p.id}` })), q);
+  }
+
+
+  /** Only the platforms whose real adapter implements comments do here too: the simulator must not offer what the platform does not. */
+  private get commentsSupported() {
+    return this.platform === 'FACEBOOK' || this.platform === 'INSTAGRAM' || this.platform === 'YOUTUBE';
+  }
+  fetchComments?: (a: AuthorizedAccount, postId: string, opts?: { cursor?: string | null; limit?: number }) => Promise<CommentPage>;
+  replyToComment?: (a: AuthorizedAccount, commentId: string, text: string) => Promise<{ externalId: string }>;
+
+  private installComments() {
+    if (!this.commentsSupported) return;
+    this.fetchComments = async (a, postId) => {
+      this.hub.calls.push({ platform: this.platform, op: 'comments', accessToken: a.tokens.accessToken, detail: { postId } });
+      this.guard(a);
+      const s = this.hub.next(this.platform, 'comments');
+      if (s instanceof SocialApiError) throw s;
+      return { items: this.hub.commentsByPost.get(postId) ?? [], nextCursor: null };
+    };
+    this.replyToComment = async (a, commentId, text) => {
+      this.hub.calls.push({ platform: this.platform, op: 'reply', accessToken: a.tokens.accessToken, detail: { commentId } });
+      this.guard(a);
+      const s = this.hub.next(this.platform, 'reply');
+      if (s instanceof SocialApiError) throw s;
+      const id = this.hub.id('reply-');
+      this.hub.replies.push({ platform: this.platform, parentId: commentId, text, id });
+      return { externalId: id };
+    };
   }
 
   async fetchMetrics(a: AuthorizedAccount, postId: string): Promise<Metrics> {
