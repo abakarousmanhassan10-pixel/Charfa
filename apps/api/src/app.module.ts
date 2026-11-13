@@ -7,6 +7,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { FeaturesModule } from './features/features.module';
 import { HealthModule } from './health/health.module';
 import { REDIS, RedisModule } from './health/redis.provider';
 import { RedisThrottlerStorage } from './common/throttle/redis-throttler.storage';
@@ -82,6 +83,7 @@ export class AppModule {
         MarketModule,
         AdminModule,
         HealthModule,
+        FeaturesModule,
       ],
       providers: [
         // Order matters: rate limiting runs before authentication.

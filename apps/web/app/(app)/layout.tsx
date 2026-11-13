@@ -13,9 +13,10 @@ import { Logo } from '@/components/logo';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
+import { api } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
-type NavItem = { key: string; icon: typeof LayoutDashboard; href?: string; platformOnly?: boolean };
+type NavItem = { key: string; icon: typeof LayoutDashboard; href?: string; platformOnly?: boolean; feature?: 'workflows' | 'market' };
 
 // Only implemented routes are links; upcoming modules are visibly disabled so nothing pretends to work.
 const NAV: NavItem[] = [
@@ -31,8 +32,8 @@ const NAV: NavItem[] = [
   { key: 'calendar', href: '/dashboard/calendar', icon: CalendarDays },
   { key: 'social', href: '/dashboard/social', icon: Share2 },
   { key: 'sales', href: '/dashboard/sales', icon: Bot },
-  { key: 'workflows', href: '/dashboard/workflows', icon: Workflow },
-  { key: 'market', href: '/dashboard/market', icon: TrendingUp },
+  { key: 'workflows', href: '/dashboard/workflows', icon: Workflow, feature: 'workflows' },
+  { key: 'market', href: '/dashboard/market', icon: TrendingUp, feature: 'market' },
   { key: 'operations', href: '/dashboard/operations', icon: Activity, platformOnly: true },
   { key: 'analytics', icon: BarChart3 },
   { key: 'billing', icon: CreditCard },
@@ -52,9 +53,14 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user } = useAuth();
   const isPlatform = user?.platformRole === 'SUPER_ADMIN' || user?.platformRole === 'SUPPORT';
+  // Modules switched off on this deployment are hidden (the API keeps enforcing the flags). Until the answer arrives, nothing optional shows.
+  const [features, setFeatures] = useState<Partial<Record<'workflows' | 'market', boolean>>>({});
+  useEffect(() => {
+    if (user) void api<Record<string, boolean>>('/features').then((f) => setFeatures({ workflows: f.workflows, market: f.market })).catch(() => undefined);
+  }, [user]);
   return (
     <nav className="flex flex-1 flex-col gap-1" aria-label={t('common.menu')}>
-      {NAV.filter((n) => !n.platformOnly || isPlatform).map(({ key, href, icon: Icon }) => {
+      {NAV.filter((n) => (!n.platformOnly || isPlatform) && (!n.feature || features[n.feature])).map(({ key, href, icon: Icon }) => {
         const label = t(`dashboard.nav.${key}`);
         if (!href) {
           return (

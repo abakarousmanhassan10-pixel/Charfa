@@ -257,3 +257,16 @@ test('error handling: network failure, API error, loading, empty state, invalid 
   await page.waitForTimeout(800);
   expect(sql(`select count(*) from "AgentRun" where "businessId" = '${errBiz}' and input->>'topic' = 'Double click'`)).toBe('1');
 });
+
+test('feature flags: modules switched off are hidden from the navigation, enabled ones are shown', async ({ page }) => {
+  await signUp(page, 'Flags Shop');
+  await page.goto('/dashboard');
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Workflows' })).toBeVisible();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Market intelligence' })).toBeVisible();
+  await page.route('**/api/v1/features', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ workflows: false, market: false, salesAssist: false, ai: false, media: true }) }));
+  await page.reload();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Calendar' }).first()).toBeVisible();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Workflows' })).toHaveCount(0);
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Market intelligence' })).toHaveCount(0);
+  await page.unroute('**/api/v1/features');
+});
