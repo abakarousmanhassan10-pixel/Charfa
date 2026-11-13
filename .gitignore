@@ -19,3 +19,4 @@ next-env.d.ts
 dump.rdb
 *.aof
 appendonlydir/
+.release-gate/

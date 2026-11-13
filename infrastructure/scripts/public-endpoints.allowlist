@@ -1,0 +1,8 @@
+apps/api/src/auth/auth.controller.ts
+apps/api/src/auth/jwt-auth.guard.ts
+apps/api/src/health/health.controller.ts
+apps/api/src/invitations/invitations.controller.ts
+apps/api/src/media/media.controller.ts
+apps/api/src/sales/sales-public.controller.ts
+apps/api/src/social/social-webhooks.controller.ts
+apps/api/src/social/social.controller.ts
