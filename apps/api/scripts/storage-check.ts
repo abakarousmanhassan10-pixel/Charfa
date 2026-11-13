@@ -2,6 +2,8 @@
  * Real storage verification (no mocks): upload → head → download (bytes compared) →
  * provider-presigned HTTP download → unsigned access must be denied → delete → confirm deletion.
  *   pnpm --filter @touma/api storage:check
+ * Also round-trips a streamed object of STORAGE_CHECK_LARGE_MB megabytes (default 12; 0 turns it off). Above 8 MB the driver uses a
+ * multipart upload, the path real images and videos take, which a tiny object never exercises.
  * Uses the S3_* variables (AWS S3, Cloudflare R2, MinIO). Exit code 0 only if every step passed.
  */
 import { loadEnv } from '@touma/config';
@@ -15,7 +17,7 @@ async function main() {
   if (env.STORAGE_DRIVER !== 's3') throw new Error('STORAGE_DRIVER must be s3 for a real storage check');
   const storage = createObjectStorage(env);
   if (!storage.configured) throw new Error('S3 storage is not configured (S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY)');
-  const report = await verifyStorage(storage, { prefix: '_storage-check' });
+  const report = await verifyStorage(storage, { prefix: '_storage-check', largeObjectBytes: Math.round(Number(process.env.STORAGE_CHECK_LARGE_MB ?? 12) * 1024 * 1024) });
   console.log(JSON.stringify({ provider: env.S3_PROVIDER, endpoint: env.S3_ENDPOINT ?? '(provider default)', ...report }, null, 2));
   process.exit(report.ok ? 0 : 1);
 }

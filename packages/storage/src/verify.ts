@@ -1,8 +1,9 @@
-import { randomUUID } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
+import { Readable } from 'stream';
 import type { ObjectStorage } from './object-storage';
 
 export interface VerificationStep {
-  step: 'upload' | 'head' | 'download' | 'presigned-download' | 'delete' | 'deleted-check';
+  step: 'upload' | 'head' | 'download' | 'presigned-download' | 'delete' | 'deleted-check' | 'upload-large' | 'download-large' | 'delete-large';
   ok: boolean;
   ms: number;
   error?: string;
@@ -19,8 +20,12 @@ export interface VerificationReport {
  * Real round trip against the configured storage: upload → head → download (bytes compared) →
  * provider-presigned download over HTTP → delete → confirm deletion. Storage is reported as
  * working only when every step succeeds.
+ *
+ * `largeObjectBytes` (off by default) adds a second round trip with a streamed object of that size. Anything above the
+ * S3 driver's part size (8 MiB) is sent as a multipart upload, the path real images and videos take and that some
+ * S3-compatible services handle differently from a small single PUT. The download is compared by SHA-256.
  */
-export async function verifyStorage(storage: ObjectStorage, opts: { presignedFetch?: boolean; prefix?: string } = {}): Promise<VerificationReport> {
+export async function verifyStorage(storage: ObjectStorage, opts: { presignedFetch?: boolean; prefix?: string; largeObjectBytes?: number } = {}): Promise<VerificationReport> {
   const steps: VerificationStep[] = [];
   const key = `${opts.prefix ?? '_healthcheck'}/${randomUUID()}.txt`;
   const payload = Buffer.from(`touma-storage-check ${new Date().toISOString()} ${randomUUID()}`);
@@ -68,6 +73,29 @@ export async function verifyStorage(storage: ObjectStorage, opts: { presignedFet
     await run('deleted-check', async () => {
       if (await storage.head(key)) throw new Error('object still exists after delete');
     });
+  }
+  if (opts.largeObjectBytes && opts.largeObjectBytes > 0) {
+    const size = Math.floor(opts.largeObjectBytes);
+    const largeKey = `${opts.prefix ?? '_healthcheck'}/${randomUUID()}-large.bin`;
+    const data = randomBytes(size);
+    const sha = createHash('sha256').update(data).digest('hex');
+    // Streamed in 1 MiB chunks, like an upload received from a request.
+    const chunks: Buffer[] = [];
+    for (let i = 0; i < size; i += 1024 * 1024) chunks.push(data.subarray(i, Math.min(size, i + 1024 * 1024)));
+    const up = await run('upload-large', () => storage.put(largeKey, Readable.from(chunks), { contentType: 'application/octet-stream', contentLength: size }));
+    if (up) {
+      await run('download-large', async () => {
+        const h = await storage.head(largeKey);
+        if (!h || h.size !== size) throw new Error(`unexpected size ${h?.size} (expected ${size})`);
+        const hash = createHash('sha256');
+        for await (const c of (await storage.get(largeKey)).body) hash.update(Buffer.from(c as Buffer));
+        if (hash.digest('hex') !== sha) throw new Error('downloaded bytes differ from uploaded bytes');
+      });
+      await run('delete-large', async () => {
+        await storage.delete(largeKey);
+        if (await storage.head(largeKey)) throw new Error('large object still exists after delete');
+      });
+    }
   }
   return { ok: steps.every((s) => s.ok), storage: storage.description, checkedAt: new Date().toISOString(), steps };
 }
