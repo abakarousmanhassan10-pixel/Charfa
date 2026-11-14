@@ -34,6 +34,7 @@ import { WorkflowsModule } from './workflows/workflows.module';
 import { MarketModule } from './market/market.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
+import { BillingModule } from './billing/billing.module';
 import { ExecutiveModule } from './executive/executive.module';
 import { OpenAIModule } from './openai/openai.module';
 
@@ -88,6 +89,7 @@ export class AppModule {
         CampaignsModule,
         IntelligenceModule,
         ExecutiveModule,
+        BillingModule,
         OpenAIModule,
         AdminModule,
         HealthModule,

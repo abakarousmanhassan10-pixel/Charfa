@@ -338,6 +338,8 @@ enum NotificationChannel {
 
 enum WebhookProvider {
   STRIPE
+  PAYONEER
+  SIMULATED_BILLING
   META
   TIKTOK
   YOUTUBE
@@ -1353,6 +1355,8 @@ model Subscription {
   provider               String             @default("stripe")
   providerCustomerId     String?
   providerSubscriptionId String?            @unique
+  /// Opaque provider token for the saved card (hosted capture). Never a card number, expiry or CVC.
+  paymentMethodRef       String?
   currentPeriodStart     DateTime?          @db.Timestamptz(3)
   currentPeriodEnd       DateTime?          @db.Timestamptz(3)
   cancelAtPeriodEnd      Boolean            @default(false)

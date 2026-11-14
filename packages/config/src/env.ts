@@ -253,6 +253,13 @@ export const appEnvSchema = z.object({
   MARKET_MAX_ANALYSES_PER_DAY: z.coerce.number().int().min(1).max(10_000).default(100),
   MARKET_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   // ─── Sales assistant 2.0 (Phase N5): off by default; no outbound channel exists, nothing is ever sent ───
+  // ─── Billing (Phase N24): provider-independent architecture, simulation only. Off by default; no real charge exists.
+  BILLING_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  /** none = no provider; simulated = test-only in-process provider (APP_ENV=test); payoneer = adapter that refuses everything until its capabilities are verified against Payoneer's official documentation. */
+  BILLING_PROVIDER: z.enum(['none', 'simulated', 'payoneer']).default('none'),
+  BILLING_WEBHOOK_SECRET: z.string().min(16).optional(),
+  /** Comma-separated e-mails of the founder(s): owners with a VERIFIED e-mail on this list keep free lifetime access. */
+  FOUNDER_EMAILS: z.string().default('').transform((v) => v.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)),
   // ─── Business autopilot (Phase N22): decision support from merchant-entered costs. It proposes only (no price change, refund, payment, ad spend or publication). Off by default.
   AUTOPILOT_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   // ─── Business intelligence (Phase N21): memory, evaluations, experiments, recommendations, alerts. Local and deterministic; off by default.
@@ -380,6 +387,9 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
       throw new EnvValidationError([`SMTP_PORT=${env.SMTP_PORT} uses STARTTLS: set SMTP_SECURE=false`]);
     }
   }
+  if (env.BILLING_PROVIDER === 'simulated' && env.APP_ENV !== 'test') {
+    throw new EnvValidationError(['BILLING_PROVIDER=simulated is only allowed when APP_ENV=test']);
+  }
   if ((env.AI_PROVIDER === 'fake' || env.AI_PROVIDER === 'mock-openai') && env.APP_ENV !== 'test') {
     throw new EnvValidationError([`AI_PROVIDER=${env.AI_PROVIDER} is only allowed when APP_ENV=test`]);
   }
@@ -434,6 +444,7 @@ export function productionProblems(env: AppEnv): string[] {
   if (env.MALWARE_SCANNER === 'none' && !env.ALLOW_UNSCANNED_UPLOADS) p.push('MALWARE_SCANNER must be clamav (or set ALLOW_UNSCANNED_UPLOADS=true to accept the risk explicitly)');
   if (env.RATE_LIMIT_STORE !== 'redis') p.push('RATE_LIMIT_STORE must be redis');
   if (env.AI_PROVIDER === 'fake' || env.AI_PROVIDER === 'mock-openai') p.push(`AI_PROVIDER=${env.AI_PROVIDER} is test-only`);
+  if (env.BILLING_ENABLED) p.push('BILLING_ENABLED must stay false until a payment provider adapter is verified against its official documentation (none is yet)');
   if (env.SOCIAL_PROVIDER_MODE === 'fake') p.push('SOCIAL_PROVIDER_MODE=fake is test-only');
   const socialConfigured = Boolean(env.META_APP_ID || env.TIKTOK_CLIENT_KEY || env.GOOGLE_CLIENT_ID || env.LINKEDIN_CLIENT_ID);
   if (socialConfigured && !env.PUBLIC_API_URL) p.push('PUBLIC_API_URL is required when a social platform is configured (OAuth redirect URIs, webhooks and media URLs)');
