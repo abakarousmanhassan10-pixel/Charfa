@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { AI_CONTENT_PURPOSES, AI_LANGUAGE_NAMES, AI_LANGUAGES, AI_PLATFORMS, AI_TONES } from '@touma/shared';
 import { useBusiness } from '@/components/business-provider';
 import { useI18n } from '@/components/i18n-provider';
@@ -90,6 +91,12 @@ export function ItemSelect({ value, onChange, optional = true }: { value: string
           </optgroup>
         )}
       </Select>
+      {products.data && services.data && products.data.items.length === 0 && services.data.items.length === 0 && (
+        <p className="mt-2 rounded-md bg-amber-500/10 px-3 py-2 text-sm" data-testid="no-active-items">
+          {t('ai.noActiveItems')}{' '}
+          <Link href="/dashboard/products" className="font-medium text-primary underline-offset-2 hover:underline">{t('ai.openProducts')}</Link>
+        </p>
+      )}
     </Field>
   );
 }

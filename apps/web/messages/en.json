@@ -320,7 +320,8 @@
       "ARCHIVED": "Archived"
     },
     "stockHint": "Leave empty if you do not track stock. TOUMA AI never invents stock levels.",
-    "uncategorised": "Uncategorised"
+    "uncategorised": "Uncategorised",
+    "statusHint": "Only Active items are used by TOUMA AI. New items start as Draft."
   },
   "categories": {
     "default": "Default",
@@ -477,7 +478,7 @@
       "FACEBOOK": "Facebook",
       "TIKTOK": "TikTok",
       "YOUTUBE": "YouTube",
-      "ANY": "Any channel"
+      "ANY": "Any channel (product description, ad copy…)"
     },
     "formats": {
       "INSTAGRAM_CAPTION": "Instagram post caption",
@@ -592,7 +593,8 @@
       "APPROVAL_REQUIRED": "This content must be approved before it can be published.",
       "INVALID_STATE": "This action is not available in the current review state.",
       "NO_DRAFT": "Save the draft first.",
-      "GENERATION_IN_PROGRESS": "This generation is still running."
+      "GENERATION_IN_PROGRESS": "This generation is still running.",
+      "SERVER_UNAVAILABLE": "The server is starting up or temporarily unavailable. Nothing was lost: wait about a minute and try again."
     },
     "notConfiguredTitle": "TOUMA AI is not configured",
     "notConfiguredText": "An administrator must add the AI provider credentials (OPENAI_API_KEY) on the server. Nothing is generated or simulated until then.",
@@ -791,7 +793,11 @@
       "waiting": "Waiting for an admin or owner to approve.",
       "blockedTitle": "This text cannot be approved yet",
       "blockedHint": "It contains information that is not in your verified business data. Correct the text, or add the fact to your verified knowledge, then submit it again."
-    }
+    },
+    "simulatedBanner": "Simulated AI: this server uses a test provider, so results are generic placeholders built from your data, not real AI answers.",
+    "notConfiguredBanner": "TOUMA AI is not configured on this server: no text can be generated yet.",
+    "noActiveItems": "No active product or service yet. TOUMA AI only uses Active items, and new products start as Draft.",
+    "openProducts": "Open Products and set one to Active"
   },
   "account": {
     "forgotLink": "Forgot password?",

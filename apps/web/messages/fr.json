@@ -320,7 +320,8 @@
       "ARCHIVED": "Archivé"
     },
     "stockHint": "Laissez vide si vous ne suivez pas le stock. TOUMA AI n'invente jamais de niveaux de stock.",
-    "uncategorised": "Sans catégorie"
+    "uncategorised": "Sans catégorie",
+    "statusHint": "Seuls les éléments Actifs sont utilisés par TOUMA AI. Les nouveaux éléments démarrent en Brouillon."
   },
   "categories": {
     "default": "Par défaut",
@@ -477,7 +478,7 @@
       "FACEBOOK": "Facebook",
       "TIKTOK": "TikTok",
       "YOUTUBE": "YouTube",
-      "ANY": "Tout canal"
+      "ANY": "Tout canal (description produit, publicité…)"
     },
     "formats": {
       "INSTAGRAM_CAPTION": "Légende de post Instagram",
@@ -592,7 +593,8 @@
       "APPROVAL_REQUIRED": "Ce contenu doit être approuvé avant d’être publié.",
       "INVALID_STATE": "Cette action n’est pas disponible dans l’état de relecture actuel.",
       "NO_DRAFT": "Enregistrez d’abord le brouillon.",
-      "GENERATION_IN_PROGRESS": "Cette génération est encore en cours."
+      "GENERATION_IN_PROGRESS": "Cette génération est encore en cours.",
+      "SERVER_UNAVAILABLE": "Le serveur démarre ou est momentanément indisponible. Rien n’est perdu : attendez environ une minute puis réessayez."
     },
     "notConfiguredTitle": "TOUMA AI n'est pas configuré",
     "notConfiguredText": "Un administrateur doit ajouter les identifiants du fournisseur d'IA (OPENAI_API_KEY) sur le serveur. Rien n'est généré ni simulé d'ici là.",
@@ -791,7 +793,11 @@
       "waiting": "En attente de l’approbation d’un administrateur ou du propriétaire.",
       "blockedTitle": "Ce texte ne peut pas encore être approuvé",
       "blockedHint": "Il contient des informations absentes de vos données vérifiées. Corrigez le texte ou ajoutez le fait à vos connaissances vérifiées, puis renvoyez-le."
-    }
+    },
+    "simulatedBanner": "IA simulée : ce serveur utilise un fournisseur de test, donc les résultats sont des textes génériques construits à partir de vos données, pas de vraies réponses d’IA.",
+    "notConfiguredBanner": "TOUMA AI n’est pas configurée sur ce serveur : aucun texte ne peut encore être généré.",
+    "noActiveItems": "Aucun produit ni service actif. TOUMA AI n’utilise que les éléments Actifs, et les nouveaux produits démarrent en Brouillon.",
+    "openProducts": "Ouvrir Produits et en passer un en Actif"
   },
   "account": {
     "forgotLink": "Mot de passe oublié ?",

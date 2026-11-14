@@ -119,7 +119,7 @@ export async function runAgent<I, S extends ZodTypeAny>(
       if (!result.success) {
         issues.push(...result.error.issues.slice(0, 10).map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`));
       } else {
-        value = result.data;
+        value = agent.normalize ? agent.normalize(result.data) : result.data;
         issues.push(...checkGrounding(value, context), ...agent.validate(value!, context, input));
       }
     }

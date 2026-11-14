@@ -146,7 +146,7 @@ export function ProductForm({
         <Card>
           <CardHeader><CardTitle>{t('catalog.sections.organisation')}</CardTitle></CardHeader>
           <CardContent className="grid gap-4">
-            <Field id="product-status" label={L('status')}>
+            <Field id="product-status" label={L('status')} hint={t('catalog.statusHint')}>
               <Select {...f('status')}>
                 {['DRAFT', 'ACTIVE', 'ARCHIVED'].map((s) => <option key={s} value={s}>{t(`catalog.status.${s}`)}</option>)}
               </Select>

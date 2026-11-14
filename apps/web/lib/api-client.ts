@@ -37,8 +37,10 @@ async function parse<T>(res: Response): Promise<T> {
     if (res.ok) throw new ApiError(res.status, 'INVALID_RESPONSE', 'The server sent an invalid response');
   }
   if (!res.ok) {
-    const code = body.code ?? (res.status === 429 ? 'TOO_MANY_REQUESTS' : res.status === 400 ? 'VALIDATION' : 'UNKNOWN');
-    throw new ApiError(res.status, code, body.message ?? res.statusText, Array.isArray(body.issues) ? body.issues.map(String) : undefined, { conflicts: Array.isArray(body.conflicts) ? body.conflicts : undefined, missing: Array.isArray(body.missing) ? body.missing : undefined, planId: typeof body.planId === 'string' ? body.planId : undefined });
+    // A gateway answer without an API error body means the API is not answering (for example it is waking up): say so, not "failed".
+    const gateway = [502, 503, 504].includes(res.status) && !body.code;
+    const code = body.code ?? (res.status === 429 ? 'TOO_MANY_REQUESTS' : res.status === 400 ? 'VALIDATION' : gateway ? 'SERVER_UNAVAILABLE' : 'UNKNOWN');
+    throw new ApiError(res.status, code, body.message ?? (gateway ? 'The server is starting up or temporarily unavailable. Wait about a minute and try again.' : res.statusText), Array.isArray(body.issues) ? body.issues.map(String) : undefined, { conflicts: Array.isArray(body.conflicts) ? body.conflicts : undefined, missing: Array.isArray(body.missing) ? body.missing : undefined, planId: typeof body.planId === 'string' ? body.planId : undefined });
   }
   return body as T;
 }

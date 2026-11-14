@@ -234,7 +234,7 @@ function defaultAnswer(req: GenerateRequest): unknown {
       const format: AiFormat = task.format;
       const rule = FORMAT_RULES[format];
       const need = (k: string) => rule.requires.includes(k as never);
-      const hashtags = rule.maxHashtags > 0 ? [...new Set([tag(bizName), tag(item?.name ?? 'touma'), '#TOUMA'])].slice(0, Math.min(3, rule.maxHashtags)) : [];
+      const hashtags = rule.maxHashtags > 0 ? [...new Map([tag(bizName), tag(item?.name ?? 'touma'), '#TOUMA'].map((h) => [h.toLowerCase(), h] as const)).values()].slice(0, Math.min(3, rule.maxHashtags)) : [];
       return {
         language: lang,
         format,

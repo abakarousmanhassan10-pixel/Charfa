@@ -18,6 +18,11 @@ export interface AgentDefinition<I, S extends ZodTypeAny> {
   taskParams(input: I): Record<string, unknown>;
   /** Optional narrowing of the context sent to the model (least data necessary). */
   scopeContext?(ctx: BusinessContext, input: I): unknown;
+  /**
+   * Optional lossless clean-up of cosmetic problems (for example a repeated hashtag in another case) before validation, so a harmless
+   * detail does not fail a whole generation. It must never change a fact, a price or a claim.
+   */
+  normalize?(output: z.infer<S>): z.infer<S>;
   /** Task-specific checks, in addition to schema validation and grounding. */
   validate(output: z.infer<S>, ctx: BusinessContext, input: I): string[];
 }

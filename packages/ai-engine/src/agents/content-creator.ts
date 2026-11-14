@@ -64,6 +64,12 @@ Write everything (including hashtags where natural) in ${AI_LANGUAGE_NAMES[i.lan
     const item = (i.item.type === 'PRODUCT' ? ctx.products : ctx.services).find((x) => x.id === i.item!.id) ?? null;
     return { business: ctx.business, item, knowledge: ctx.knowledge };
   },
+  normalize: (out) => {
+    // Trim and drop repeated hashtags (same word in another case). Anything else is left to the validation below.
+    const seen = new Set<string>();
+    const hashtags = out.hashtags.map((h) => h.trim()).filter((h) => h.length > 0 && !seen.has(h.toLowerCase()) && seen.add(h.toLowerCase()));
+    return { ...out, hashtags };
+  },
   validate: (out, ctx, i) => [
     ...checkContent(out, { format: i.format, platform: FORMAT_RULES[i.format].platform, language: i.language }),
     // Facts about the item must stay as recorded (right item's price, availability not contradicted).
