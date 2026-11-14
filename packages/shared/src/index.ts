@@ -13,3 +13,4 @@ export * from './social';
 export * from './tiktok';
 export * from './sales';
 export * from './social-capabilities';
+export * from './campaign';

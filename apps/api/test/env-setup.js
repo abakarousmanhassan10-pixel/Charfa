@@ -92,3 +92,5 @@ process.env.SOCIAL_MAX_PUBLICATIONS_PER_DAY = '1000';
 process.env.SOCIAL_COMMENTS_ENABLED = 'true';
 process.env.SOCIAL_COMMENT_REPLIES_ENABLED = 'true';
 process.env.SOCIAL_MAX_REPLIES_PER_DAY = '1000';
+
+process.env.CAMPAIGNS_ENABLED = 'true';

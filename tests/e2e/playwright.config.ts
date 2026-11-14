@@ -62,6 +62,7 @@ const testEnv = {
   WORKFLOWS_ENABLED: 'true',
   MARKET_INTELLIGENCE_ENABLED: 'true',
   SALES_ASSIST_ENABLED: 'true',
+  CAMPAIGNS_ENABLED: 'true',
 };
 
 export default defineConfig({

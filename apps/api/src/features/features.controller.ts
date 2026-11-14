@@ -20,6 +20,7 @@ export class FeaturesController {
       workflows: this.env.ORCHESTRATOR_ENABLED && this.env.WORKFLOWS_ENABLED,
       market: this.env.MARKET_INTELLIGENCE_ENABLED,
       salesAssist: this.env.SALES_ASSIST_ENABLED,
+      campaigns: this.env.CAMPAIGNS_ENABLED,
       ai: i.openai,
       media: i.storage,
     };

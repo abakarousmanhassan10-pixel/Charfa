@@ -17,9 +17,9 @@ describe('Feature visibility (e2e)', () => {
     await request(app.getHttpServer()).get('/api/v1/features').expect(401);
     const u = await register(app);
     const res = await request(app.getHttpServer()).get('/api/v1/features').set('Authorization', `Bearer ${u.accessToken}`).expect(200);
-    expect(Object.keys(res.body).sort()).toEqual(['ai', 'market', 'media', 'salesAssist', 'workflows']);
+    expect(Object.keys(res.body).sort()).toEqual(['ai', 'campaigns', 'market', 'media', 'salesAssist', 'workflows']);
     expect(Object.values(res.body).every((v) => typeof v === 'boolean')).toBe(true);
-    expect(res.body).toMatchObject({ workflows: true, market: true, salesAssist: true }); // enabled in the test environment
+    expect(res.body).toMatchObject({ workflows: true, market: true, salesAssist: true, campaigns: true }); // enabled in the test environment
     expect(JSON.stringify(res.body)).not.toMatch(/key|secret|url|host/i);
   });
 });

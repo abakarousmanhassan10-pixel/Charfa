@@ -548,6 +548,7 @@ model Business {
   marketProducts      MarketProduct[]
   customers           Customer[]
   salesAgentConfig    SalesAgentConfig?
+  campaigns           Campaign[]
 
   @@index([deletedAt])
   @@index([createdAt])
@@ -601,10 +602,11 @@ model Product {
   updatedAt      DateTime            @updatedAt @db.Timestamptz(3)
   deletedAt      DateTime?           @db.Timestamptz(3)
 
-  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  category Category?      @relation("ProductCategory", fields: [categoryId], references: [id], onDelete: SetNull)
-  media    ProductMedia[]
-  contents Content[]
+  business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category         Category?         @relation("ProductCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  media            ProductMedia[]
+  contents         Content[]
+  campaignProducts CampaignProduct[]
 
   /// SKU is released (set to null) when a product is soft-deleted, so it can be reused.
   @@unique([businessId, sku])
@@ -863,60 +865,61 @@ model ContentMedia {
 }
 
 model CalendarEvent {
-  id                String              @id @default(cuid())
-  businessId        String
-  contentId         String?
-  title             String
-  notes             String?
+  id                  String              @id @default(cuid())
+  businessId          String
+  contentId           String?
+  title               String
+  notes               String?
   /// UTC instant.
-  scheduledAt       DateTime            @db.Timestamptz(3)
+  scheduledAt         DateTime            @db.Timestamptz(3)
   /// IANA timezone the user planned in, retained to render and to recompute across DST.
-  timezone          String
-  status            CalendarEventStatus @default(PLANNED)
+  timezone            String
+  status              CalendarEventStatus @default(PLANNED)
   /// The platform this entry is for (one entry = one platform).
-  platform          SocialPlatform?
-  pillar            ContentPillar?
-  brief             String?
+  platform            SocialPlatform?
+  pillar              ContentPillar?
+  brief               String?
   /// A merchant-supplied occasion (name + date) a SEASONAL entry refers to.
-  occasion          String?
-  planId            String?
-  recurrenceId      String?
+  occasion            String?
+  planId              String?
+  recurrenceId        String?
   /// The connected account this entry publishes to (default: the only connected account of the platform).
-  socialAccountId   String?
+  socialAccountId     String?
   /// Local date (YYYY-MM-DD) of a recurrence occurrence; unique per rule so materialising twice is harmless.
-  occurrenceDate    String?
-  timeSource        TimeSource          @default(MANUAL)
-  timeNote          String?
+  occurrenceDate      String?
+  timeSource          TimeSource          @default(MANUAL)
+  timeNote            String?
   /// `${contentId}:${platform}` while the placement is active (null when cancelled/deleted): one content per platform.
-  placementKey      String?             @unique
+  placementKey        String?             @unique
   /// Explicit business authorization to publish this exact content version at this time.
-  authorizedById    String?
-  authorizedAt      DateTime?           @db.Timestamptz(3)
-  authorizedVersion Int?
+  authorizedById      String?
+  authorizedAt        DateTime?           @db.Timestamptz(3)
+  authorizedVersion   Int?
   /// Hash of the exact tuple the person authorized (content version, media, platform, target account, schedule, timezone). Checked again before every dispatch.
   authorizedHash      String?
   /// The social account the person authorized publishing to.
   authorizedAccountId String?
-  dispatchState     DispatchState       @default(NONE)
-  dispatchAttempts  Int                 @default(0)
+  dispatchState       DispatchState       @default(NONE)
+  dispatchAttempts    Int                 @default(0)
   /// Idempotency key of the hand-off: `${id}:${version}:${scheduledAt epoch}`.
-  dispatchKey       String?             @unique
-  lockedUntil       DateTime?           @db.Timestamptz(3)
-  dispatchedAt      DateTime?           @db.Timestamptz(3)
-  lastError         String?
-  reminderSentAt    DateTime?           @db.Timestamptz(3)
-  createdById       String?
-  createdAt         DateTime            @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime            @updatedAt @db.Timestamptz(3)
-  deletedAt         DateTime?           @db.Timestamptz(3)
+  dispatchKey         String?             @unique
+  lockedUntil         DateTime?           @db.Timestamptz(3)
+  dispatchedAt        DateTime?           @db.Timestamptz(3)
+  lastError           String?
+  reminderSentAt      DateTime?           @db.Timestamptz(3)
+  createdById         String?
+  createdAt           DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime            @updatedAt @db.Timestamptz(3)
+  deletedAt           DateTime?           @db.Timestamptz(3)
 
-  business      Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  content       Content?         @relation(fields: [contentId], references: [id], onDelete: SetNull)
-  plan          ContentPlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
-  recurrence    RecurrenceRule?  @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
-  socialAccount SocialAccount?   @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
-  publications  Publication[]
-  approvals     ApprovalRecord[]
+  business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  content          Content?          @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  plan             ContentPlan?      @relation(fields: [planId], references: [id], onDelete: SetNull)
+  recurrence       RecurrenceRule?   @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+  socialAccount    SocialAccount?    @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  publications     Publication[]
+  approvals        ApprovalRecord[]
+  campaignContents CampaignContent[]
 
   @@unique([recurrenceId, occurrenceDate])
   @@index([businessId, scheduledAt])
@@ -1129,14 +1132,14 @@ model Conversation {
   createdAt          DateTime            @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
 
-  business      Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  socialAccount SocialAccount?  @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
-  customer      Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  business      Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount?     @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  customer      Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
   messages      Message[]
   notes         CustomerNote[]
   qualification LeadQualification?
-  handoffs SalesHandoff[]
-  followUps SalesFollowUp[]
+  handoffs      SalesHandoff[]
+  followUps     SalesFollowUp[]
   feedback      AgentFeedback[]
 
   @@unique([socialAccountId, externalThreadId])
@@ -1202,34 +1205,34 @@ model Comment {
 
 /// A person who talks to the business's agent. Identified only by what they chose to share; erasable.
 model Customer {
-  id             String              @id @default(cuid())
-  businessId     String
-  name           String?
-  email          String?
-  phone          String?
-  language       String?
-  source         ConversationChannel @default(WEB_CHAT)
-  leadStatus     LeadStatus          @default(NEW)
-  purchaseIntent PurchaseIntent      @default(NONE)
-  lastIntent     String?
+  id                     String              @id @default(cuid())
+  businessId             String
+  name                   String?
+  email                  String?
+  phone                  String?
+  language               String?
+  source                 ConversationChannel @default(WEB_CHAT)
+  leadStatus             LeadStatus          @default(NEW)
+  purchaseIntent         PurchaseIntent      @default(NONE)
+  lastIntent             String?
   /// Items the customer showed interest in: "product:<id>" / "service:<id>".
-  interests      String[]
+  interests              String[]
   /// Set when the customer explicitly agreed to be contacted.
-  consentAt      DateTime?           @db.Timestamptz(3)
-  assignedToId   String?
-  followUpAt     DateTime?           @db.Timestamptz(3)
-  firstSeenAt    DateTime            @default(now()) @db.Timestamptz(3)
-  lastSeenAt     DateTime            @default(now()) @db.Timestamptz(3)
+  consentAt              DateTime?           @db.Timestamptz(3)
+  assignedToId           String?
+  followUpAt             DateTime?           @db.Timestamptz(3)
+  firstSeenAt            DateTime            @default(now()) @db.Timestamptz(3)
+  lastSeenAt             DateTime            @default(now()) @db.Timestamptz(3)
   /// Personal data was erased at the customer's or merchant's request.
   /// Phase N5: follow-up messages need this explicit consent (separate from storing contact details) and stop at an opt-out.
-  followUpConsentAt DateTime? @db.Timestamptz(3)
-  optedOutAt DateTime? @db.Timestamptz(3)
+  followUpConsentAt      DateTime?           @db.Timestamptz(3)
+  optedOutAt             DateTime?           @db.Timestamptz(3)
   /// Phase N5: a conversion counts only when a person marked the customer WON (never the AI).
-  conversionVerifiedAt DateTime? @db.Timestamptz(3)
+  conversionVerifiedAt   DateTime?           @db.Timestamptz(3)
   conversionVerifiedById String?
-  anonymizedAt   DateTime?           @db.Timestamptz(3)
-  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime            @updatedAt @db.Timestamptz(3)
+  anonymizedAt           DateTime?           @db.Timestamptz(3)
+  createdAt              DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime            @updatedAt @db.Timestamptz(3)
 
   business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   conversations Conversation[]
@@ -1845,7 +1848,7 @@ model AgentRun {
   completedAt     DateTime?      @db.Timestamptz(3)
   updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
 
-  business Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
   steps    AgentRunStep[]
   events   AgentRunEvent[]
 
@@ -2178,4 +2181,112 @@ model OpsAlert {
   rule OpsAlertRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
   @@index([status, lastSeenAt])
+}
+
+// ─────────────────────────── Campaign engine (Phase N20) ───────────────────────────
+// A campaign groups products and the calendar entries drafted for them. It owns NO approval state: every post is an ordinary
+// CalendarEvent that goes through the N18 individual approval. Metrics are read from AnalyticsSnapshot through the publication.
+
+enum CampaignStatus {
+  DRAFT
+  PLANNED
+  CONTENT_READY
+  AWAITING_APPROVAL
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum AgentExecutionStatus {
+  SUCCEEDED
+  FAILED
+  TIMED_OUT
+  REFUSED
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  businessId      String
+  name            String
+  /// { type: AWARENESS | ENGAGEMENT | TRAFFIC | LAUNCH, description?: string } (validated in code).
+  goal            Json
+  status          CampaignStatus @default(DRAFT)
+  /// Immediate kill switch: while true no agent runs and nothing new is drafted.
+  paused          Boolean        @default(false)
+  /// Execution budget. Mock providers cost nothing; costLimitMicros stays 0 (USD millionths) until paid generation is authorized.
+  executionLimit  Int            @default(20)
+  executionsUsed  Int            @default(0)
+  costLimitMicros Int            @default(0)
+  costUsedMicros  Int            @default(0)
+  /// Structured plan written by the planning agents (positioning, channels, audiences, ideas, calendar, cost estimate).
+  plan            Json?
+  planVersion     Int            @default(0)
+  idempotencyKey  String
+  createdById     String?
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
+
+  business   Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  products   CampaignProduct[]
+  contents   CampaignContent[]
+  executions AgentExecution[]
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, status, createdAt])
+}
+
+model CampaignProduct {
+  id         String   @id @default(cuid())
+  campaignId String
+  businessId String
+  productId  String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, productId])
+  @@index([businessId, productId])
+}
+
+/// Links a campaign to a calendar entry (which holds the Content and its approval). Never stores approval state itself.
+model CampaignContent {
+  id              String   @id @default(cuid())
+  campaignId      String
+  businessId      String
+  calendarEventId String
+  productId       String?
+  /// INITIAL, or FOLLOW_UP when the performance agent proposed it.
+  kind            String   @default("INITIAL")
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  campaign      Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  calendarEvent CalendarEvent @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, calendarEventId])
+  @@index([businessId, campaignId])
+}
+
+/// One run of one agent: what it was allowed to do, what it cost, how it ended. Output holds structured data only.
+model AgentExecution {
+  id             String               @id @default(cuid())
+  businessId     String
+  campaignId     String
+  agent          String
+  status         AgentExecutionStatus
+  /// Same key = same execution (replay returns it, no second run).
+  idempotencyKey String
+  attempts       Int                  @default(1)
+  inputHash      String
+  output         Json?
+  errorCode      String?
+  costMicros     Int                  @default(0)
+  durationMs     Int?
+  createdAt      DateTime             @default(now()) @db.Timestamptz(3)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, idempotencyKey])
+  @@index([businessId, createdAt])
+  @@index([campaignId, agent])
 }

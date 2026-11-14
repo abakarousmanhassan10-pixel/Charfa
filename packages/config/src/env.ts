@@ -235,6 +235,9 @@ export const appEnvSchema = z.object({
   MARKET_MAX_ANALYSES_PER_DAY: z.coerce.number().int().min(1).max(10_000).default(100),
   MARKET_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   // ─── Sales assistant 2.0 (Phase N5): off by default; no outbound channel exists, nothing is ever sent ───
+  // ─── Marketing campaigns (Phase N20): multi-agent planning with mock providers only; needs no external credential. Off by default.
+  //     Drafts only: every post still goes through the N18 individual approval, and nothing here publishes, sends or spends.
+  CAMPAIGNS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   SALES_ASSIST_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   /** Follow-up drafts one business may create per rolling 24 hours (resource control). */
   SALES_ASSIST_MAX_FOLLOWUPS_PER_DAY: z.coerce.number().int().min(1).max(10_000).default(100),

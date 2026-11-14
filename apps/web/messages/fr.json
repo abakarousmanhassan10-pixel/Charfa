@@ -101,7 +101,8 @@
       "workflows": "Workflows",
       "market": "Veille de marché",
       "sales": "Agent commercial IA",
-      "operations": "Exploitation"
+      "operations": "Exploitation",
+      "campaigns": "Campagnes"
     },
     "analyticsTitle": "Performances",
     "noAnalytics": "Aucune donnée pour l'instant. Les statistiques apparaîtront une fois vos comptes connectés et vos publications en ligne — nous n'affichons jamais d'estimations comme des résultats mesurés.",
@@ -2519,5 +2520,58 @@
     "ruleHint": "Une alerte est levée quand une file contient au moins {threshold} jobs échoués. Une seule alerte par file : elle se met à jour tant que le problème dure et se clôt seule au retour à la normale.",
     "threshold": "Seuil de jobs échoués",
     "saveRule": "Enregistrer"
+  },
+  "campaigns": {
+    "title": "Campagnes",
+    "subtitle": "Le directeur marketing IA planifie une campagne et prépare des brouillons. Vous approuvez chaque publication vous-même.",
+    "rule": "Rien n’est publié automatiquement. Chaque publication demande votre approbation individuelle, et vous pouvez mettre en pause ou annuler une campagne à tout moment.",
+    "new": "Nouvelle campagne",
+    "name": "Nom de la campagne",
+    "goal": "Objectif",
+    "product": "Produit",
+    "chooseProduct": "Choisir un produit",
+    "create": "Créer le brouillon",
+    "list": "Vos campagnes",
+    "emptyTitle": "Aucune campagne",
+    "emptyHint": "Choisissez un produit vérifié pour démarrer un brouillon de campagne.",
+    "paused": "En pause",
+    "pause": "Pause (interrupteur d’arrêt)",
+    "resume": "Reprendre",
+    "cancel": "Annuler la campagne",
+    "budget": "Exécutions d’agents : {used} sur {max}",
+    "cost": "Coût IA : {usd} USD (les agents simulés sont gratuits)",
+    "plan": "Plan",
+    "audiences": "Idées d’audience",
+    "channels": "Canaux",
+    "noAccount": "aucun compte connecté",
+    "market": "Données de marché",
+    "marketUnavailable": "indisponibles : aucune donnée de marché vérifiée, rien n’est estimé",
+    "estimate": "Temps de relecture (estimation) : environ {minutes} min. Aucune dépense publicitaire n’est prévue.",
+    "rejected": "{count} brouillon(s) refusé(s) car ils contenaient des affirmations non vérifiées ou ne pouvaient pas être planifiés.",
+    "posts": "Publications",
+    "approveHere": "Approuvez les publications une par une dans le centre d’approbation",
+    "evaluation": "Performance",
+    "evalCounts": "{real} mesure(s) réelle(s), {simulated} simulée(s), {unavailable} indisponible(s)",
+    "steps": {
+      "plan": "1. Planifier",
+      "content": "2. Créer les brouillons",
+      "submit": "3. Envoyer pour approbation",
+      "metrics": "4. Évaluer"
+    },
+    "goals": {
+      "LAUNCH": "Lancement de produit",
+      "AWARENESS": "Notoriété",
+      "ENGAGEMENT": "Engagement",
+      "TRAFFIC": "Trafic"
+    },
+    "status": {
+      "DRAFT": "Brouillon",
+      "PLANNED": "Planifiée",
+      "CONTENT_READY": "Brouillons prêts",
+      "AWAITING_APPROVAL": "En attente d’approbation",
+      "ACTIVE": "Active",
+      "COMPLETED": "Terminée",
+      "CANCELLED": "Annulée"
+    }
   }
 }

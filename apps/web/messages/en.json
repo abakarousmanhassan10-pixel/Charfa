@@ -101,7 +101,8 @@
       "workflows": "Workflows",
       "market": "Market intelligence",
       "sales": "AI sales agent",
-      "operations": "Operations"
+      "operations": "Operations",
+      "campaigns": "Campaigns"
     },
     "analyticsTitle": "Performance",
     "noAnalytics": "No data yet. Metrics appear here once social accounts are connected and posts are published — we never display estimated numbers as measured results.",
@@ -2519,5 +2520,58 @@
     "ruleHint": "An alert is raised when a queue holds at least {threshold} failed jobs. One alert per queue: it updates while the problem lasts and clears itself when the queue recovers.",
     "threshold": "Failed jobs threshold",
     "saveRule": "Save"
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "subtitle": "The AI Marketing Director plans a campaign and prepares drafts. You approve every post yourself.",
+    "rule": "Nothing is published automatically. Every post needs your individual approval, and you can pause or cancel a campaign at any time.",
+    "new": "New campaign",
+    "name": "Campaign name",
+    "goal": "Goal",
+    "product": "Product",
+    "chooseProduct": "Choose a product",
+    "create": "Create draft",
+    "list": "Your campaigns",
+    "emptyTitle": "No campaign yet",
+    "emptyHint": "Choose a verified product to start a campaign draft.",
+    "paused": "Paused",
+    "pause": "Pause (kill switch)",
+    "resume": "Resume",
+    "cancel": "Cancel campaign",
+    "budget": "Agent runs: {used} of {max}",
+    "cost": "AI cost: {usd} USD (simulated agents are free)",
+    "plan": "Plan",
+    "audiences": "Audience ideas",
+    "channels": "Channels",
+    "noAccount": "no connected account",
+    "market": "Market data",
+    "marketUnavailable": "unavailable: no verified market data, nothing is estimated",
+    "estimate": "Review time (estimate): about {minutes} min. No advertising spend is planned.",
+    "rejected": "{count} draft(s) were refused because they contained unverified claims or could not be scheduled.",
+    "posts": "Posts",
+    "approveHere": "Approve posts one by one in the approvals center",
+    "evaluation": "Performance",
+    "evalCounts": "{real} real, {simulated} simulated, {unavailable} unavailable measurement(s)",
+    "steps": {
+      "plan": "1. Plan",
+      "content": "2. Create drafts",
+      "submit": "3. Send for approval",
+      "metrics": "4. Evaluate"
+    },
+    "goals": {
+      "LAUNCH": "Product launch",
+      "AWARENESS": "Awareness",
+      "ENGAGEMENT": "Engagement",
+      "TRAFFIC": "Traffic"
+    },
+    "status": {
+      "DRAFT": "Draft",
+      "PLANNED": "Planned",
+      "CONTENT_READY": "Drafts ready",
+      "AWAITING_APPROVAL": "Awaiting approval",
+      "ACTIVE": "Active",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    }
   }
 }

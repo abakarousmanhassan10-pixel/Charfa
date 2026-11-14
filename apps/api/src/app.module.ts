@@ -32,6 +32,7 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { RunsModule } from './runs/runs.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { MarketModule } from './market/market.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 
 @Global()
 @Module({})
@@ -81,6 +82,7 @@ export class AppModule {
         RunsModule,
         WorkflowsModule,
         MarketModule,
+        CampaignsModule,
         AdminModule,
         HealthModule,
         FeaturesModule,
