@@ -54,6 +54,7 @@ services:
       - { key: WORKFLOWS_ENABLED, value: "true" }
       - { key: MARKET_INTELLIGENCE_ENABLED, value: "true" }
       - { key: SALES_ASSIST_ENABLED, value: "true" }
+      - { key: CAMPAIGNS_ENABLED, value: "true" }
 
   - type: web
     name: touma-web
