@@ -594,7 +594,8 @@
       "INVALID_STATE": "This action is not available in the current review state.",
       "NO_DRAFT": "Save the draft first.",
       "GENERATION_IN_PROGRESS": "This generation is still running.",
-      "SERVER_UNAVAILABLE": "The server is starting up or temporarily unavailable. Nothing was lost: wait about a minute and try again."
+      "SERVER_UNAVAILABLE": "The server is starting up or temporarily unavailable. Nothing was lost: wait about a minute and try again.",
+      "AI_PROVIDER_QUOTA": "The AI provider account has no remaining credit. Contact the administrator."
     },
     "notConfiguredTitle": "TOUMA AI is not configured",
     "notConfiguredText": "An administrator must add the AI provider credentials (OPENAI_API_KEY) on the server. Nothing is generated or simulated until then.",
@@ -2580,7 +2581,11 @@
       "ACTIVE": "Active",
       "COMPLETED": "Completed",
       "CANCELLED": "Cancelled"
-    }
+    },
+    "aiAnalysis": "Explain the results with AI",
+    "aiNeedsMetrics": "Evaluate the campaign first (step 4).",
+    "aiSuggestions": "Suggestions (you decide)",
+    "aiNote": "AI reading of the measured figures above. It claims no sales result and never spends, publishes or changes anything."
   },
   "intelligence": {
     "title": "Business control center",

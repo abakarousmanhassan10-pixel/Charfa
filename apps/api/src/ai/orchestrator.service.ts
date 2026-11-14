@@ -2,12 +2,14 @@ import { BadRequestException, ConflictException, HttpException, Injectable, Logg
 import { Prisma, type AIGeneration, type AITask } from '@touma/database';
 import {
   AgentRunError, assessGrounding, businessAnalyst, contentCreator, contextHash, detectInjection, collectStrings, marketingStrategist, OutputValidationError,
-  contentPlanner, productAnalyst, ProviderError, ProviderNotConfiguredError, runAgent, storyboardCreator,
+  campaignAnalyst, contentPlanner, productAnalyst, type CampaignReport, ProviderError, ProviderNotConfiguredError, runAgent, storyboardCreator,
   type AgentDefinition, type BusinessAnalysis, type BusinessContext, type ContentInput, type EngineConfig, type MarketingStrategy,
   type ProductAnalysis, type TextModelProvider,
 } from '@touma/ai-engine';
 import { FORMAT_RULES, addDays, type VideoFormat, type VideoStyle, type AiContentPurpose, type AiFormat, type AiLanguage, type AiPlatform, type AiTone } from '@touma/shared';
 import type { ZodTypeAny } from 'zod';
+import { createHash } from 'crypto';
+import { modelFor } from '@touma/config';
 import { Inject } from '@nestjs/common';
 import { AppEnv, InjectEnv } from '../config';
 import { AuditService } from '../audit/audit.service';
@@ -43,6 +45,7 @@ export type JobRequest =
   | { task: 'PRODUCT_ANALYSIS'; language: AiLanguage; item: Item; instructions?: string | null }
   | { task: 'MARKETING_STRATEGY'; language: AiLanguage; platforms: AiPlatform[]; goal?: string | null; focusItemIds?: string[]; instructions?: string | null }
   | ({ task: 'CONTENT' } & ContentRequest)
+  | { task: 'CAMPAIGN_ANALYSIS'; language: AiLanguage; campaignId: string; instructions?: string | null }
   | { task: 'STORYBOARD'; language: AiLanguage; format: VideoFormat; seconds: number; style: VideoStyle; tone: AiTone; item: Item | null; instructions?: string | null }
   | { task: 'CONTENT_PLAN'; language: AiLanguage; startDate: string; days: number; postsPerWeek: number; platforms: AiPlatform[]; tone?: AiTone | null; goal?: string | null; occasions: Array<{ name: string; date: string; day: number }>; instructions?: string | null };
 
@@ -67,6 +70,7 @@ const AGENT_FOR: Record<AITask, AgentDefinition<never, ZodTypeAny>> = {
   CONTENT: contentCreator as never,
   STORYBOARD: storyboardCreator as never,
   CONTENT_PLAN: contentPlanner as never,
+  CAMPAIGN_ANALYSIS: campaignAnalyst as never,
 };
 
 /**
@@ -102,9 +106,11 @@ export class AiOrchestratorService {
     return this.provider.isConfigured();
   }
 
-  private get engineConfig(): EngineConfig {
+  /** The model comes from configuration, per task (AI_TASK_MODELS, otherwise AI_MODEL). The safety id is a hash: no name or e-mail leaves TOUMA. */
+  private engineConfig(task: AITask, businessId: string): EngineConfig {
     return {
-      model: this.env.AI_MODEL,
+      model: modelFor(this.env, task),
+      safetyId: createHash('sha256').update(`touma-biz:${businessId}`).digest('hex').slice(0, 32),
       temperature: this.env.AI_TEMPERATURE,
       maxOutputTokens: this.env.AI_MAX_OUTPUT_TOKENS,
       timeoutMs: this.env.AI_TIMEOUT_MS,
@@ -145,6 +151,18 @@ export class AiOrchestratorService {
     return [...flags];
   }
 
+  /** The platform's own measured report for a campaign of this business (never computed by the model). */
+  private async campaignReport(businessId: string, campaignId: string): Promise<{ campaign: { name: string; goal: string | null; status: string }; report: CampaignReport }> {
+    const c = await this.prisma.campaign.findFirst({ where: { id: campaignId, businessId } });
+    if (!c) throw new NotFoundException({ code: 'CAMPAIGN_NOT_FOUND', message: 'Campaign not found' });
+    const ev = (c.plan as { evaluation?: { evidence: CampaignReport['evidence']; counts: CampaignReport['counts']; summary: string; best?: { engagementRate: number } | null; recommendations: string[]; caveat: string } } | null)?.evaluation;
+    if (!ev) throw new ConflictException({ code: 'NO_EVALUATION', message: 'Evaluate the campaign first: there are no measurements to analyze yet.' });
+    return {
+      campaign: { name: c.name, goal: (c.goal as { type?: string } | null)?.type ?? null, status: c.status },
+      report: { evidence: ev.evidence, counts: ev.counts, summary: ev.summary, bestEngagementRate: ev.best?.engagementRate ?? null, recommendations: ev.recommendations ?? [], caveat: ev.caveat },
+    };
+  }
+
   private async latest(businessId: string, task: AITask, where: Prisma.AIGenerationWhereInput = {}) {
     return this.prisma.aIGeneration.findFirst({ where: { businessId, task, status: 'SUCCEEDED', ...where }, orderBy: { createdAt: 'desc' } });
   }
@@ -161,6 +179,8 @@ export class AiOrchestratorService {
         return { task: req.task, language: req.language, params: { language: req.language, itemType: req.item.type, itemId: req.item.id }, itemType: req.item.type, itemId: req.item.id, instructions };
       case 'MARKETING_STRATEGY':
         return { task: req.task, language: req.language, params: { language: req.language, platforms: req.platforms, goal: req.goal ?? null, focusItems: req.focusItemIds ?? [] }, platform: req.platforms.join(','), instructions };
+      case 'CAMPAIGN_ANALYSIS':
+        return { task: req.task, language: req.language, params: { language: req.language, campaignId: req.campaignId }, instructions };
       case 'CONTENT':
         return {
           task: req.task,
@@ -203,6 +223,7 @@ export class AiOrchestratorService {
     switch (req.task) {
       case 'BUSINESS_ANALYSIS':
       case 'PRODUCT_ANALYSIS':
+      case 'CAMPAIGN_ANALYSIS':
         return 1;
       case 'MARKETING_STRATEGY':
         return 1 + ((await cachedProfile()) ? 0 : 1);
@@ -227,6 +248,7 @@ export class AiOrchestratorService {
     const ctx = await this.loadContext(tenant);
     if (req.task === 'PRODUCT_ANALYSIS' || ((req.task === 'CONTENT' || req.task === 'STORYBOARD') && req.item)) await this.assertItem(tenant.businessId, ctx, (req as { item: Item }).item);
     if (req.task === 'MARKETING_STRATEGY') this.assertFocus(ctx, req.focusItemIds ?? []);
+    if (req.task === 'CAMPAIGN_ANALYSIS') await this.campaignReport(tenant.businessId, req.campaignId);
     const hash = contextHash(ctx);
     const units = await this.estimateUnits(tenant.businessId, req, hash);
     const flags = this.injectionFlags(ctx, req.instructions);
@@ -244,7 +266,7 @@ export class AiOrchestratorService {
           userId: tenant.userId,
           status: 'QUEUED',
           provider: this.provider.name,
-          model: this.env.AI_MODEL,
+          model: modelFor(this.env, req.task),
           promptVersion: agent.promptVersion,
           contextHash: hash,
           injectionFlags: flags,
@@ -287,6 +309,8 @@ export class AiOrchestratorService {
         return { task: 'PRODUCT_ANALYSIS', language, item: { type: (p.itemType ?? g.itemType) as Item['type'], id: (p.itemId ?? g.itemId) as string }, instructions };
       case 'MARKETING_STRATEGY':
         return { task: 'MARKETING_STRATEGY', language, platforms: p.platforms as AiPlatform[], goal: (p.goal as string | null) ?? null, focusItemIds: (p.focusItems as string[]) ?? [], instructions };
+      case 'CAMPAIGN_ANALYSIS':
+        return { task: 'CAMPAIGN_ANALYSIS', language, campaignId: p.campaignId as string, instructions };
       case 'CONTENT':
         return { task: 'CONTENT', language, format: p.format as AiFormat, purpose: p.purpose as AiContentPurpose, tone: p.tone as AiTone, item: (p.item as Item | null) ?? null, instructions };
       case 'STORYBOARD':
@@ -304,6 +328,7 @@ export class AiOrchestratorService {
     if (err instanceof ProviderError) {
       const map: Record<string, [string, number, string]> = {
         auth: ['AI_PROVIDER_AUTH', 502, 'The AI provider rejected the configured credentials'],
+        quota: ['AI_PROVIDER_QUOTA', 503, 'The AI provider account has no remaining credit; contact the administrator'],
         rate_limit: ['AI_PROVIDER_RATE_LIMIT', 503, 'The AI provider is rate limiting requests; try again shortly'],
         timeout: ['AI_PROVIDER_TIMEOUT', 504, 'The AI provider did not answer in time'],
         refusal: ['AI_REFUSED', 422, 'The AI declined this request'],
@@ -327,7 +352,7 @@ export class AiOrchestratorService {
   /** Runs one agent into a generation row. Provider calls are recorded whether or not the run succeeds. */
   private async runInto<I, S extends ZodTypeAny>(row: AIGeneration, root: AIGeneration, agent: AgentDefinition<I, S>, args: { ctx: BusinessContext; input: I; instructions?: string | null; hash: string }) {
     try {
-      const res = await runAgent(agent, { provider: this.provider, context: args.ctx, input: args.input, instructions: args.instructions, config: this.engineConfig });
+      const res = await runAgent(agent, { provider: this.provider, context: args.ctx, input: args.input, instructions: args.instructions, config: this.engineConfig(agent.task as AITask, root.businessId) });
       const totals = await this.usage.recordAttempts({ businessId: root.businessId, userId: root.userId ?? '', agent: agent.agent, provider: this.provider.name, operation: agent.task, generationId: row.id, attempts: res.attempts });
       await this.prisma.aIGeneration.update({
         where: { id: row.id },
@@ -382,7 +407,7 @@ export class AiOrchestratorService {
         task: agent.task as AITask,
         status: 'RUNNING',
         provider: this.provider.name,
-        model: this.env.AI_MODEL,
+        model: modelFor(this.env, agent.task as AITask),
         promptVersion: agent.promptVersion,
         contextHash: hash,
         instructions: instructions ?? null,
@@ -429,6 +454,12 @@ export class AiOrchestratorService {
         await this.assertItem(root.businessId, ctx, req.item);
         await this.runInto(root, root, productAnalyst, { ctx, input: { language: req.language, itemType: req.item.type, itemId: req.item.id }, instructions: req.instructions, hash });
         await add({ step: 'product-analysis', status: 'done', generationId: root.id });
+        break;
+      }
+      case 'CAMPAIGN_ANALYSIS': {
+        const found = await this.campaignReport(root.businessId, req.campaignId);
+        await this.runInto(root, root, campaignAnalyst, { ctx, input: { language: req.language, campaign: found.campaign, report: found.report }, instructions: req.instructions, hash });
+        await add({ step: 'generation', status: 'done', generationId: root.id });
         break;
       }
       case 'MARKETING_STRATEGY': {

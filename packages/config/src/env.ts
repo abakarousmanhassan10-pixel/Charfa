@@ -58,13 +58,29 @@ export const appEnvSchema = z.object({
   MAX_OWNED_BUSINESSES: z.coerce.number().int().positive().default(5),
   // Optional provider credentials. Absence means the integration is "not configured".
   // ─── TOUMA AI engine ───
-  /** openai (default) | fake: deterministic TEST-ONLY provider, refused unless APP_ENV=test. */
-  AI_PROVIDER: z.enum(['openai', 'fake']).default('openai'),
+  /** openai (default) | fake and mock-openai: deterministic TEST-ONLY providers, refused unless APP_ENV=test. mock-openai runs the real OpenAI SDK against a built-in mock server (no network). */
+  AI_PROVIDER: z.enum(['openai', 'fake', 'mock-openai']).default('openai'),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_BASE_URL: z.string().url().optional(),
   OPENAI_ORGANIZATION: z.string().optional(),
-  /** Any model supporting Structured Outputs (json_schema, strict). */
+  /** Default model: any model supporting Structured Outputs (json_schema, strict). */
   AI_MODEL: z.string().min(1).default('gpt-4o-mini'),
+  /**
+   * Model per task as JSON, for example {"CONTENT":"a-cheaper-model","PRODUCT_ANALYSIS":"a-stronger-model"}. A task that is not listed uses AI_MODEL.
+   * Tasks: BUSINESS_ANALYSIS, PRODUCT_ANALYSIS, MARKETING_STRATEGY, CONTENT, STORYBOARD, CONTENT_PLAN, CAMPAIGN_ANALYSIS, CUSTOMER_SUPPORT.
+   * Add a price for each model in AI_MODEL_PRICING, otherwise its cost is reported as unknown.
+   */
+  AI_TASK_MODELS: z
+    .string()
+    .optional()
+    .transform((v, ctx) => {
+      try {
+        return parseTaskModels(v);
+      } catch (e) {
+        ctx.addIssue({ code: 'custom', message: (e as Error).message });
+        return z.NEVER;
+      }
+    }),
   /** Leave empty to use each agent's default (analysis 0.3, strategy 0.6, content 0.8). */
   AI_TEMPERATURE: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().min(0).max(2).optional()),
   AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(256).max(32_000).default(4000),
@@ -362,8 +378,8 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
       throw new EnvValidationError([`SMTP_PORT=${env.SMTP_PORT} uses STARTTLS: set SMTP_SECURE=false`]);
     }
   }
-  if (env.AI_PROVIDER === 'fake' && env.APP_ENV !== 'test') {
-    throw new EnvValidationError(['AI_PROVIDER=fake is only allowed when APP_ENV=test']);
+  if ((env.AI_PROVIDER === 'fake' || env.AI_PROVIDER === 'mock-openai') && env.APP_ENV !== 'test') {
+    throw new EnvValidationError([`AI_PROVIDER=${env.AI_PROVIDER} is only allowed when APP_ENV=test`]);
   }
   if (env.CHAT_CAPTCHA_PROVIDER === 'turnstile' && (!env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET)) {
     throw new EnvValidationError(['CHAT_CAPTCHA_PROVIDER=turnstile requires TURNSTILE_SITE_KEY and TURNSTILE_SECRET']);
@@ -415,7 +431,7 @@ export function productionProblems(env: AppEnv): string[] {
   if (/localhost/i.test(env.EMAIL_FROM)) p.push('EMAIL_FROM must be a real sender address');
   if (env.MALWARE_SCANNER === 'none' && !env.ALLOW_UNSCANNED_UPLOADS) p.push('MALWARE_SCANNER must be clamav (or set ALLOW_UNSCANNED_UPLOADS=true to accept the risk explicitly)');
   if (env.RATE_LIMIT_STORE !== 'redis') p.push('RATE_LIMIT_STORE must be redis');
-  if (env.AI_PROVIDER === 'fake') p.push('AI_PROVIDER=fake is test-only');
+  if (env.AI_PROVIDER === 'fake' || env.AI_PROVIDER === 'mock-openai') p.push(`AI_PROVIDER=${env.AI_PROVIDER} is test-only`);
   if (env.SOCIAL_PROVIDER_MODE === 'fake') p.push('SOCIAL_PROVIDER_MODE=fake is test-only');
   const socialConfigured = Boolean(env.META_APP_ID || env.TIKTOK_CLIENT_KEY || env.GOOGLE_CLIENT_ID || env.LINKEDIN_CLIENT_ID);
   if (socialConfigured && !env.PUBLIC_API_URL) p.push('PUBLIC_API_URL is required when a social platform is configured (OAuth redirect URIs, webhooks and media URLs)');
@@ -427,10 +443,39 @@ export function productionProblems(env: AppEnv): string[] {
 /** Reports which optional external integrations are configured. Never returns secret values. */
 export function integrationStatus(env: AppEnv) {
   return {
-    openai: env.AI_PROVIDER === 'fake' || Boolean(env.OPENAI_API_KEY),
+    openai: env.AI_PROVIDER === 'fake' || env.AI_PROVIDER === 'mock-openai' || Boolean(env.OPENAI_API_KEY),
     email: env.EMAIL_TRANSPORT === 'smtp' && Boolean(env.SMTP_HOST),
     malwareScanning: env.MALWARE_SCANNER === 'clamav',
     storage:
       env.STORAGE_DRIVER === 'memory' || Boolean(env.S3_BUCKET && env.S3_REGION && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY),
   };
+}
+
+
+/** Tasks that can have their own model (see AI_TASK_MODELS). */
+export const AI_TASK_NAMES = ['BUSINESS_ANALYSIS', 'PRODUCT_ANALYSIS', 'MARKETING_STRATEGY', 'CONTENT', 'STORYBOARD', 'CONTENT_PLAN', 'CAMPAIGN_ANALYSIS', 'CUSTOMER_SUPPORT'] as const;
+export type AiTaskName = (typeof AI_TASK_NAMES)[number];
+
+/** Parses AI_TASK_MODELS. Unknown task names and empty or oversized model names are refused so a typo cannot silently fall back. */
+export function parseTaskModels(raw: string | undefined): Partial<Record<AiTaskName, string>> {
+  if (!raw || raw.trim() === '') return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('AI_TASK_MODELS must be a JSON object');
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('AI_TASK_MODELS must be a JSON object');
+  const out: Partial<Record<AiTaskName, string>> = {};
+  for (const [task, model] of Object.entries(parsed as Record<string, unknown>)) {
+    if (!(AI_TASK_NAMES as readonly string[]).includes(task)) throw new Error(`AI_TASK_MODELS: unknown task "${task}" (allowed: ${AI_TASK_NAMES.join(', ')})`);
+    if (typeof model !== 'string' || model.trim() === '' || model.length > 100 || /\s/.test(model.trim())) throw new Error(`AI_TASK_MODELS: invalid model for ${task}`);
+    out[task as AiTaskName] = model.trim();
+  }
+  return out;
+}
+
+/** The model for a task: its own entry in AI_TASK_MODELS, otherwise AI_MODEL. Never a hard-coded name. */
+export function modelFor(env: Pick<AppEnv, 'AI_MODEL' | 'AI_TASK_MODELS'>, task: AiTaskName): string {
+  return env.AI_TASK_MODELS[task] ?? env.AI_MODEL;
 }

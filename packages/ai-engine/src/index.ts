@@ -19,3 +19,5 @@ export * from './agents/sales-agent';
 export * from './retrieval';
 export * from './providers/openai';
 export * from './testing/fake-provider';
+export * from './testing/mock-openai';
+export * from './agents/campaign-analyst';

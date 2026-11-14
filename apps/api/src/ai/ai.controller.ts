@@ -5,7 +5,7 @@ import { AI_CONTENT_PURPOSES, AI_FORMATS, AI_LANGUAGES, AI_TONES, FORMAT_RULES, 
 import { AppEnv, InjectEnv } from '../config';
 import { RequireTenantPermission } from '../tenancy/business-access.guard';
 import { Tenant, type TenantContext } from '../tenancy/tenant-context';
-import { BusinessAnalysisDto, ContentDto, GenerationQueryDto, MonthlyUsageQueryDto, ProductAnalysisDto, RegenerateDto, RejectDto, SaveDraftDto, StrategyDto, UsageQueryDto } from './ai.dto';
+import { BusinessAnalysisDto, CampaignAnalysisDto, ContentDto, GenerationQueryDto, MonthlyUsageQueryDto, ProductAnalysisDto, RegenerateDto, RejectDto, SaveDraftDto, StrategyDto, UsageQueryDto } from './ai.dto';
 import { AiApprovalService } from './ai-approval.service';
 import { AiHistoryService, generationDto, statusDto } from './ai-history.service';
 import { AiUsageService } from './ai-usage.service';
@@ -34,6 +34,7 @@ export class AiController {
       configured: this.orchestrator.configured,
       provider: this.env.AI_PROVIDER,
       model: this.env.AI_MODEL,
+      taskModels: this.env.AI_TASK_MODELS,
       temperature: this.env.AI_TEMPERATURE ?? 'agent-default',
       maxOutputTokens: this.env.AI_MAX_OUTPUT_TOKENS,
       costTracking: this.usage.costConfigured,
@@ -59,6 +60,15 @@ export class AiController {
   @RequireTenantPermission('ai.use')
   async productAnalysis(@Tenant() tenant: TenantContext, @Body() dto: ProductAnalysisDto) {
     return this.accepted(await this.orchestrator.submit(tenant, { task: 'PRODUCT_ANALYSIS', language: dto.language as AiLanguage, item: { type: dto.itemType, id: dto.itemId }, instructions: dto.instructions }));
+  }
+
+  @Post('campaign-analysis')
+  @HttpCode(202)
+  @Throttle(aiThrottle())
+  @ApiOperation({ summary: 'Queue a plain-language reading of a campaign\'s measured results (needs an evaluated campaign). Explains; never acts.' })
+  @RequireTenantPermission('ai.use')
+  async campaignAnalysis(@Tenant() tenant: TenantContext, @Body() dto: CampaignAnalysisDto) {
+    return this.accepted(await this.orchestrator.submit(tenant, { task: 'CAMPAIGN_ANALYSIS', language: dto.language as AiLanguage, campaignId: dto.campaignId, instructions: dto.instructions }));
   }
 
   @Post('marketing-strategy')

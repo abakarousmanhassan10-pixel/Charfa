@@ -217,3 +217,15 @@ export const salesReplySchema = z.object({
   missingInformation: list(s(300), 6),
 });
 export type SalesReply = z.infer<typeof salesReplySchema>;
+
+
+/** Plain-language reading of a campaign's measured results. The figures come from TOUMA's own report, never from the model. */
+export const campaignAnalysisSchema = z.object({
+  summary: s(1200),
+  /** Copied from the report: REAL, SIMULATED_ONLY or NONE. */
+  evidence: z.enum(['REAL', 'SIMULATED_ONLY', 'NONE']),
+  observations: list(z.object({ text: s(400), basedOn: s(80) }), 8),
+  recommendations: list(z.object({ text: s(400), needsMerchantApproval: z.boolean() }), 6),
+  caveats: list(s(300), 6),
+});
+export type CampaignAnalysis = z.infer<typeof campaignAnalysisSchema>;

@@ -371,6 +371,7 @@ enum AITask {
   MARKETING_STRATEGY
   CONTENT
   STORYBOARD
+  CAMPAIGN_ANALYSIS
 }
 
 enum AIGenerationStatus {

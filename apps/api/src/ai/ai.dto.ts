@@ -30,6 +30,11 @@ export class ProductAnalysisDto extends BaseAiDto {
   itemId: string;
 }
 
+export class CampaignAnalysisDto extends BaseAiDto {
+  @ApiProperty() @IsString() @Matches(ID_REGEX)
+  campaignId: string;
+}
+
 export class StrategyDto extends BaseAiDto {
   @ApiProperty({ enum: AI_PLATFORMS, isArray: true })
   @IsArray()

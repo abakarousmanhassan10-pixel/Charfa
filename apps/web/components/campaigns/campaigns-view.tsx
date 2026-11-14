@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/states';
+import { CampaignAiAnalysis } from './campaign-ai-analysis';
 import { ApiError, api } from '@/lib/api-client';
 import { useResource, type Paged } from '@/lib/use-resource';
 
@@ -124,6 +125,7 @@ export function CampaignsView() {
                 <Link href="/dashboard/calendar/approvals" className="mt-2 inline-block text-primary underline-offset-2 hover:underline">{t('campaigns.approveHere')}</Link>
               </div>
             )}
+            {write && <CampaignAiAnalysis campaignId={c.id} enabled={Boolean(c.plan?.evaluation)} />}
             {c.plan?.evaluation && (
               <div data-testid="evaluation" className="grid gap-1">
                 <p className="font-medium">{t('campaigns.evaluation')}</p>

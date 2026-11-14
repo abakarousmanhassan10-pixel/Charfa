@@ -35,6 +35,7 @@ import { MarketModule } from './market/market.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { ExecutiveModule } from './executive/executive.module';
+import { OpenAIModule } from './openai/openai.module';
 
 @Global()
 @Module({})
@@ -87,6 +88,7 @@ export class AppModule {
         CampaignsModule,
         IntelligenceModule,
         ExecutiveModule,
+        OpenAIModule,
         AdminModule,
         HealthModule,
         FeaturesModule,

@@ -13,6 +13,8 @@ export interface EngineConfig {
   temperature?: number | null;
   maxOutputTokens: number;
   timeoutMs: number;
+  /** Opaque hashed business id passed to the provider as its safety identifier. */
+  safetyId?: string;
   /** Retries for transient provider errors (rate limit, timeout, 5xx, network). */
   maxProviderRetries: number;
   /** Extra calls that send validation feedback to the model to repair its answer. */
@@ -94,6 +96,7 @@ export async function runAgent<I, S extends ZodTypeAny>(
           temperature: config.temperature === null ? undefined : (config.temperature ?? agent.defaultTemperature),
           maxOutputTokens: config.maxOutputTokens,
           timeoutMs: config.timeoutMs,
+          ...(config.safetyId ? { safetyId: config.safetyId } : {}),
         });
         attempts.push({ attempt: attempts.length + 1, kind, model: res.model, inputTokens: res.inputTokens, outputTokens: res.outputTokens, latencyMs: Date.now() - started, success: true });
         raw = res.text;

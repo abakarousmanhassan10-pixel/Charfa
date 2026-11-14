@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "AITask" ADD VALUE 'CAMPAIGN_ANALYSIS';
+

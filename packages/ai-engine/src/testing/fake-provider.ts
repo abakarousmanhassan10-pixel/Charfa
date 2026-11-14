@@ -101,6 +101,18 @@ function defaultAnswer(req: GenerateRequest): unknown {
   const t = T[lang](bizName, item?.name ?? bizName);
 
   switch (req.schemaName) {
+    case 'campaign_analysis': {
+      const perf = data.performance ?? {};
+      const sim = perf.evidence === 'SIMULATED_ONLY';
+      const c = perf.counts ?? { real: 0, simulated: 0, unavailable: 0 };
+      return {
+        summary: sim ? `The ${c.simulated} measured post(s) come from a simulator, so this describes the workflow, not real audience feedback.` : perf.evidence === 'REAL' ? `${c.real} post(s) have real measurements.` : 'There are no measurements yet.',
+        evidence: perf.evidence ?? 'NONE',
+        observations: [{ text: `${c.real} real, ${c.simulated} simulated and ${c.unavailable} unavailable measurement(s).`, basedOn: 'performance.counts' }],
+        recommendations: [{ text: 'Prepare one follow-up draft and send it for approval before any publication.', needsMerchantApproval: true }],
+        caveats: ['Engagement is not a sales result. An unavailable measurement is unknown, not zero.'],
+      };
+    }
     case 'sales_reply':
       return salesAnswer(data, task);
     case 'content_plan': {

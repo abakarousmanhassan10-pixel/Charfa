@@ -1,4 +1,4 @@
-export type ProviderErrorKind = 'auth' | 'rate_limit' | 'timeout' | 'server' | 'bad_request' | 'refusal' | 'network' | 'truncated';
+export type ProviderErrorKind = 'auth' | 'rate_limit' | 'quota' | 'timeout' | 'server' | 'bad_request' | 'refusal' | 'network' | 'truncated';
 
 /** Thrown when the provider has no credentials. Never retried; surfaced as "AI not configured". */
 export class ProviderNotConfiguredError extends Error {

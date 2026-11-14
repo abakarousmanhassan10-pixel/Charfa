@@ -10,6 +10,8 @@ export interface GenerateRequest {
   temperature?: number;
   maxOutputTokens: number;
   timeoutMs: number;
+  /** Opaque, hashed id of the business (never a name or e-mail), sent so the provider can tell abusive tenants apart. */
+  safetyId?: string;
 }
 
 export interface GenerateResult {

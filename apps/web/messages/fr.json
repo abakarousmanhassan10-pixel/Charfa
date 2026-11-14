@@ -594,7 +594,8 @@
       "INVALID_STATE": "Cette action n’est pas disponible dans l’état de relecture actuel.",
       "NO_DRAFT": "Enregistrez d’abord le brouillon.",
       "GENERATION_IN_PROGRESS": "Cette génération est encore en cours.",
-      "SERVER_UNAVAILABLE": "Le serveur démarre ou est momentanément indisponible. Rien n’est perdu : attendez environ une minute puis réessayez."
+      "SERVER_UNAVAILABLE": "Le serveur démarre ou est momentanément indisponible. Rien n’est perdu : attendez environ une minute puis réessayez.",
+      "AI_PROVIDER_QUOTA": "Le compte du fournisseur d’IA n’a plus de crédit. Contactez l’administrateur."
     },
     "notConfiguredTitle": "TOUMA AI n'est pas configuré",
     "notConfiguredText": "Un administrateur doit ajouter les identifiants du fournisseur d'IA (OPENAI_API_KEY) sur le serveur. Rien n'est généré ni simulé d'ici là.",
@@ -2580,7 +2581,11 @@
       "ACTIVE": "Active",
       "COMPLETED": "Terminée",
       "CANCELLED": "Annulée"
-    }
+    },
+    "aiAnalysis": "Expliquer les résultats avec l’IA",
+    "aiNeedsMetrics": "Évaluez d’abord la campagne (étape 4).",
+    "aiSuggestions": "Suggestions (vous décidez)",
+    "aiNote": "Lecture par l’IA des chiffres mesurés ci-dessus. Elle n’affirme aucun résultat de vente et ne dépense, ne publie ni ne modifie rien."
   },
   "intelligence": {
     "title": "Centre de contrôle",
