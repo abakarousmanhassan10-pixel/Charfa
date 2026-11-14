@@ -21,6 +21,7 @@ export class FeaturesController {
       market: this.env.MARKET_INTELLIGENCE_ENABLED,
       salesAssist: this.env.SALES_ASSIST_ENABLED,
       campaigns: this.env.CAMPAIGNS_ENABLED,
+      intelligence: this.env.INTELLIGENCE_ENABLED,
       ai: i.openai,
       media: i.storage,
     };

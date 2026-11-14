@@ -167,7 +167,9 @@ export class CampaignsService {
     const { insights } = await this.exec(tenant, id, 'PRODUCT_INTELLIGENCE', k('pi'), { products }, (i) => productIntelligence(i.products));
     const market = await this.exec(tenant, id, 'MARKET_RESEARCH', k('mr'), {}, () => marketResearch());
     const audiences = await this.exec(tenant, id, 'AUDIENCE_STRATEGY', k('as'), { products }, (i) => audienceStrategy(i.products));
-    const { ideas } = await this.exec(tenant, id, 'CREATIVE_STRATEGY', k('cs'), { products, languages }, (i) => creativeStrategy(i.products, i.languages, CAMPAIGN_LIMITS.entriesMax));
+    const pref = await this.prisma.merchantMemory.findUnique({ where: { businessId_kind_key: { businessId: tenant.businessId, kind: 'PREFERENCE', key: 'creative.maxCaptionChars' } } });
+    const maxCaption = pref && pref.expiresAt > new Date() && typeof (pref.value as { value?: unknown }).value === 'number' ? Math.min(900, Math.max(100, (pref.value as { value: number }).value)) : 900;
+    const { ideas } = await this.exec(tenant, id, 'CREATIVE_STRATEGY', k('cs'), { products, languages, maxCaption }, (i) => creativeStrategy(i.products, i.languages, CAMPAIGN_LIMITS.entriesMax, i.maxCaption));
     const accounts = await this.prisma.socialAccount.findMany({ where: { businessId: tenant.businessId, status: 'CONNECTED' }, select: { platform: true } });
     const connected = [...new Set(accounts.map((a) => a.platform as string))];
     const plan = await this.exec(tenant, id, 'CAMPAIGN_PLANNING', k('cp'), { ideas: ideas.length, connected, days: o.days, startDate: o.startDate }, () =>

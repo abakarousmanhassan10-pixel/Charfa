@@ -102,7 +102,8 @@
       "market": "Veille de marché",
       "sales": "Agent commercial IA",
       "operations": "Exploitation",
-      "campaigns": "Campagnes"
+      "campaigns": "Campagnes",
+      "intelligence": "Centre de contrôle"
     },
     "analyticsTitle": "Performances",
     "noAnalytics": "Aucune donnée pour l'instant. Les statistiques apparaîtront une fois vos comptes connectés et vos publications en ligne — nous n'affichons jamais d'estimations comme des résultats mesurés.",
@@ -2572,6 +2573,56 @@
       "ACTIVE": "Active",
       "COMPLETED": "Terminée",
       "CANCELLED": "Annulée"
+    }
+  },
+  "intelligence": {
+    "title": "Centre de contrôle",
+    "subtitle": "Ce qui se passe, ce qui attend votre décision et ce que les données montrent vraiment.",
+    "simulated": "Plateformes simulées : aucune vraie publication, aucun vrai message et aucune vraie mesure ici.",
+    "real": "Connecté à de vraies plateformes.",
+    "origin": "Publications : {sim} simulée(s), {real} réelle(s).",
+    "campaigns": "Campagnes",
+    "openCampaigns": "Ouvrir les campagnes",
+    "approvals": "Approbations en attente",
+    "pending": "publication(s) attendent votre approbation",
+    "openApprovals": "Ouvrir le centre d’approbation",
+    "alerts": "Alertes opérationnelles",
+    "noAlerts": "Aucune alerte ouverte.",
+    "recommendations": "Recommandations",
+    "noRecs": "Aucune recommandation. Générez-les à partir de vos données.",
+    "experiments": "Expériences",
+    "noExperiments": "Aucune expérience.",
+    "agents": "Activité des agents (7 jours)",
+    "costQuota": "Coûts et quotas",
+    "cost": "Coût IA : {usd} sur {limit} USD (les agents simulés sont gratuits)",
+    "executions": "Exécutions d’agents : {used} sur {max}",
+    "publications": "Publications aujourd’hui : {used} sur {max} ({pct} %)",
+    "replies": "Réponses aujourd’hui : {used} sur {max}",
+    "none": "Rien pour l’instant",
+    "approve": "Approuver",
+    "reject": "Refuser",
+    "evaluated": "Évaluation terminée. Scores : {score}",
+    "actions": {
+      "scan": "Analyser les alertes",
+      "generate": "Trouver des opportunités",
+      "evaluate": "Lancer les évaluations"
+    },
+    "severity": {
+      "CRITICAL": "Critique",
+      "WARNING": "Avertissement",
+      "INFO": "Info"
+    },
+    "verdict": {
+      "INSUFFICIENT_DATA": "Données insuffisantes",
+      "INCONCLUSIVE_SMALL_SAMPLE": "Échantillon trop petit",
+      "NO_DETECTABLE_DIFFERENCE": "Aucune différence détectable",
+      "DIFFERENCE_DETECTED": "Différence détectée",
+      "SIMULATED_NOT_EVIDENCE": "Simulé : pas une preuve"
+    },
+    "origins": {
+      "REAL": "Données réelles",
+      "SIMULATED": "Données simulées",
+      "UNAVAILABLE": "Indisponibles"
     }
   }
 }

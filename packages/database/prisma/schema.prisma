@@ -549,6 +549,10 @@ model Business {
   customers           Customer[]
   salesAgentConfig    SalesAgentConfig?
   campaigns           Campaign[]
+  merchantMemory      MerchantMemory[]
+  experiments         Experiment[]
+  recommendations     Recommendation[]
+  businessAlerts      BusinessAlert[]
 
   @@index([deletedAt])
   @@index([createdAt])
@@ -2289,4 +2293,140 @@ model AgentExecution {
   @@unique([campaignId, idempotencyKey])
   @@index([businessId, createdAt])
   @@index([campaignId, agent])
+}
+
+// ─────────────────────── Business intelligence (Phase N21) ───────────────────────
+// Everything here is tenant-scoped and removable. Memory holds minimized facts with provenance, never raw customer messages.
+
+enum MemoryKind {
+  BRAND
+  PRODUCT_FACT
+  CAMPAIGN_HISTORY
+  AUDIENCE
+  METRIC
+  PREFERENCE
+  DECISION
+  EVALUATION
+}
+
+enum ExperimentStatus {
+  DRAFT
+  RUNNING
+  CONCLUDED
+  CANCELLED
+}
+
+enum RecommendationStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+  DISMISSED
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model MerchantMemory {
+  id            String     @id @default(cuid())
+  businessId    String
+  kind          MemoryKind
+  key           String
+  value         Json
+  /// Where the fact comes from: MERCHANT, CATALOG, AGENT, PLATFORM_REAL, PLATFORM_SIMULATED.
+  provenance    String
+  sourceRef     String?
+  retentionDays Int        @default(365)
+  expiresAt     DateTime   @db.Timestamptz(3)
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, kind, key])
+  @@index([businessId, kind])
+  @@index([expiresAt])
+}
+
+model Experiment {
+  id              String           @id @default(cuid())
+  businessId      String
+  campaignId      String?
+  hypothesis      String
+  /// engagementRate | likes | reach (read from AnalyticsSnapshot only).
+  metric          String
+  status          ExperimentStatus @default(DRAFT)
+  /// [{ label: "A"|"B", calendarEventId }]; both are ordinary N18 entries that need their own approval.
+  variants        Json
+  minSamplePerArm Int              @default(100)
+  result          Json?
+  createdById     String?
+  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
+  concludedAt     DateTime?        @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, status, createdAt])
+}
+
+model Recommendation {
+  id           String               @id @default(cuid())
+  businessId   String
+  campaignId   String?
+  /// DATA_GAP | RECONNECT_ACCOUNT | REAL_METRICS | FOLLOW_UP | IMPROVEMENT. There is no advertising-budget kind.
+  kind         String
+  title        String
+  evidence     Json
+  costEstimate Json
+  priority     Int
+  status       RecommendationStatus @default(PROPOSED)
+  /// Same open proposal is never created twice (unique while the key is set; cleared once decided).
+  dedupeKey    String?
+  /// IMPROVEMENT only: the candidate change and its offline evaluation. It cannot be approved before the evaluation passed.
+  change       Json?
+  offlineEval  Json?
+  decidedById  String?
+  decidedAt    DateTime?            @db.Timestamptz(3)
+  createdAt    DateTime             @default(now()) @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, dedupeKey])
+  @@index([businessId, status, priority])
+}
+
+/// Deterministic evaluation runs, kept to detect regressions against the previous run of the same suite.
+model EvaluationRun {
+  id         String   @id @default(cuid())
+  businessId String
+  suite      String
+  version    Int
+  passed     Boolean
+  score      Int
+  results    Json
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([businessId, suite, createdAt])
+}
+
+/// Tenant alert. `dedupeKey` is set only while the alert is open, so a condition that persists updates one alert.
+model BusinessAlert {
+  id          String        @id @default(cuid())
+  businessId  String
+  kind        String
+  severity    AlertSeverity
+  title       String
+  detail      Json?
+  dedupeKey   String?
+  occurrences Int           @default(1)
+  firstSeenAt DateTime      @default(now()) @db.Timestamptz(3)
+  lastSeenAt  DateTime      @default(now()) @db.Timestamptz(3)
+  resolvedAt  DateTime?     @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, dedupeKey])
+  @@index([businessId, resolvedAt, severity])
 }

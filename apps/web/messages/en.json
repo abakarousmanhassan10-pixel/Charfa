@@ -102,7 +102,8 @@
       "market": "Market intelligence",
       "sales": "AI sales agent",
       "operations": "Operations",
-      "campaigns": "Campaigns"
+      "campaigns": "Campaigns",
+      "intelligence": "Control center"
     },
     "analyticsTitle": "Performance",
     "noAnalytics": "No data yet. Metrics appear here once social accounts are connected and posts are published — we never display estimated numbers as measured results.",
@@ -2572,6 +2573,56 @@
       "ACTIVE": "Active",
       "COMPLETED": "Completed",
       "CANCELLED": "Cancelled"
+    }
+  },
+  "intelligence": {
+    "title": "Business control center",
+    "subtitle": "What is happening, what needs your decision, and what the data really shows.",
+    "simulated": "Simulated platforms: no real post, message or metric exists here.",
+    "real": "Connected to real platforms.",
+    "origin": "Published posts: {sim} simulated, {real} real.",
+    "campaigns": "Campaigns",
+    "openCampaigns": "Open campaigns",
+    "approvals": "Pending approvals",
+    "pending": "post(s) waiting for your approval",
+    "openApprovals": "Open the approvals center",
+    "alerts": "Operational alerts",
+    "noAlerts": "No open alert.",
+    "recommendations": "Recommendations",
+    "noRecs": "No recommendation yet. Generate them from your data.",
+    "experiments": "Experiments",
+    "noExperiments": "No experiment yet.",
+    "agents": "Agent activity (7 days)",
+    "costQuota": "Cost and quotas",
+    "cost": "AI cost: {usd} of {limit} USD (simulated agents are free)",
+    "executions": "Agent runs: {used} of {max}",
+    "publications": "Publications today: {used} of {max} ({pct}%)",
+    "replies": "Replies today: {used} of {max}",
+    "none": "Nothing yet",
+    "approve": "Approve",
+    "reject": "Reject",
+    "evaluated": "Evaluation done. Scores: {score}",
+    "actions": {
+      "scan": "Scan alerts",
+      "generate": "Find opportunities",
+      "evaluate": "Run evaluations"
+    },
+    "severity": {
+      "CRITICAL": "Critical",
+      "WARNING": "Warning",
+      "INFO": "Info"
+    },
+    "verdict": {
+      "INSUFFICIENT_DATA": "Not enough data",
+      "INCONCLUSIVE_SMALL_SAMPLE": "Sample too small",
+      "NO_DETECTABLE_DIFFERENCE": "No detectable difference",
+      "DIFFERENCE_DETECTED": "Difference detected",
+      "SIMULATED_NOT_EVIDENCE": "Simulated: not evidence"
+    },
+    "origins": {
+      "REAL": "Real data",
+      "SIMULATED": "Simulated data",
+      "UNAVAILABLE": "Unavailable"
     }
   }
 }

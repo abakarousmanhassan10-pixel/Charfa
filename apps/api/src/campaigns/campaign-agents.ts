@@ -105,7 +105,7 @@ const AVAIL: Record<'en' | 'fr', Record<string, string>> = { en: { IN_STOCK: 'av
 const tag = (s: string) => `#${s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, ' ').trim().split(' ').filter(Boolean).slice(0, 3).map((w) => w[0]!.toUpperCase() + w.slice(1).toLowerCase()).join('')}`;
 
 /** Two variants per product at most (benefit, feature) plus an availability note; only sentences built from verified fields. */
-export function creativeStrategy(products: ProductFacts[], languages: Array<'en' | 'fr'>, maxIdeas: number): { ideas: ContentIdea[] } {
+export function creativeStrategy(products: ProductFacts[], languages: Array<'en' | 'fr'>, maxIdeas: number, maxCaption = 900): { ideas: ContentIdea[] } {
   const ideas: ContentIdea[] = [];
   for (const lang of languages) {
     const t = PHRASES[lang];
@@ -114,7 +114,7 @@ export function creativeStrategy(products: ProductFacts[], languages: Array<'en'
       const price = money(p);
       const name = insight.name;
       const hashtags = [tag(name), p.category?.name ? tag(p.category.name) : null].filter(Boolean) as string[];
-      const add = (angle: Angle, body: string) => ideas.push({ productId: p.id, angle, title: `${name} · ${angle.toLowerCase()}`.slice(0, 120), caption: `${body}${price ? t.price(price) : ''} ${t.cta}`.slice(0, 900), hashtags, language: lang });
+      const add = (angle: Angle, body: string) => ideas.push({ productId: p.id, angle, title: `${name} · ${angle.toLowerCase()}`.slice(0, 120), caption: `${body}${price ? t.price(price) : ''} ${t.cta}`.slice(0, maxCaption), hashtags, language: lang });
       if (insight.problemsAddressed[0]) add('BENEFIT', t.benefit(name, insight.problemsAddressed[0]));
       const feature = list(p.features).find((f) => detectInjection(f).length === 0);
       if (feature) add('FEATURE', t.feature(name, feature));

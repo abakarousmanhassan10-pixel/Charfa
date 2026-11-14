@@ -63,6 +63,7 @@ const testEnv = {
   MARKET_INTELLIGENCE_ENABLED: 'true',
   SALES_ASSIST_ENABLED: 'true',
   CAMPAIGNS_ENABLED: 'true',
+  INTELLIGENCE_ENABLED: 'true',
 };
 
 export default defineConfig({
