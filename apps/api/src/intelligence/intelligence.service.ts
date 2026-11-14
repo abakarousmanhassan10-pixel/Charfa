@@ -236,7 +236,7 @@ export class IntelligenceService {
       this.prisma.campaign.findMany({ where: { businessId: b }, orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, name: true, status: true, paused: true } }),
       this.prisma.content.count({ where: { businessId: b, status: 'IN_REVIEW', deletedAt: null } }),
       this.prisma.agentExecution.groupBy({ by: ['status'], where: { businessId: b, createdAt: { gte: week } }, _count: { _all: true } }),
-      this.prisma.recommendation.findMany({ where: { businessId: b, status: 'PROPOSED' }, orderBy: { priority: 'desc' }, take: 5, select: { id: true, kind: true, title: true, priority: true } }),
+      this.prisma.recommendation.findMany({ where: { businessId: b, status: 'PROPOSED', source: 'INTELLIGENCE' }, orderBy: { priority: 'desc' }, take: 5, select: { id: true, kind: true, title: true, priority: true } }),
       this.prisma.experiment.findMany({ where: { businessId: b }, orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, hypothesis: true, status: true, result: true } }),
       this.listAlerts(tenant),
       this.prisma.publication.count({ where: { businessId: b, createdAt: { gte: day0() } } }),

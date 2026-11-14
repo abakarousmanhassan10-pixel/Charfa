@@ -10,7 +10,25 @@ import { GOLDEN_PRODUCTS, goldenContext } from './intelligence.service';
 import { MemoryService, PREFERENCE_KEYS } from './memory.service';
 
 /** There is deliberately no advertising or budget kind: no recommendation can ask to spend money, and none is accepted if forged. */
-export const RECOMMENDATION_KINDS = ['DATA_GAP', 'RECONNECT_ACCOUNT', 'REAL_METRICS', 'FOLLOW_UP', 'IMPROVEMENT'] as const;
+export const RECOMMENDATION_KINDS = ['DATA_GAP', 'RECONNECT_ACCOUNT', 'REAL_METRICS', 'FOLLOW_UP', 'IMPROVEMENT', 'ECONOMICS_GAP', 'NEGATIVE_MARGIN_REVIEW', 'AD_COST_REVIEW', 'CAMPAIGN_PROPOSAL', 'CUSTOMER_INFO_GAP'] as const;
+/** Where a proposal comes from. Executive decisions contain finance figures, so they are listed and decided only through the executive endpoints. */
+export type RecommendationScope = 'INTELLIGENCE' | 'EXECUTIVE';
+
+/** A decision proposal (N22): problem, evidence, action, an estimate with its assumptions (or "not estimated"), confidence, cost, risk and who must approve. */
+export interface DecisionInput {
+  kind: Kind;
+  title: string;
+  problem: string;
+  evidence: Record<string, unknown>;
+  proposedAction: Record<string, unknown>;
+  expectedBenefit: { type: 'ESTIMATE' | 'NOT_ESTIMATED'; text?: string; reason?: string; assumptions?: string[] };
+  confidence: 'LOW' | 'MEDIUM' | 'HIGH';
+  reviewMinutes: number;
+  risk: string;
+  priority: number;
+  dedupeKey: string;
+  campaignId?: string;
+}
 type Kind = (typeof RECOMMENDATION_KINDS)[number];
 interface Candidate { kind: Kind; campaignId?: string; title: string; evidence: Record<string, unknown>; reviewMinutes: number; priority: number; dedupeKey: string }
 
@@ -66,20 +84,21 @@ export class RecommendationsService {
     });
   }
 
-  async list(tenant: TenantContext, status?: string) {
-    const where: Prisma.RecommendationWhereInput = { businessId: tenant.businessId, ...(status ? { status: status as never } : {}) };
+  async list(tenant: TenantContext, status?: string, scope: RecommendationScope = 'INTELLIGENCE') {
+    const where: Prisma.RecommendationWhereInput = { businessId: tenant.businessId, source: scope, ...(status ? { status: status as never } : {}) };
     return { items: await this.prisma.recommendation.findMany({ where, orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }], take: 100 }) };
   }
 
-  private async load(tenant: TenantContext, id: string) {
-    const r = await this.prisma.recommendation.findFirst({ where: { id, businessId: tenant.businessId } });
+  private async load(tenant: TenantContext, id: string, scope: RecommendationScope = 'INTELLIGENCE') {
+    const r = await this.prisma.recommendation.findFirst({ where: { id, businessId: tenant.businessId, source: scope } });
     if (!r) throw new NotFoundException({ code: 'RECOMMENDATION_NOT_FOUND', message: 'Recommendation not found' });
     return r;
   }
 
   /** The merchant decides. Approving a follow-up only creates DRAFT posts (each still needs its own approval); approving an improvement needs a passed offline evaluation. */
-  async approve(tenant: TenantContext, id: string) {
-    const r = await this.load(tenant, id);
+  async approve(tenant: TenantContext, id: string, scope: RecommendationScope = 'INTELLIGENCE') {
+    const r = await this.load(tenant, id, scope);
+    if (scope === 'EXECUTIVE') await this.assertNotPaused(tenant.businessId);
     if (r.status !== 'PROPOSED') throw new ConflictException({ code: 'INVALID_STATE', message: `A ${r.status} recommendation cannot be approved` });
     if (r.kind === 'IMPROVEMENT') {
       const ev = r.offlineEval as { passed?: boolean } | null;
@@ -90,6 +109,13 @@ export class RecommendationsService {
     let action: unknown = null;
     try {
       if (r.kind === 'FOLLOW_UP' && r.campaignId) action = await this.campaigns.followUps(tenant, r.campaignId);
+      // The only automatic consequence of an executive decision: a campaign DRAFT. Every post still needs its own approval.
+      // Price, cost, advertising and refund decisions are recorded as the merchant's decision and nothing is changed.
+      if (r.kind === 'CAMPAIGN_PROPOSAL') {
+        const a = r.proposedAction as { productIds?: string[]; name?: string } | null;
+        const created = await this.campaigns.create(tenant, { name: (a?.name ?? r.title).slice(0, 120), goalType: 'LAUNCH', productIds: a?.productIds ?? [], idempotencyKey: `decision:${r.id}` });
+        action = { campaignDraftId: created.id, note: 'Draft only: nothing is published until each post is approved.' };
+      }
       if (r.kind === 'IMPROVEMENT') {
         const ch = r.change as { key: string; to: number };
         await this.memory.put(tenant, { kind: 'PREFERENCE', key: ch.key, value: { value: ch.to, recommendationId: r.id }, provenance: 'MERCHANT' });
@@ -104,13 +130,31 @@ export class RecommendationsService {
     return { id, status: 'APPROVED', action };
   }
 
-  async reject(tenant: TenantContext, id: string) {
-    const r = await this.load(tenant, id);
+  async reject(tenant: TenantContext, id: string, scope: RecommendationScope = 'INTELLIGENCE') {
+    const r = await this.load(tenant, id, scope);
     const res = await this.prisma.recommendation.updateMany({ where: { id, businessId: tenant.businessId, status: 'PROPOSED' }, data: { status: 'REJECTED', decidedById: tenant.userId, decidedAt: new Date() } });
     if (!res.count) throw new ConflictException({ code: 'INVALID_STATE', message: `A ${r.status} recommendation cannot be rejected` });
     await this.memory.put(tenant, { kind: 'DECISION', key: `recommendation.${r.id}`, value: { kind: r.kind, title: r.title, decision: 'REJECTED' }, provenance: 'MERCHANT', sourceRef: r.id });
     await this.audit.record({ action: 'intelligence.recommendation_rejected', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'Recommendation', entityId: id });
     return { id, status: 'REJECTED' };
+  }
+
+  private async assertNotPaused(businessId: string) {
+    const st = await this.prisma.executiveSettings.findUnique({ where: { businessId } });
+    if (st?.paused) throw new ConflictException({ code: 'EXECUTIVE_PAUSED', message: 'The emergency stop is on: no executive decision can be approved until it is released.' });
+  }
+
+  /** Creates an executive decision. A kind outside the closed list is refused; there is no price, refund, payment or advertising kind. */
+  async createDecision(businessId: string, d: DecisionInput) {
+    if (!(RECOMMENDATION_KINDS as readonly string[]).includes(d.kind)) throw new BadRequestException({ code: 'INVALID_KIND', message: 'Unknown decision kind' });
+    return this.prisma.recommendation.create({
+      data: {
+        businessId, campaignId: d.campaignId ?? null, kind: d.kind, title: d.title, evidence: d.evidence as Prisma.InputJsonValue,
+        costEstimate: { aiCostMicros: 0, adSpendMicros: 0, reviewMinutes: d.reviewMinutes, note: 'Deterministic agents cost 0 USD. Review time is an estimate. TOUMA never spends on advertising.' },
+        priority: d.priority, dedupeKey: d.dedupeKey, source: 'EXECUTIVE', problem: d.problem, proposedAction: d.proposedAction as Prisma.InputJsonValue,
+        expectedBenefit: d.expectedBenefit as Prisma.InputJsonValue, confidence: d.confidence, risk: d.risk, requiredApproval: 'MERCHANT',
+      },
+    });
   }
 
   // ─── Safe self-improvement ──────────────────────────────────────────────────

@@ -553,6 +553,10 @@ model Business {
   experiments         Experiment[]
   recommendations     Recommendation[]
   businessAlerts      BusinessAlert[]
+  productEconomics    ProductEconomics[]
+  marketingExpenses   MarketingExpense[]
+  executiveRuns       ExecutiveRun[]
+  executiveSettings   ExecutiveSettings?
 
   @@index([deletedAt])
   @@index([createdAt])
@@ -606,11 +610,12 @@ model Product {
   updatedAt      DateTime            @updatedAt @db.Timestamptz(3)
   deletedAt      DateTime?           @db.Timestamptz(3)
 
-  business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  category         Category?         @relation("ProductCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  business         Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category         Category?          @relation("ProductCategory", fields: [categoryId], references: [id], onDelete: SetNull)
   media            ProductMedia[]
   contents         Content[]
   campaignProducts CampaignProduct[]
+  economics        ProductEconomics[]
 
   /// SKU is released (set to null) when a product is soft-deleted, so it can be reused.
   @@unique([businessId, sku])
@@ -2391,6 +2396,16 @@ model Recommendation {
   decidedAt    DateTime?            @db.Timestamptz(3)
   createdAt    DateTime             @default(now()) @db.Timestamptz(3)
 
+  /// Phase N22 decision fields (all optional, so existing rows are unchanged).
+  problem          String?
+  proposedAction   Json?
+  /// An estimate with its assumptions, or { type: "NOT_ESTIMATED", reason }. Never a promise.
+  expectedBenefit  Json?
+  confidence       String?
+  risk             String?
+  requiredApproval String?
+  source           String  @default("INTELLIGENCE")
+
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([businessId, dedupeKey])
@@ -2429,4 +2444,78 @@ model BusinessAlert {
 
   @@unique([businessId, dedupeKey])
   @@index([businessId, resolvedAt, severity])
+}
+
+// ─────────────────────── Business autopilot (Phase N22) ───────────────────────
+// Merchant-entered finance inputs and decision-support runs. Nothing here moves money, changes a price, issues a refund or spends on ads.
+
+/// Costs the merchant entered for one product. A null field means "not supplied"; it is never replaced by a guess.
+model ProductEconomics {
+  id                      String   @id @default(cuid())
+  businessId              String
+  productId               String
+  /// Currency of the cost fields below.
+  currency                String
+  unitCost                Decimal? @db.Decimal(12, 2)
+  shippingCost            Decimal? @db.Decimal(12, 2)
+  paymentFeePercent       Decimal? @db.Decimal(5, 2)
+  paymentFixedFee         Decimal? @db.Decimal(12, 2)
+  returnsAllowancePercent Decimal? @db.Decimal(5, 2)
+  updatedById             String?
+  createdAt               DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, productId])
+  @@index([businessId])
+}
+
+/// A marketing expense the merchant recorded by hand. `orders` is the merchant's own count of orders attributed to it, when known.
+model MarketingExpense {
+  id          String   @id @default(cuid())
+  businessId  String
+  campaignId  String?
+  amount      Decimal  @db.Decimal(12, 2)
+  currency    String
+  spentOn     DateTime @db.Timestamptz(3)
+  orders      Int?
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, spentOn])
+}
+
+/// One execution of the executive orchestrator. The idempotency key makes a repeated request return the same run.
+model ExecutiveRun {
+  id             String   @id @default(cuid())
+  businessId     String
+  idempotencyKey String
+  /// COMPLETED | PARTIAL (an agent failed or timed out) | FAILED
+  status         String
+  steps          Json
+  summary        Json
+  durationMs     Int
+  createdById    String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, createdAt])
+}
+
+/// Per-business safety controls. `paused` is the emergency stop: no executive run and no executive decision is applied while it is true.
+model ExecutiveSettings {
+  businessId    String   @id
+  paused        Boolean  @default(false)
+  dailyRunLimit Int      @default(10)
+  updatedById   String?
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }

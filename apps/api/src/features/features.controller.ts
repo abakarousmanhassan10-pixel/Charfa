@@ -22,6 +22,7 @@ export class FeaturesController {
       salesAssist: this.env.SALES_ASSIST_ENABLED,
       campaigns: this.env.CAMPAIGNS_ENABLED,
       intelligence: this.env.INTELLIGENCE_ENABLED,
+      autopilot: this.env.AUTOPILOT_ENABLED,
       ai: i.openai,
       media: i.storage,
     };

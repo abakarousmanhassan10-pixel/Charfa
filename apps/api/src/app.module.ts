@@ -34,6 +34,7 @@ import { WorkflowsModule } from './workflows/workflows.module';
 import { MarketModule } from './market/market.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
+import { ExecutiveModule } from './executive/executive.module';
 
 @Global()
 @Module({})
@@ -85,6 +86,7 @@ export class AppModule {
         MarketModule,
         CampaignsModule,
         IntelligenceModule,
+        ExecutiveModule,
         AdminModule,
         HealthModule,
         FeaturesModule,

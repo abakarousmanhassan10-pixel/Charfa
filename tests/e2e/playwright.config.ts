@@ -64,6 +64,7 @@ const testEnv = {
   SALES_ASSIST_ENABLED: 'true',
   CAMPAIGNS_ENABLED: 'true',
   INTELLIGENCE_ENABLED: 'true',
+  AUTOPILOT_ENABLED: 'true',
 };
 
 export default defineConfig({

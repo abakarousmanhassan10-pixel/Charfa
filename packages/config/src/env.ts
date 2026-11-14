@@ -235,6 +235,8 @@ export const appEnvSchema = z.object({
   MARKET_MAX_ANALYSES_PER_DAY: z.coerce.number().int().min(1).max(10_000).default(100),
   MARKET_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   // ─── Sales assistant 2.0 (Phase N5): off by default; no outbound channel exists, nothing is ever sent ───
+  // ─── Business autopilot (Phase N22): decision support from merchant-entered costs. It proposes only (no price change, refund, payment, ad spend or publication). Off by default.
+  AUTOPILOT_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   // ─── Business intelligence (Phase N21): memory, evaluations, experiments, recommendations, alerts. Local and deterministic; off by default.
   INTELLIGENCE_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   // ─── Marketing campaigns (Phase N20): multi-agent planning with mock providers only; needs no external credential. Off by default.
