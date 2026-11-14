@@ -61,6 +61,8 @@ export const appEnvSchema = z.object({
   /** openai (default) | fake and mock-openai: deterministic TEST-ONLY providers, refused unless APP_ENV=test. mock-openai runs the real OpenAI SDK against a built-in mock server (no network). */
   AI_PROVIDER: z.enum(['openai', 'fake', 'mock-openai']).default('openai'),
   OPENAI_API_KEY: z.string().optional(),
+  /** Master server switch for the REAL OpenAI text provider. Off by default: even with a key set, no request leaves the server until this is "true". */
+  OPENAI_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   OPENAI_BASE_URL: z.string().url().optional(),
   OPENAI_ORGANIZATION: z.string().optional(),
   /** Default model: any model supporting Structured Outputs (json_schema, strict). */
@@ -443,7 +445,7 @@ export function productionProblems(env: AppEnv): string[] {
 /** Reports which optional external integrations are configured. Never returns secret values. */
 export function integrationStatus(env: AppEnv) {
   return {
-    openai: env.AI_PROVIDER === 'fake' || env.AI_PROVIDER === 'mock-openai' || Boolean(env.OPENAI_API_KEY),
+    openai: env.AI_PROVIDER === 'fake' || env.AI_PROVIDER === 'mock-openai' || (env.OPENAI_ENABLED && Boolean(env.OPENAI_API_KEY)),
     email: env.EMAIL_TRANSPORT === 'smtp' && Boolean(env.SMTP_HOST),
     malwareScanning: env.MALWARE_SCANNER === 'clamav',
     storage:

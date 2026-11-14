@@ -66,3 +66,12 @@ Prices were not verified here; configure them in `AI_MODEL_PRICING`.
 
 ## 6. Limitations
 Never run against the real API in this phase: real model behavior (schema acceptance, latency, refusals, price) is unverified. Market Intelligence is a deterministic manual-entry tool and uses no model. Images and video use their own providers (`IMAGE_PROVIDER`, `VIDEO_PROVIDER`), unchanged. Real Facebook, Instagram, TikTok and YouTube publication is still not enabled.
+
+## N23.1 – Server switch and visible mode
+
+- `OPENAI_ENABLED` (default `false`) is the master switch for the **real** OpenAI text provider. While it is off, the provider receives no key, reports "not configured", refuses every generation with `AI_NOT_CONFIGURED` (HTTP 503), creates no job and sends no request, even if `OPENAI_API_KEY` is set.
+- To activate later (not done here): `AI_PROVIDER=openai`, `OPENAI_API_KEY` (server only), `OPENAI_ENABLED=true`, `AI_MODEL` (+ optional `AI_TASK_MODELS`, `AI_MODEL_PRICING`), quotas, and a spending limit on the OpenAI account.
+- `GET /ai/status` returns `mode`: `real`, `simulated` (test providers `fake` / `mock-openai`, APP_ENV=test only) or `disabled`, plus `realSwitch`. The web app shows a banner on every AI page when the mode is `simulated` or `disabled`, and a "simulated result" badge on campaign analyses.
+- `generateMarketingContent()` is the spec name of `generateMarketingCopy()` on `OpenAIProviderService`.
+- The switch covers the text agents. Image and video generation are controlled separately by `IMAGE_PROVIDER` / `VIDEO_PROVIDER` (default `none`).
+- Tests: `ai-provider.spec.ts` (switch, mode, fetch spy), `openai-disabled.e2e-spec.ts` (disabled with a key, 503, no job, no network call), `openai-key-security.e2e-spec.ts`, `openai-integration.e2e-spec.ts` (MockOpenAIProvider).

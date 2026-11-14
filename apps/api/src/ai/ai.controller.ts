@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AI_CONTENT_PURPOSES, AI_FORMATS, AI_LANGUAGES, AI_TONES, FORMAT_RULES, FORMATS_BY_PLATFORM, type AiContentPurpose, type AiFormat, type AiLanguage, type AiPlatform, type AiTone } from '@touma/shared';
 import { AppEnv, InjectEnv } from '../config';
+import { aiMode } from './ai-provider';
 import { RequireTenantPermission } from '../tenancy/business-access.guard';
 import { Tenant, type TenantContext } from '../tenancy/tenant-context';
 import { BusinessAnalysisDto, CampaignAnalysisDto, ContentDto, GenerationQueryDto, MonthlyUsageQueryDto, ProductAnalysisDto, RegenerateDto, RejectDto, SaveDraftDto, StrategyDto, UsageQueryDto } from './ai.dto';
@@ -32,6 +33,8 @@ export class AiController {
   async status(@Tenant() tenant: TenantContext) {
     return {
       configured: this.orchestrator.configured,
+      mode: aiMode(this.env, this.orchestrator.configured),
+      realSwitch: this.env.OPENAI_ENABLED,
       provider: this.env.AI_PROVIDER,
       model: this.env.AI_MODEL,
       taskModels: this.env.AI_TASK_MODELS,

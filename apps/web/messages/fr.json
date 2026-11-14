@@ -798,7 +798,8 @@
     "simulatedBanner": "IA simulée : ce serveur utilise un fournisseur de test, donc les résultats sont des textes génériques construits à partir de vos données, pas de vraies réponses d’IA.",
     "notConfiguredBanner": "TOUMA AI n’est pas configurée sur ce serveur : aucun texte ne peut encore être généré.",
     "noActiveItems": "Aucun produit ni service actif. TOUMA AI n’utilise que les éléments Actifs, et les nouveaux produits démarrent en Brouillon.",
-    "openProducts": "Ouvrir Produits et en passer un en Actif"
+    "openProducts": "Ouvrir Produits et en passer un en Actif",
+    "simulatedBadge": "Résultat simulé (fournisseur de test)"
   },
   "account": {
     "forgotLink": "Mot de passe oublié ?",

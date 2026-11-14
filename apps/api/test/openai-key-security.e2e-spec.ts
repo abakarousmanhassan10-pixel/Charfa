@@ -19,6 +19,7 @@ describe('OpenAI key security (e2e)', () => {
   beforeAll(async () => {
     set('AI_PROVIDER', 'openai');
     set('OPENAI_API_KEY', CANARY);
+    set('OPENAI_ENABLED', 'true');
     set('OPENAI_BASE_URL', 'http://127.0.0.1:9'); // closed port: nothing is sent anywhere
     set('AI_MAX_PROVIDER_RETRIES', '0');
     set('AI_JOB_ATTEMPTS', '1');

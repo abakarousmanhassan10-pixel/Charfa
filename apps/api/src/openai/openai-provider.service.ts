@@ -72,6 +72,11 @@ export class OpenAIProviderService {
     });
   }
 
+  /** Name used by the N23.1 specification; identical to generateMarketingCopy. */
+  async generateMarketingContent(tenant: TenantContext, i: Parameters<OpenAIProviderService['generateMarketingCopy']>[1]) {
+    return this.generateMarketingCopy(tenant, i);
+  }
+
   /** Audience ideas for one item: the `customerSegments` of its analysis (name and reason, from verified data). Non-sensitive by construction. */
   async suggestAudience(tenant: TenantContext, i: Common & { item: ItemRef }) {
     return this.analyzeProduct(tenant, i);

@@ -798,7 +798,8 @@
     "simulatedBanner": "Simulated AI: this server uses a test provider, so results are generic placeholders built from your data, not real AI answers.",
     "notConfiguredBanner": "TOUMA AI is not configured on this server: no text can be generated yet.",
     "noActiveItems": "No active product or service yet. TOUMA AI only uses Active items, and new products start as Draft.",
-    "openProducts": "Open Products and set one to Active"
+    "openProducts": "Open Products and set one to Active",
+    "simulatedBadge": "Simulated result (test provider)"
   },
   "account": {
     "forgotLink": "Forgot password?",

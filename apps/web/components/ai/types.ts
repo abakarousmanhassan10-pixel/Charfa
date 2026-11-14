@@ -74,6 +74,9 @@ export interface JobStatus {
 
 export interface AiStatus {
   configured: boolean;
+  /** real = live provider, simulated = test provider (placeholders), disabled = switch off or no key. */
+  mode?: 'real' | 'simulated' | 'disabled';
+  realSwitch?: boolean;
   provider: string;
   model: string;
   temperature: number | string;

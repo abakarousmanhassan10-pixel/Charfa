@@ -67,6 +67,7 @@ services:
       - { key: RATE_LIMIT_STORE, value: redis }
       - { key: AI_WORKER_INLINE, value: "true" } # workers run inside the API process: fine for one instance
       - { key: AI_PROVIDER, value: openai }
+      - { key: OPENAI_ENABLED, value: "false" } # switch to "true" in the dashboard only when you want real OpenAI calls
       - { key: IMAGE_PROVIDER, value: none }
       - { key: VIDEO_PROVIDER, value: none }
       - { key: SOCIAL_PROVIDER_MODE, value: live } # no platform credentials: nothing can be connected or published

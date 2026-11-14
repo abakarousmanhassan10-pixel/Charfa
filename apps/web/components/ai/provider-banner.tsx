@@ -9,6 +9,6 @@ export function AiProviderBanner() {
   const s = status.data;
   if (!s) return null;
   if (!s.configured) return <p className="mb-4 rounded-md bg-amber-500/10 px-3 py-2 text-sm" role="status" data-testid="ai-not-configured">{t('ai.notConfiguredBanner')}</p>;
-  if (s.provider === 'fake') return <p className="mb-4 rounded-md bg-amber-500/10 px-3 py-2 text-sm" role="status" data-testid="ai-simulated">{t('ai.simulatedBanner')}</p>;
+  if (s.mode === 'simulated' || s.provider === 'fake') return <p className="mb-4 rounded-md bg-amber-500/10 px-3 py-2 text-sm" role="status" data-testid="ai-simulated">{t('ai.simulatedBanner')}</p>;
   return null;
 }
