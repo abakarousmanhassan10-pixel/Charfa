@@ -27,6 +27,7 @@ export class SimulatedPaymentProvider implements PaymentProvider {
   async createCardSetup() { const id = randomUUID(); return { setupRef: `sim_setup_${id}`, hostedUrl: `https://simulated.invalid/card-setup/${id}` }; }
   async createSubscription() { return { subscriptionRef: `sim_sub_${randomUUID()}` }; }
   async cancelSubscription() { /* nothing to cancel anywhere */ }
+  async resumeSubscription() { /* nothing to resume anywhere */ }
 
   /** Builds a signed delivery exactly as the simulated "provider" would send it (used by tests and the local simulator). */
   sign(event: Omit<NormalizedBillingEvent, 'occurredAt' | 'periodStart' | 'periodEnd'> & { occurredAt?: string; periodStart?: string; periodEnd?: string }, at = new Date()) {

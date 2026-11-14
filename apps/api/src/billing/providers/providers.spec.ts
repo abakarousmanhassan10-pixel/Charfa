@@ -33,6 +33,7 @@ describe('PayoneerPaymentProvider', () => {
     await expect(p.createCardSetup()).rejects.toMatchObject({ code: 'PROVIDER_NOT_VERIFIED' });
     await expect(p.createSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
     await expect(p.cancelSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
+    await expect(p.resumeSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
     expect(() => p.verifyWebhook()).toThrow(ProviderUnavailableError);
   });
 });

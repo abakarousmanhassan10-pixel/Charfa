@@ -20,5 +20,6 @@ export class PayoneerPaymentProvider implements PaymentProvider {
   async createCardSetup(): Promise<never> { return this.refuse(); }
   async createSubscription(): Promise<never> { return this.refuse(); }
   async cancelSubscription(): Promise<never> { return this.refuse(); }
+  async resumeSubscription(): Promise<never> { return this.refuse(); }
   verifyWebhook(): NormalizedBillingEvent { return this.refuse(); }
 }

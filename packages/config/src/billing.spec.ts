@@ -24,3 +24,16 @@ describe('billing configuration (N24)', () => {
     expect(productionProblems(loadEnv(valid)).join(' ')).not.toMatch(/BILLING_ENABLED/);
   });
 });
+
+describe('Payoneer personal account guard (N25)', () => {
+  it('refuses the payoneer provider unless the account is a business account', () => {
+    expect(loadEnv(valid).PAYONEER_ACCOUNT_TYPE).toBe('personal');
+    expect(() => loadEnv({ ...valid, BILLING_PROVIDER: 'payoneer' })).toThrow(/personal Payoneer account must not be used/);
+    expect(() => loadEnv({ ...valid, BILLING_PROVIDER: 'payoneer', PAYONEER_ACCOUNT_TYPE: 'personal' })).toThrow(/PAYONEER_ACCOUNT_TYPE=business/);
+    expect(loadEnv({ ...valid, BILLING_PROVIDER: 'payoneer', PAYONEER_ACCOUNT_TYPE: 'business' }).BILLING_PROVIDER).toBe('payoneer');
+  });
+  it('failed-payment limit is configurable and bounded', () => {
+    expect(loadEnv(valid).BILLING_MAX_FAILED_PAYMENTS).toBe(3);
+    expect(() => loadEnv({ ...valid, BILLING_MAX_FAILED_PAYMENTS: '0' })).toThrow();
+  });
+});

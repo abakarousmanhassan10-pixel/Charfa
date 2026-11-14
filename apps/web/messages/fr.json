@@ -1512,6 +1512,13 @@
         "draft_ready": "Une réponse IA attend votre relecture",
         "customer_message": "Nouveau message client",
         "ai_degraded": "L’agent IA n’arrive plus à répondre"
+      },
+      "billing": {
+        "payment_failed": "Un paiement d'abonnement a échoué",
+        "unpaid": "Abonnement suspendu après plusieurs échecs de paiement",
+        "canceled": "Votre abonnement a été annulé",
+        "trial_ending": "Votre essai gratuit se termine dans moins de 24 heures",
+        "trial_ended": "Votre essai gratuit est terminé"
       }
     }
   },

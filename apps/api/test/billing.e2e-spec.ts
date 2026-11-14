@@ -173,7 +173,7 @@ describe('Billing off by default and Payoneer unverified', () => {
   });
 
   it('Payoneer adapter refuses everything: capabilities unverified, no request sent', async () => {
-    const env = withEnv({ BILLING_ENABLED: 'true', BILLING_PROVIDER: 'payoneer', FOUNDER_EMAILS: undefined });
+    const env = withEnv({ BILLING_ENABLED: 'true', BILLING_PROVIDER: 'payoneer', PAYONEER_ACCOUNT_TYPE: 'business', FOUNDER_EMAILS: undefined });
     env.apply();
     await resetDb();
     await ensurePlans();

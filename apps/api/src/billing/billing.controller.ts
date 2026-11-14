@@ -38,6 +38,12 @@ export class BillingController {
   @RequireTenantPermission('billing.manage')
   subscribe(@Tenant() t: TenantContext) { return this.svc.subscribe(t); }
 
+  @Post('resume')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Undo a cancellation scheduled for the end of the period' })
+  @RequireTenantPermission('billing.manage')
+  resume(@Tenant() t: TenantContext) { return this.svc.resume(t); }
+
   @Post('cancel')
   @HttpCode(200)
   @ApiOperation({ summary: 'Cancel at the end of the paid period' })

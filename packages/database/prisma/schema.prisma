@@ -1357,6 +1357,11 @@ model Subscription {
   providerSubscriptionId String?            @unique
   /// Opaque provider token for the saved card (hosted capture). Never a card number, expiry or CVC.
   paymentMethodRef       String?
+  /// Consecutive failed renewals (reset by a successful payment). Drives PAST_DUE -> UNPAID.
+  failedPaymentCount     Int                @default(0)
+  lastPaymentFailureAt   DateTime?          @db.Timestamptz(3)
+  /// Set when the business moved to another payment provider (the previous one, for traceability).
+  providerMigratedFrom   String?
   currentPeriodStart     DateTime?          @db.Timestamptz(3)
   currentPeriodEnd       DateTime?          @db.Timestamptz(3)
   cancelAtPeriodEnd      Boolean            @default(false)

@@ -70,3 +70,27 @@ Payoneer can still be the *payout/settlement* account behind one of these. Selec
 3. Apply the additive migration to production (with backup), set `FOUNDER_EMAILS`, `BILLING_WEBHOOK_SECRET` and provider secrets in the dashboard (never in chat or git).
 4. Add the merchant UI (trial banner, card page, cancel) and enforce entitlement on selected features, with the founder exempt; decide what happens to existing businesses (grandfathering) — an explicit decision, not an automatic migration.
 5. Legal pages (terms, refund, privacy), tax/invoicing setup, then enable `BILLING_ENABLED` for a pilot.
+
+## N25 additions: personal account, failures, cancellation, provider migration
+
+### The founder's personal Payoneer account is never connected
+- `BILLING_PROVIDER=payoneer` is **refused at start-up** unless `PAYONEER_ACCOUNT_TYPE=business` (default `personal`). A personal account therefore cannot be wired to automatic customer payments, even by mistake.
+- The Payoneer adapter is still inert (see N24). Until a business entity exists and Payoneer confirms the capabilities, the working provider is the simulator (tests) or none.
+- Payoneer personal accounts are generally meant for the individual's own receipts; using one to collect customer subscriptions may breach its terms and complicates tax and liability. Confirm with Payoneer when the company is created.
+
+### Failed payments (dunning)
+Each failed renewal (verified webhook `payment.failed`) increments `failedPaymentCount` and sets `PAST_DUE`: access continues for the 3-day grace period after the paid period ends (`PAST_DUE_GRACE_DAYS`). After `BILLING_MAX_FAILED_PAYMENTS` consecutive failures (default 3) the subscription becomes `UNPAID` and access ends. A successful payment clears the counter and restores `ACTIVE`. Each failure notifies the owner in the app (`billing.payment_failed`, `billing.unpaid`); redelivered events count once. Retry timing of the card itself belongs to the provider.
+
+### Cancellation and resumption
+`POST /billing/cancel` cancels at the end of the paid period (access kept); `POST /billing/resume` undoes it while the period has not ended. A final `subscription.canceled` webhook notifies the owner (`billing.canceled`).
+
+### Trial reminders
+`BillingService.sweepTrials()` sends one notification 24 h before a trial ends and one when it has ended without a subscription. It changes no subscription and skips founders. **It is not scheduled yet**: a worker job calls it when billing goes live.
+
+### Migrating to a professional provider without rebuilding
+Plans, subscriptions, trial, entitlement, payments and webhook storage are provider-neutral; only the adapter changes (`BILLING_PROVIDER` + a new class implementing `PaymentProvider`). When the configured provider differs from a subscription's `provider`:
+- `GET /billing/status` shows `providerMigration.required`;
+- webhooks of the new provider can only match subscriptions of the new provider (no cross-provider confusion);
+- while the old provider still holds a live subscription, `card-setup`, `subscribe` and `cancel` are refused (`PROVIDER_MIGRATION_BLOCKED`) so nobody is billed twice: end it at the old provider first;
+- then the merchant captures a new card on the new provider's hosted page (card tokens cannot be copied between providers by TOUMA unless both providers offer an official token migration), TOUMA creates the new customer, records `providerMigratedFrom`, and the same subscription row continues with the same plan and history.
+Recommended order: create the business entity → open the professional account → build and sandbox-test the adapter → enable for new customers → move existing ones in batches with advance notice.

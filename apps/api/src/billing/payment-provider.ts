@@ -42,6 +42,8 @@ export interface PaymentProvider {
   createCardSetup(input: { customerRef: string; returnUrl: string }): Promise<{ setupRef: string; hostedUrl: string }>;
   createSubscription(input: { customerRef: string; paymentMethodRef: string; amount: string; currency: string; interval: 'MONTH'; firstChargeAt: Date | null }): Promise<{ subscriptionRef: string }>;
   cancelSubscription(input: { subscriptionRef: string; atPeriodEnd: boolean }): Promise<void>;
+  /** Undoes a cancellation scheduled for the end of the period. */
+  resumeSubscription(input: { subscriptionRef: string }): Promise<void>;
   /** Verifies the signature on the RAW body and returns a normalized event. Throws WebhookSignatureError when it cannot prove the sender. */
   verifyWebhook(input: { rawBody: Buffer; headers: Record<string, string | string[] | undefined> }): NormalizedBillingEvent;
 }

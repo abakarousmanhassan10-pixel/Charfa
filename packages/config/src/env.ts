@@ -258,6 +258,10 @@ export const appEnvSchema = z.object({
   /** none = no provider; simulated = test-only in-process provider (APP_ENV=test); payoneer = adapter that refuses everything until its capabilities are verified against Payoneer's official documentation. */
   BILLING_PROVIDER: z.enum(['none', 'simulated', 'payoneer']).default('none'),
   BILLING_WEBHOOK_SECRET: z.string().min(16).optional(),
+  /** Which kind of Payoneer account would be connected. A PERSONAL account must never be used for automatic customer payments: BILLING_PROVIDER=payoneer is refused unless this is "business". */
+  PAYONEER_ACCOUNT_TYPE: z.enum(['personal', 'business']).default('personal'),
+  /** Consecutive failed renewals after which a subscription becomes UNPAID (access ends). The provider's own retry schedule is separate. */
+  BILLING_MAX_FAILED_PAYMENTS: z.coerce.number().int().min(1).max(10).default(3),
   /** Comma-separated e-mails of the founder(s): owners with a VERIFIED e-mail on this list keep free lifetime access. */
   FOUNDER_EMAILS: z.string().default('').transform((v) => v.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)),
   // ─── Business autopilot (Phase N22): decision support from merchant-entered costs. It proposes only (no price change, refund, payment, ad spend or publication). Off by default.
@@ -386,6 +390,9 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
     if ([25, 587, 2525, 2587].includes(env.SMTP_PORT) && env.SMTP_SECURE) {
       throw new EnvValidationError([`SMTP_PORT=${env.SMTP_PORT} uses STARTTLS: set SMTP_SECURE=false`]);
     }
+  }
+  if (env.BILLING_PROVIDER === 'payoneer' && env.PAYONEER_ACCOUNT_TYPE !== 'business') {
+    throw new EnvValidationError(['BILLING_PROVIDER=payoneer requires PAYONEER_ACCOUNT_TYPE=business: a personal Payoneer account must not be used for automatic customer payments']);
   }
   if (env.BILLING_PROVIDER === 'simulated' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['BILLING_PROVIDER=simulated is only allowed when APP_ENV=test']);
