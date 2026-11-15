@@ -109,3 +109,7 @@ Downloads use the signed media URL with `?download=1` (attachment) and `?variant
 - **UI**: "Vidéos IA : x/5 utilisées", "Images IA : x/5 utilisées", progress bars, remaining count, next renewal date in the client's zone, and the message "Vous avez utilisé toutes vos créations disponibles aujourd'hui. Votre quota sera renouvelé demain." (English equivalent); the generate buttons disable when the request does not fit.
 
 **Limits.** The monthly unit quotas still apply on top. The daily-key day can briefly differ from the browser's idea of "today" during a pending timezone change (by design). Costs are estimates from the configured price table. Tests: `creative-daily-quota.e2e-spec.ts` (13).
+
+## Free test mode (N28)
+
+A free, fully functional version of the Studio (local demo media, projects, library, simulated script and scheduling) is described in [CREATIVE-MOCK.md](CREATIVE-MOCK.md).

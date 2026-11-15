@@ -175,4 +175,14 @@ describe('Creative Studio settings', () => {
     expect(() => loadEnv({ ...valid, SALES_AGENT_TEMPERATURE: 'hot' })).toThrow(/SALES_AGENT_TEMPERATURE/);
     expect(() => loadEnv({ ...valid, SALES_AGENT_TIMEOUT_MS: '100' })).toThrow();
   });
+
+  describe('free creative test mode (N28)', () => {
+    it('CREATIVE_STUDIO_MODE=mock forces the simulators and is refused in production; higgsfield stays disabled', () => {
+      const env = loadEnv({ ...valid, CREATIVE_STUDIO_MODE: 'mock', IMAGE_PROVIDER: 'openai', VIDEO_PROVIDER: 'openai', VIDEO_MODEL: 'any' });
+      expect(env.IMAGE_PROVIDER).toBe('mock');
+      expect(env.VIDEO_PROVIDER).toBe('mock');
+      expect(() => loadEnv({ ...valid, CREATIVE_STUDIO_MODE: 'mock', APP_ENV: 'production' })).toThrow(/CREATIVE_STUDIO_MODE=mock/);
+      expect(() => loadEnv({ ...valid, VIDEO_PROVIDER: 'higgsfield' })).toThrow(/disabled in this build/);
+    });
+  });
 });

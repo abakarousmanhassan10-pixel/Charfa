@@ -876,7 +876,8 @@
       "videos": "Vidéos",
       "storyboards": "Storyboards",
       "brandKit": "Kit de marque",
-      "history": "Historique"
+      "history": "Historique",
+      "studio": "Studio"
     },
     "overview": {
       "title": "Studio créatif",
@@ -1239,6 +1240,80 @@
       "resets": "Renouvellement",
       "exhausted": "Vous avez utilisé toutes vos créations disponibles aujourd'hui. Votre quota sera renouvelé demain.",
       "tzPending": "Un changement de fuseau horaire prend effet au prochain renouvellement."
+    },
+    "studio": {
+      "title": "Studio créatif — test gratuit",
+      "subtitle": "Créez une image ou une vidéo de 8 secondes, enregistrez-la comme projet et préparez une programmation fictive.",
+      "freeTitle": "Mode test gratuit : résultats simulés",
+      "freeText": "Les images et vidéos sont des fichiers de démonstration locaux, pas de la vraie IA. Rien n’est publié, rien n’est facturé.",
+      "simulatedBadge": "Démo simulée",
+      "kind": "Type de création",
+      "kinds": {
+        "IMAGE": "Image",
+        "VIDEO": "Vidéo"
+      },
+      "description": "Décrivez votre publicité",
+      "descriptionHint": "Que doit montrer la publicité ? Seuls vos mots sont réutilisés.",
+      "descriptionPlaceholder": "Jus de bissap frais pour le week-end",
+      "photo": "Photo de référence (facultatif)",
+      "choosePhoto": "Choisir une photo",
+      "removePhoto": "Retirer la photo",
+      "rights": "Cette photo m’appartient ou je peux l’utiliser et la modifier.",
+      "format": "Format",
+      "aspects": {
+        "1:1": "Carré 1:1",
+        "4:5": "Portrait 4:5",
+        "9:16": "Vertical 9:16",
+        "16:9": "Paysage 16:9"
+      },
+      "style": "Style publicitaire",
+      "videoLength": "Les vidéos de démonstration durent 8 secondes.",
+      "generate": "Générer (simulé)",
+      "result": "Résultat",
+      "download": "Télécharger",
+      "emptyTitle": "Rien de généré pour l’instant",
+      "emptyText": "Décrivez votre publicité et appuyez sur Générer.",
+      "projectName": "Nom du projet",
+      "saveProject": "Enregistrer le projet",
+      "updateProject": "Mettre à jour le projet",
+      "workflow": "Parcours",
+      "steps": {
+        "brief": "1 Brief",
+        "script": "2 Script",
+        "visuals": "3 Visuels",
+        "caption": "4 Légende",
+        "schedule": "5 Programmation"
+      },
+      "projectStatus": {
+        "DRAFT": "Brouillon",
+        "SCRIPTED": "Script prêt",
+        "READY": "Prêt",
+        "SCHEDULED_SIMULATED": "Programmé (simulé)"
+      },
+      "prepareScript": "Préparer script et légende",
+      "history": "Créations précédentes",
+      "restore": "Revenir à celle-ci",
+      "scheduleTitle": "Programmation fictive",
+      "platform": "Plateforme",
+      "when": "Date et heure",
+      "simulate": {
+        "HYBRID": "Simuler (Hybride)",
+        "AUTO": "Simuler (Auto)"
+      },
+      "outcome": {
+        "BLOCKED": "Bloqué : corrigez les vérifications ci-dessous",
+        "WOULD_WAIT_FOR_APPROVAL": "Attendrait l’approbation d’une personne",
+        "WOULD_AUTO_SCHEDULE": "Serait programmé automatiquement"
+      },
+      "library": "Médiathèque",
+      "projects": "Projets",
+      "filterType": "Type",
+      "filterProject": "Projet",
+      "allTypes": "Tous les types",
+      "allProjects": "Tous les projets",
+      "libraryEmpty": "Aucune création",
+      "libraryEmptyText": "Vos images et vidéos livrées apparaissent ici.",
+      "delete": "Supprimer"
     }
   },
   "calendar": {

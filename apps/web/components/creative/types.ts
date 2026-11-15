@@ -58,6 +58,8 @@ export interface Meter {
 }
 
 export interface CreativeOverview {
+  mode?: 'live' | 'mock';
+  freeTestMode?: boolean;
   simulated?: { image: boolean; video: boolean };
   disclosure?: string;
   image: { configured: boolean; provider: string; model: string; capabilities: { nativeSizes: Array<{ width: number; height: number }>; maxImagesPerRequest: number; edit: boolean; inputFidelity: boolean } | null };

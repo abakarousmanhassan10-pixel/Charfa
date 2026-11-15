@@ -4,7 +4,8 @@
   "private": true,
   "main": "dist/index.js",
   "files": [
-    "dist"
+    "dist",
+    "assets"
   ],
   "types": "dist/index.d.ts",
   "scripts": {

@@ -68,6 +68,7 @@ export function dimensionsFor(aspect: AspectRatio, resolution: Resolution): { wi
 export const VIDEO_FORMATS = {
   SHORT_VERTICAL: { aspect: '9:16', label: 'Short vertical (Reels, TikTok, Shorts)', platforms: ['INSTAGRAM', 'TIKTOK', 'YOUTUBE', 'FACEBOOK'], minSeconds: 4, maxSeconds: 60 },
   SQUARE: { aspect: '1:1', label: 'Square (feed)', platforms: ['INSTAGRAM', 'FACEBOOK'], minSeconds: 4, maxSeconds: 30 },
+  PORTRAIT: { aspect: '4:5', label: 'Portrait (Instagram feed)', platforms: ['INSTAGRAM', 'FACEBOOK'], minSeconds: 4, maxSeconds: 30 },
   LANDSCAPE: { aspect: '16:9', label: 'Landscape (YouTube, web)', platforms: ['YOUTUBE', 'FACEBOOK'], minSeconds: 4, maxSeconds: 90 },
 } as const satisfies Record<string, { aspect: AspectRatio; label: string; platforms: readonly string[]; minSeconds: number; maxSeconds: number }>;
 export type VideoFormat = keyof typeof VIDEO_FORMATS;

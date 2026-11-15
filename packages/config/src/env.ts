@@ -122,10 +122,12 @@ export const appEnvSchema = z.object({
     .transform((v) => v === 'true'),
   // ─── Creative Studio (images, videos) ────────────────────────────────────────
   /** openai = OpenAI Images (uses OPENAI_API_KEY); none = disabled. fake = deterministic test-only provider (APP_ENV=test only). */
+  /** mock = FREE TEST MODE: local demo files and templates, no API, no cost, everything labelled simulated (forces IMAGE_PROVIDER=mock and VIDEO_PROVIDER=mock). Refused in production. */
+  CREATIVE_STUDIO_MODE: z.enum(['live', 'mock']).default('live'),
   IMAGE_PROVIDER: z.enum(['openai', 'none', 'fake', 'mock']).default('openai'),
   IMAGE_MODEL: z.string().min(1).default('gpt-image-1'),
   /** Video is opt-in because it is costly: none (default), openai (Sora API, uses OPENAI_API_KEY) or the test-only fake. */
-  VIDEO_PROVIDER: z.enum(['none', 'openai', 'fake', 'mock']).default('none'),
+  VIDEO_PROVIDER: z.enum(['none', 'openai', 'fake', 'mock', 'higgsfield']).default('none'),
   /** No video model is assumed: it must be set explicitly when VIDEO_PROVIDER=openai (the retired Sora 2 API is not a default). */
   VIDEO_MODEL: z.string().min(1).default('unconfigured'),
   CREATIVE_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(600_000).default(180_000),
@@ -444,6 +446,13 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
     );
   }
   const env = parsed.data;
+  if (env.CREATIVE_STUDIO_MODE === 'mock') {
+    if (env.APP_ENV === 'production') throw new EnvValidationError(['CREATIVE_STUDIO_MODE=mock is not allowed when APP_ENV=production']);
+    // Free test mode: one switch, no paid API can be selected by accident.
+    env.IMAGE_PROVIDER = 'mock';
+    env.VIDEO_PROVIDER = 'mock';
+  }
+  if (env.VIDEO_PROVIDER === 'higgsfield') throw new EnvValidationError(['VIDEO_PROVIDER=higgsfield is disabled in this build: the provider is a placeholder until its API contract, prices, access and a generation budget are verified']);
   if (env.APP_ENV === 'production' || env.APP_ENV === 'staging') {
     const problems = productionProblems(env);
     if (problems.length) throw new EnvValidationError(problems);
@@ -550,6 +559,7 @@ export function productionProblems(env: AppEnv): string[] {
   if (env.BILLING_PROVIDER === 'paddle-sandbox' || env.BILLING_PROVIDER === 'lemonsqueezy') p.push(`BILLING_PROVIDER=${env.BILLING_PROVIDER} is not approved for production`);
   if (env.BILLING_ENABLED) p.push('BILLING_ENABLED must stay false until a payment provider adapter is verified against its official documentation (none is yet)');
   if (env.SOCIAL_PROVIDER_MODE === 'fake') p.push('SOCIAL_PROVIDER_MODE=fake is test-only');
+  if (env.CREATIVE_STUDIO_MODE === 'mock') p.push('CREATIVE_STUDIO_MODE=mock is a free test mode');
   if (env.IMAGE_PROVIDER === 'mock' || env.VIDEO_PROVIDER === 'mock') p.push('IMAGE_PROVIDER/VIDEO_PROVIDER=mock are simulators');
   if (env.ANALYTICS_PROVIDER === 'mock') p.push('ANALYTICS_PROVIDER=mock is test-only (simulated metrics)');
   const socialConfigured = Boolean(env.META_APP_ID || env.TIKTOK_CLIENT_KEY || env.GOOGLE_CLIENT_ID || env.LINKEDIN_CLIENT_ID);

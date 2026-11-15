@@ -54,7 +54,7 @@ test('overview shows providers, usage and quick links', async ({ page }) => {
   await expect(page.getByTestId('creative-providers')).toContainText('Image provider');
   await expect(page.getByTestId('creative-providers')).toContainText('Configured');
   await expect(page.getByTestId('creative-usage-card')).toContainText('Images');
-  await expect(page.getByRole('navigation', { name: 'Creative Studio' }).getByRole('link')).toHaveCount(6);
+  await expect(page.getByRole('navigation', { name: 'Creative Studio' }).getByRole('link')).toHaveCount(7);
 });
 
 test('image studio: generate variations, favorite and download', async ({ page }) => {
@@ -187,4 +187,21 @@ test.describe('mobile (390×844)', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
   });
+});
+
+test('studio: generate, save as a project, find it in the library and download it', async ({ page }) => {
+  await setup(page);
+  await page.goto('/dashboard/creative/studio');
+  await page.getByLabel('Describe your ad').fill('Fresh bissap juice for the weekend');
+  await page.getByTestId('studio-generate').click();
+  await expect(page.getByTestId('studio-result')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('studio-result').getByTestId('studio-download')).toBeVisible();
+  await page.getByTestId('studio-save').click();
+  await expect(page.getByTestId('studio-workflow')).toBeVisible();
+  await expect(page.getByTestId('studio-project')).toHaveCount(1);
+  await expect(page.getByTestId('studio-library-item')).toHaveCount(1);
+  await expect(page.getByTestId('quota-images-count')).toContainText('1/');
+  // The page works on a phone without horizontal scrolling.
+  await page.setViewportSize({ width: 375, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });

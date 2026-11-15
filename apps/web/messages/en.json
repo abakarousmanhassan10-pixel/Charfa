@@ -876,7 +876,8 @@
       "videos": "Videos",
       "storyboards": "Storyboards",
       "brandKit": "Brand kit",
-      "history": "History"
+      "history": "History",
+      "studio": "Studio"
     },
     "overview": {
       "title": "Creative Studio",
@@ -1239,6 +1240,80 @@
       "resets": "Renews",
       "exhausted": "You have used all your creations available today. Your quota will be renewed tomorrow.",
       "tzPending": "A timezone change takes effect at the next renewal."
+    },
+    "studio": {
+      "title": "Creative Studio — free test",
+      "subtitle": "Create an image or an 8-second video, save it as a project and prepare a fictitious schedule.",
+      "freeTitle": "Free test mode: simulated results",
+      "freeText": "Images and videos are local demo files, not real AI. Nothing is published, nothing is billed.",
+      "simulatedBadge": "Simulated demo",
+      "kind": "Type of creation",
+      "kinds": {
+        "IMAGE": "Image",
+        "VIDEO": "Video"
+      },
+      "description": "Describe your ad",
+      "descriptionHint": "What should the ad show? Only your words are reused.",
+      "descriptionPlaceholder": "Fresh bissap juice for the weekend",
+      "photo": "Reference photo (optional)",
+      "choosePhoto": "Choose a photo",
+      "removePhoto": "Remove the photo",
+      "rights": "I own this photo or may use and modify it.",
+      "format": "Format",
+      "aspects": {
+        "1:1": "Square 1:1",
+        "4:5": "Portrait 4:5",
+        "9:16": "Vertical 9:16",
+        "16:9": "Landscape 16:9"
+      },
+      "style": "Advertising style",
+      "videoLength": "Demo videos last 8 seconds.",
+      "generate": "Generate (simulated)",
+      "result": "Result",
+      "download": "Download",
+      "emptyTitle": "Nothing generated yet",
+      "emptyText": "Describe your ad and press Generate.",
+      "projectName": "Project name",
+      "saveProject": "Save project",
+      "updateProject": "Update project",
+      "workflow": "Workflow",
+      "steps": {
+        "brief": "1 Brief",
+        "script": "2 Script",
+        "visuals": "3 Visuals",
+        "caption": "4 Caption",
+        "schedule": "5 Schedule"
+      },
+      "projectStatus": {
+        "DRAFT": "Draft",
+        "SCRIPTED": "Script ready",
+        "READY": "Ready",
+        "SCHEDULED_SIMULATED": "Scheduled (simulated)"
+      },
+      "prepareScript": "Prepare script and caption",
+      "history": "Previous creations",
+      "restore": "Go back to this one",
+      "scheduleTitle": "Fictitious scheduling",
+      "platform": "Platform",
+      "when": "Date and time",
+      "simulate": {
+        "HYBRID": "Simulate (Hybrid)",
+        "AUTO": "Simulate (Auto)"
+      },
+      "outcome": {
+        "BLOCKED": "Blocked: fix the checks below",
+        "WOULD_WAIT_FOR_APPROVAL": "Would wait for a person’s approval",
+        "WOULD_AUTO_SCHEDULE": "Would be scheduled automatically"
+      },
+      "library": "Media library",
+      "projects": "Projects",
+      "filterType": "Type",
+      "filterProject": "Project",
+      "allTypes": "All types",
+      "allProjects": "All projects",
+      "libraryEmpty": "No creation yet",
+      "libraryEmptyText": "Your delivered images and videos appear here.",
+      "delete": "Delete"
     }
   },
   "calendar": {

@@ -160,6 +160,9 @@ export class CreativeWorkerService implements OnApplicationBootstrap, OnApplicat
 
   // ─── Usage rows (shared with the AI usage report) ───────────────────────────
 
+  /** A simulated provider (mock or fake) never costs anything, whatever prices are configured. */
+  private simulated(g: { provider: string }) { return g.provider === 'mock'; }
+
   private async recordUsage(g: CreativeGeneration, r: { operation: 'IMAGE_GENERATION' | 'VIDEO_GENERATION'; model: string; success: boolean; error?: string; inputTokens?: number; outputTokens?: number; images?: number; videoSeconds?: number; costUsd?: number; latencyMs: number }) {
     await this.prisma.aIUsage.create({
       data: {
@@ -245,7 +248,7 @@ export class CreativeWorkerService implements OnApplicationBootstrap, OnApplicat
       }
       const ms = Date.now() - t0;
       const billed = res.images.length;
-      const cost = imageCostUsd(this.usage.priceFor(res.model), billed);
+      const cost = this.simulated(gen) ? 0 : imageCostUsd(this.usage.priceFor(res.model), billed);
       await this.prisma.creativeGeneration.update({
         where: { id: gen.id },
         data: { producedUnits: { increment: billed }, model: res.model, inputTokens: { increment: res.usage?.inputTokens ?? 0 }, outputTokens: { increment: res.usage?.outputTokens ?? 0 }, costUsd: { increment: new Prisma.Decimal(cost.toFixed(6)) }, processingMs: { increment: ms } },
@@ -318,7 +321,7 @@ export class CreativeWorkerService implements OnApplicationBootstrap, OnApplicat
     const t0 = Date.now();
     const file = await provider.download(gen.providerRef, Math.floor(this.env.MEDIA_MAX_VIDEO_MB * 1024 * 1024), timeoutMs);
     const poster = provider.capabilities.thumbnail && provider.thumbnail ? await provider.thumbnail(gen.providerRef, timeoutMs).catch(() => null) : null;
-    const cost = videoCostUsd(this.usage.priceFor(gen.model), p.seconds);
+    const cost = this.simulated(gen) ? 0 : videoCostUsd(this.usage.priceFor(gen.model), p.seconds);
     // The provider has delivered (and bills) the video: count it now, so losing it to a storage problem is still accounted for
     // and the job is never retried (a retry would pay again).
     await this.prisma.creativeGeneration.update({ where: { id: gen.id }, data: { producedUnits: p.seconds, costUsd: new Prisma.Decimal(cost.toFixed(6)) } });

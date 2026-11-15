@@ -7,3 +7,4 @@ export * from './openai-image';
 export * from './openai-video';
 export * from './testing/fake';
 export * from './responsible';
+export * from './mock-studio';

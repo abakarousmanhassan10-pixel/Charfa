@@ -36,6 +36,6 @@ export const CREATIVE_PROVIDER_REGISTRY: readonly CreativeProviderInfo[] = [
   { id: 'mock', kind: 'video', status: 'SIMULATED', note: 'Simulator: produces an empty valid video file, no model call, no cost. Never offered in production.' },
   { id: 'openai', kind: 'image', status: 'IMPLEMENTED_UNVERIFIED', note: 'OpenAI Images API adapter tested only against stubbed responses. The model name comes from IMAGE_MODEL; current model names, parameters and prices must be checked against OpenAI\'s documentation before first use.' },
   { id: 'openai', kind: 'video', status: 'IMPLEMENTED_UNVERIFIED', note: 'Adapter tested only against stubbed responses. VIDEO_MODEL must be set explicitly; no model is assumed and the retired Sora 2 API is not a default.' },
-  { id: 'higgsfield', kind: 'video', status: 'NOT_IMPLEMENTED', note: 'Considered as primary video provider. API contract, models, parameters and pricing have not been verified: no integration exists.' },
+  { id: 'higgsfield', kind: 'video', status: 'NOT_IMPLEMENTED', note: 'Considered as primary video provider. A disabled placeholder class exists (it never connects); API contract, models, parameters and pricing have not been verified.' },
   { id: 'kling', kind: 'video', status: 'NOT_IMPLEMENTED', note: 'Considered as alternative video provider. Contract and pricing not verified: no integration exists.' },
 ];

@@ -113,6 +113,8 @@ export class CreativeService {
         model: this.env.VIDEO_MODEL,
         capabilities: vid ? { seconds: vid.capabilities.seconds, aspectRatios: Object.keys(vid.capabilities.sizes), imageToVideo: vid.capabilities.imageToVideo, thumbnail: vid.capabilities.thumbnail } : null,
       },
+      mode: this.env.CREATIVE_STUDIO_MODE,
+      freeTestMode: this.env.CREATIVE_STUDIO_MODE === 'mock',
       simulated: { image: this.image?.name === 'mock' || this.image?.name === 'fake', video: this.video?.name === 'mock' || this.video?.name === 'fake' },
       providers: CREATIVE_PROVIDER_REGISTRY,
       disclosure: AI_DISCLOSURE_NOTE,
@@ -175,6 +177,14 @@ export class CreativeService {
     const issues = checkResponsibleRequest({ hasReferencePhoto: Boolean(dto.sourceMediaId), rightsConfirmed: dto.rightsConfirmed, containsPerson: dto.containsPerson, personConsent: dto.personConsent, text });
     if (issues.length) throw new HttpException({ code: issues[0]!.code, message: issues[0]!.message, issues }, 422);
     return { rightsConfirmed: dto.rightsConfirmed === true, containsPerson: dto.containsPerson === true, personConsent: dto.personConsent === true, aiDisclosure: dto.aiDisclosure !== false };
+  }
+
+  /** A project id sent with a generation must be one of this business's live projects. */
+  private async assertProject(businessId: string, projectId: string | undefined): Promise<string | null> {
+    if (!projectId) return null;
+    const p = await this.prisma.creativeProject.findFirst({ where: { id: projectId, businessId, deletedAt: null }, select: { id: true } });
+    if (!p) throw new BadRequestException({ code: 'PROJECT_NOT_FOUND', message: 'Project not found' });
+    return p.id;
   }
 
   private requireStorage() {
@@ -289,7 +299,7 @@ export class CreativeService {
     const result = await this.create(
       tenant,
       {
-        kind: 'IMAGE', provider: provider.name, model: this.env.IMAGE_MODEL, prompt, params: params as unknown as Prisma.InputJsonValue, requestHash: hash,
+        kind: 'IMAGE', projectId: await this.assertProject(tenant.businessId, dto.projectId), provider: provider.name, model: this.env.IMAGE_MODEL, prompt, params: params as unknown as Prisma.InputJsonValue, requestHash: hash,
         itemType: loaded?.item.type ?? null, itemId: loaded?.item.id ?? null, sourceMediaId: dto.sourceMediaId ?? null, parentId: parentId ?? null,
         brandSnapshot: (kit ?? Prisma.JsonNull) as unknown as Prisma.InputJsonValue, requestedUnits: dto.count, unitKind: 'IMAGE',
       },
@@ -312,7 +322,7 @@ export class CreativeService {
         type: p.type, style: p.style, aspectRatio: p.aspectRatio, resolution: p.resolution, background: p.background, backgroundNote: p.backgroundNote ?? undefined, theme: p.theme, themeNote: p.themeNote ?? undefined,
         overlayText: p.overlayText ?? undefined, overlayPosition: p.overlayPosition, logoPlacement: p.logoPlacement, platform: p.platform, itemType: (parent.itemType as Item['type'] | null) ?? undefined, itemId: parent.itemId ?? undefined,
         sourceMediaId: parent.sourceMediaId ?? undefined, preservation: p.preservation === 'GUIDED' ? 'GUIDED' : 'EXACT', count: dto.count, useBrandKit: p.useBrandKit, instructions: dto.instructions ?? p.instructions ?? undefined,
-        rightsConfirmed: p.responsible?.rightsConfirmed, containsPerson: p.responsible?.containsPerson, personConsent: p.responsible?.personConsent, aiDisclosure: p.responsible?.aiDisclosure ?? true,
+        projectId: parent.projectId ?? undefined, rightsConfirmed: p.responsible?.rightsConfirmed, containsPerson: p.responsible?.containsPerson, personConsent: p.responsible?.personConsent, aiDisclosure: p.responsible?.aiDisclosure ?? true,
       },
       key,
       parent.id,
@@ -364,7 +374,7 @@ export class CreativeService {
     const result = await this.create(
       tenant,
       {
-        kind: 'VIDEO', provider: provider.name, model: this.env.VIDEO_MODEL, prompt, params: params as unknown as Prisma.InputJsonValue, requestHash: hash,
+        kind: 'VIDEO', projectId: await this.assertProject(tenant.businessId, dto.projectId), provider: provider.name, model: this.env.VIDEO_MODEL, prompt, params: params as unknown as Prisma.InputJsonValue, requestHash: hash,
         itemType: loaded?.item.type ?? null, itemId: loaded?.item.id ?? null, sourceMediaId: dto.sourceMediaId ?? null, parentId: null,
         brandSnapshot: (kit ?? Prisma.JsonNull) as unknown as Prisma.InputJsonValue, requestedUnits: seconds, unitKind: 'VIDEO_SECOND',
       },
@@ -401,6 +411,8 @@ export class CreativeService {
       itemId: g.itemId,
       sourceMediaId: g.sourceMediaId,
       parentId: g.parentId,
+      projectId: g.projectId,
+      simulated: g.provider === 'mock' || g.provider === 'fake',
       errorCode: g.errorCode,
       errorMessage: g.errorMessage,
       usage: { requestedUnits: g.requestedUnits, producedUnits: g.producedUnits, unitKind: g.unitKind, inputTokens: g.inputTokens, outputTokens: g.outputTokens, costUsd: Number(g.costUsd.toFixed(6)), costKnown: price.source === 'model', processingMs: g.processingMs },
@@ -422,7 +434,7 @@ export class CreativeService {
   }
 
   async list(tenant: TenantContext, q: CreativeQueryDto) {
-    const where: Prisma.CreativeGenerationWhereInput = { businessId: tenant.businessId, ...(q.kind ? { kind: q.kind } : {}), ...(q.status ? { status: q.status as never } : {}), ...(q.itemId ? { itemId: q.itemId } : {}) };
+    const where: Prisma.CreativeGenerationWhereInput = { businessId: tenant.businessId, ...(q.kind ? { kind: q.kind } : {}), ...(q.status ? { status: q.status as never } : {}), ...(q.itemId ? { itemId: q.itemId } : {}), ...(q.projectId ? { projectId: q.projectId } : {}) };
     const [rows, total] = await Promise.all([
       this.prisma.creativeGeneration.findMany({ where, orderBy: { createdAt: 'desc' }, include: { outputs: { include: { media: true }, orderBy: { index: 'asc' } } }, ...pageArgs(q) }),
       this.prisma.creativeGeneration.count({ where }),

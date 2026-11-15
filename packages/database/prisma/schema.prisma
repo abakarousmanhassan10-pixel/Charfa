@@ -585,6 +585,7 @@ model Business {
   agentDefinitions    AgentDefinition[]
   creativeDailyUsage  CreativeDailyUsage[]
   creativeQuotaClock  CreativeQuotaClock?
+  creativeProjects    CreativeProject[]
   marketplaceReviews  MarketplaceReview[]
   agentConversations  AgentConversation[]
   agentApprovals      AgentApproval[]
@@ -1939,6 +1940,8 @@ model CreativeGeneration {
   startedAt           DateTime?      @db.Timestamptz(3)
   completedAt         DateTime?      @db.Timestamptz(3)
   createdAt           DateTime       @default(now()) @db.Timestamptz(3)
+  /// The project this generation belongs to (the Studio's saved work). Null for generations made outside a project.
+  projectId           String?
   /// N26 daily advertising quota: IMAGE | VIDEO, the credits held (images: one per image; video: one per video), and the local day they count against.
   dailyKind           String?
   dailyReserved       Int            @default(0)
@@ -1950,6 +1953,7 @@ model CreativeGeneration {
   outputs  CreativeOutput[]
 
   @@unique([businessId, idempotencyKey])
+  @@index([businessId, projectId])
   @@index([businessId, kind, createdAt])
   @@index([status, queuedAt])
   @@index([settledAt, status])
@@ -3339,4 +3343,29 @@ model CreativeQuotaClock {
   pendingFrom     DateTime? @db.Timestamptz(3)
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+/// A saved Creative Studio project: the brief, the (simulated or real) script and caption, the creation currently kept, and the fictitious schedule. Soft-deleted; its media stays in the library.
+model CreativeProject {
+  id                 String    @id @default(cuid())
+  businessId         String
+  name               String
+  /// The client's description and format/style choices.
+  brief              Json
+  /// DRAFT | SCRIPTED | READY | SCHEDULED_SIMULATED
+  status             String    @default("DRAFT")
+  script             Json?
+  caption            String?
+  /// The generation the project currently keeps ("go back to a previous creation" moves this pointer; nothing is deleted).
+  activeGenerationId String?
+  /// The simulated scheduling decision (permissions, policy mode, classification). It never creates a calendar entry or a publication.
+  scheduleSim        Json?
+  createdById        String?
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt          DateTime? @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, deletedAt, updatedAt])
 }

@@ -1,9 +1,10 @@
 import { Global, Module } from '@nestjs/common';
-import { FakeImageProvider, FakeVideoProvider, MockImageProvider, MockVideoProvider, OpenAIImageProvider, OpenAIVideoProvider, type ImageProvider, type VideoProvider } from '@touma/creative';
+import { FakeImageProvider, FakeVideoProvider, MockImageProvider, MockScriptProvider, MockVideoProvider, type ScriptProvider, OpenAIImageProvider, OpenAIVideoProvider, type ImageProvider, type VideoProvider } from '@touma/creative';
 import { APP_ENV, AppEnv } from '../config';
 
 export const IMAGE_PROVIDER = Symbol('IMAGE_PROVIDER');
 export const VIDEO_PROVIDER = Symbol('VIDEO_PROVIDER');
+export const SCRIPT_PROVIDER = Symbol('SCRIPT_PROVIDER');
 
 /** Provider selection from configuration. Credentials come from the environment only. */
 export function createImageProvider(env: AppEnv): ImageProvider | null {
@@ -22,12 +23,18 @@ export function createVideoProvider(env: AppEnv): VideoProvider | null {
   return new OpenAIVideoProvider({ apiKey: env.OPENAI_API_KEY, baseUrl: env.OPENAI_BASE_URL, organization: env.OPENAI_ORGANIZATION });
 }
 
+/** Script preparation exists only in the free test mode (a template, no model). Live mode has no script provider yet. */
+export function createScriptProvider(env: AppEnv): ScriptProvider | null {
+  return env.CREATIVE_STUDIO_MODE === 'mock' ? new MockScriptProvider() : null;
+}
+
 @Global()
 @Module({
   providers: [
     { provide: IMAGE_PROVIDER, inject: [APP_ENV], useFactory: createImageProvider },
     { provide: VIDEO_PROVIDER, inject: [APP_ENV], useFactory: createVideoProvider },
+    { provide: SCRIPT_PROVIDER, inject: [APP_ENV], useFactory: createScriptProvider },
   ],
-  exports: [IMAGE_PROVIDER, VIDEO_PROVIDER],
+  exports: [IMAGE_PROVIDER, VIDEO_PROVIDER, SCRIPT_PROVIDER],
 })
 export class CreativeProviderModule {}

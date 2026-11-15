@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 
 const TABS = [
   ['overview', '/dashboard/creative'],
+  ['studio', '/dashboard/creative/studio'],
   ['images', '/dashboard/creative/images'],
   ['videos', '/dashboard/creative/videos'],
   ['storyboards', '/dashboard/creative/storyboards'],

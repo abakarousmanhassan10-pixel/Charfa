@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import sharp from 'sharp';
+import { CreativeProviderError } from '../types';
 import type {
   ImageCapabilities, ImageGenerateRequest, ImageGenerateResult, ImageProvider,
   VideoCapabilities, VideoProvider, VideoStatus, VideoSubmitRequest,
@@ -132,6 +133,8 @@ export class FakeVideoProvider implements VideoProvider {
 export class MockImageProvider extends FakeImageProvider {
   override readonly name = 'mock';
   override async generate(req: ImageGenerateRequest): Promise<ImageGenerateResult> {
+    // A request containing simulate-failure simulates a provider failure (for testing the failure path): no quota is consumed.
+    if (/simulate-failure/i.test(req.prompt)) throw new CreativeProviderError('bad_request', 'Simulated provider failure', 400);
     const r = await super.generate(req);
     const marked = await Promise.all(r.images.map(async (img) => {
       const meta = await sharp(img.data).metadata();
@@ -141,7 +144,4 @@ export class MockImageProvider extends FakeImageProvider {
     }));
     return { ...r, images: marked, model: `mock:${req.model}` };
   }
-}
-export class MockVideoProvider extends FakeVideoProvider {
-  override readonly name = 'mock';
 }

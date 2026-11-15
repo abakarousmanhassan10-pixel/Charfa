@@ -81,6 +81,9 @@ export class CreateImageDto {
 
   @ApiPropertyOptional({ default: true, description: 'Keep the AI-generated mention on the result' }) @IsOptional() @IsBoolean()
   aiDisclosure: boolean = true;
+
+  @ApiPropertyOptional({ description: 'A saved Studio project this creation belongs to' }) @IsOptional() @IsString() @Matches(ID_REGEX)
+  projectId?: string;
 }
 
 export class CreateVideoDto {
@@ -126,6 +129,9 @@ export class CreateVideoDto {
 
   @ApiPropertyOptional({ default: true, description: 'Keep the AI-generated mention on the result' }) @IsOptional() @IsBoolean()
   aiDisclosure: boolean = true;
+
+  @ApiPropertyOptional({ description: 'A saved Studio project this creation belongs to' }) @IsOptional() @IsString() @Matches(ID_REGEX)
+  projectId?: string;
 }
 
 export class CreateStoryboardDto {
@@ -171,6 +177,9 @@ export class CreativeQueryDto extends PageQueryDto {
 
   @ApiPropertyOptional() @IsOptional() @IsString() @Matches(ID_REGEX)
   itemId?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() @Matches(ID_REGEX)
+  projectId?: string;
 }
 
 export class SelectOutputDto {
