@@ -105,7 +105,8 @@
       "campaigns": "Campaigns",
       "intelligence": "Control center",
       "autopilot": "Business autopilot",
-      "agents": "AI agents"
+      "agents": "AI agents",
+      "publishing": "Auto publishing"
     },
     "analyticsTitle": "Performance",
     "noAnalytics": "No data yet. Metrics appear here once social accounts are connected and posts are published — we never display estimated numbers as measured results.",
@@ -3021,5 +3022,37 @@
       "simulated": "Simulated data: no real payment.",
       "events": "Recent events"
     }
+  },
+  "publishing": {
+    "title": "Automatic publishing",
+    "subtitle": "Choose, per connected account, whether TOUMA schedules your posts for you. You can pause or withdraw at any time.",
+    "notEnabled": "Automatic publishing is not enabled on this deployment.",
+    "note": "Simulated mode: nothing is sent to a real social network unless real publishing is switched on for this server and the platform has approved TOUMA. Platform rules always apply.",
+    "usage": "AI usage this period",
+    "estimated": "estimate",
+    "noAccounts": "Connect a social account first.",
+    "effective": "Mode in effect",
+    "paused": "paused",
+    "unsupported": "Automatic publishing is not available for this platform. Posts stay manual.",
+    "perPost": "The platform requires your confirmation for each post: automation will stop and ask.",
+    "consentText": "I authorize TOUMA to schedule and publish ordinary posts on this account within the limits I set, using the permissions the platform granted. I can pause or withdraw this at any time.",
+    "accept": "Accept and continue",
+    "perDay": "Posts per day",
+    "hours": "Hours",
+    "pause": "Pause now",
+    "resume": "Resume",
+    "revoke": "Withdraw consent",
+    "reviews": "Waiting for your approval",
+    "reviewsHelp": "Posts that look sensitive, unusual or outside your settings wait here. You approve the exact version shown.",
+    "noReviews": "Nothing is waiting.",
+    "platformConfirm": "This platform needs your own choices for this post before it can be sent.",
+    "approve": "Approve and schedule",
+    "reject": "Reject",
+    "rejectReason": "Rejected by the reviewer",
+    "schedule": "Planned posts",
+    "noSchedule": "No planned post yet.",
+    "results": "Results",
+    "noResults": "Nothing published yet.",
+    "simulatedTag": "simulated"
   }
 }

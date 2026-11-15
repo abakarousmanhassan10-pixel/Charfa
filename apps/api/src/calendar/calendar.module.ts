@@ -15,6 +15,7 @@ import { PUBLISHING_GATEWAY } from './publishing';
 import { SocialCoreModule } from '../social/social.module';
 import { SocialPublishingGateway } from '../social/social-gateway';
 import { RecurrenceService } from './recurrence.service';
+import { PublishingGuardModule } from '../publishing/publishing-guard';
 import { SchedulingService } from './scheduling.service';
 
 /**
@@ -22,7 +23,7 @@ import { SchedulingService } from './scheduling.service';
  * publisher by replacing the PUBLISHING_GATEWAY provider.
  */
 @Module({
-  imports: [AiCoreModule, KnowledgeModule, NotificationsCoreModule, CalendarResultsModule, SocialCoreModule, RunsCoreModule],
+  imports: [AiCoreModule, KnowledgeModule, NotificationsCoreModule, CalendarResultsModule, SocialCoreModule, RunsCoreModule, PublishingGuardModule],
   providers: [
     CalendarService, CalendarRunAdapter, PublicationGate, SchedulingService, PlanService, RecurrenceService, CalendarQueueService, CalendarWorkerService,
     { provide: PUBLISHING_GATEWAY, useExisting: SocialPublishingGateway },

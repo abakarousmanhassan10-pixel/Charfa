@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { roleHasPermission } from '@touma/shared';
 import { AppEnv, InjectEnv } from '../config';
 import { PrismaService } from '../prisma/prisma.service';
+import { PublishingGuard } from '../publishing/publishing-guard';
 import { snapshotHash } from './approval-snapshot';
 
 export type GateResult = { ok: true } | { ok: false; code: string; message: string; /** true: nothing is wrong with the entry, publishing is just not allowed right now */ blocked?: boolean; /** the person who authorized lost the right to */ revoked?: boolean };
@@ -13,7 +14,7 @@ export type GateResult = { ok: true } | { ok: false; code: string; message: stri
  */
 @Injectable()
 export class PublicationGate {
-  constructor(private readonly prisma: PrismaService, @InjectEnv() private readonly env: AppEnv) {}
+  constructor(private readonly prisma: PrismaService, @InjectEnv() private readonly env: AppEnv, private readonly policyGuard: PublishingGuard) {}
 
   async check(args: { businessId: string; entryId: string; expectedAccountId?: string | null; excludePublicationId?: string; allowPublishing?: boolean }): Promise<GateResult> {
     const no = (code: string, message: string, blocked = false, revoked = false): GateResult => ({ ok: false, code, message, blocked, revoked });
@@ -44,6 +45,9 @@ export class PublicationGate {
     // The person who authorized must still be allowed to.
     const m = await this.prisma.membership.findUnique({ where: { userId_businessId: { userId: e.authorizedById, businessId: args.businessId } } });
     if (!m || m.status !== 'ACTIVE' || !roleHasPermission(m.role, 'publication.schedule')) return no('ACCOUNT_NOT_AUTHORIZED', 'The person who authorized this publication is no longer allowed to schedule publications', false, true);
+    // Publishing policy: subscription, consent, pause, emergency stop, approval validity and the account's daily limit.
+    const pg = await this.policyGuard.check(args.businessId, { id: e.id, platform: e.platform, authorizedAccountId: e.authorizedAccountId, authorizedVersion: e.authorizedVersion, scheduledAt: e.scheduledAt });
+    if (!pg.ok) return no(pg.code, pg.message, pg.blocked);
     // Resource limit per business.
     const since = new Date(Date.now() - 24 * 3_600_000);
     const recent = await this.prisma.publication.count({ where: { businessId: args.businessId, createdAt: { gte: since }, status: { not: 'CANCELLED' }, ...(args.excludePublicationId ? { id: { not: args.excludePublicationId } } : {}) } });

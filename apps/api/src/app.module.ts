@@ -38,6 +38,7 @@ import { BillingModule } from './billing/billing.module';
 import { ExecutiveModule } from './executive/executive.module';
 import { OpenAIModule } from './openai/openai.module';
 import { AgentsModule } from './agents/agents.module';
+import { PublishingModule } from './publishing/publishing.module';
 
 @Global()
 @Module({})
@@ -93,6 +94,7 @@ export class AppModule {
         BillingModule,
         OpenAIModule,
         AgentsModule,
+        PublishingModule,
         AdminModule,
         HealthModule,
         FeaturesModule,

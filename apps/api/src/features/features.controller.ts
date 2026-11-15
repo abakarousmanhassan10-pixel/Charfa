@@ -25,6 +25,7 @@ export class FeaturesController {
       autopilot: this.env.AUTOPILOT_ENABLED,
       billing: this.env.BILLING_ENABLED,
       agents: this.env.AGENTS_ENABLED,
+      autopublish: this.env.AUTOPUBLISH_ENABLED,
       ai: i.openai,
       media: i.storage,
     };

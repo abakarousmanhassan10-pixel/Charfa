@@ -105,7 +105,8 @@
       "campaigns": "Campagnes",
       "intelligence": "Centre de contrôle",
       "autopilot": "Pilote d’affaires",
-      "agents": "Agents IA"
+      "agents": "Agents IA",
+      "publishing": "Publication auto"
     },
     "analyticsTitle": "Performances",
     "noAnalytics": "Aucune donnée pour l'instant. Les statistiques apparaîtront une fois vos comptes connectés et vos publications en ligne — nous n'affichons jamais d'estimations comme des résultats mesurés.",
@@ -3021,5 +3022,37 @@
       "simulated": "Données simulées : aucun paiement réel.",
       "events": "Événements récents"
     }
+  },
+  "publishing": {
+    "title": "Publication automatique",
+    "subtitle": "Choisissez, pour chaque compte connecté, si TOUMA programme vos publications. Vous pouvez suspendre ou retirer votre accord à tout moment.",
+    "notEnabled": "La publication automatique n'est pas activée sur ce déploiement.",
+    "note": "Mode simulé : rien n'est envoyé à un vrai réseau social tant que la publication réelle n'est pas activée sur ce serveur et que la plateforme n'a pas approuvé TOUMA. Les règles des plateformes s'appliquent toujours.",
+    "usage": "Consommation IA sur la période",
+    "estimated": "estimation",
+    "noAccounts": "Connectez d'abord un compte social.",
+    "effective": "Mode appliqué",
+    "paused": "en pause",
+    "unsupported": "La publication automatique n'est pas disponible pour cette plateforme. Les publications restent manuelles.",
+    "perPost": "La plateforme exige votre confirmation pour chaque publication : l'automatisation s'arrêtera pour vous la demander.",
+    "consentText": "J'autorise TOUMA à programmer et publier les publications ordinaires sur ce compte, dans les limites que je fixe, avec les permissions accordées par la plateforme. Je peux suspendre ou retirer cet accord à tout moment.",
+    "accept": "Accepter et continuer",
+    "perDay": "Publications par jour",
+    "hours": "Horaires",
+    "pause": "Suspendre maintenant",
+    "resume": "Reprendre",
+    "revoke": "Retirer mon accord",
+    "reviews": "En attente de votre validation",
+    "reviewsHelp": "Les publications sensibles, inhabituelles ou hors de vos réglages attendent ici. Vous validez la version exacte affichée.",
+    "noReviews": "Rien n'est en attente.",
+    "platformConfirm": "Cette plateforme demande vos propres choix pour cette publication avant l'envoi.",
+    "approve": "Valider et programmer",
+    "reject": "Rejeter",
+    "rejectReason": "Rejeté par le validateur",
+    "schedule": "Publications prévues",
+    "noSchedule": "Aucune publication prévue.",
+    "results": "Résultats",
+    "noResults": "Rien n'a encore été publié.",
+    "simulatedTag": "simulé"
   }
 }

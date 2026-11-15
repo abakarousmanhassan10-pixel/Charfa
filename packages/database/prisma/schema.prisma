@@ -576,6 +576,9 @@ model Business {
   subscription        Subscription?
   invoices            Invoice[]
   agents              Agent[]
+  publishingPolicies  PublishingPolicy[]
+  publishingDecisions PublishingDecision[]
+  publishingEvents    PublishingEvent[]
   agentConversations  AgentConversation[]
   agentApprovals      AgentApproval[]
   budgetPolicy        BudgetPolicy?
@@ -811,6 +814,7 @@ model SocialAccount {
   comments           Comment[]
   analyticsSnapshots AnalyticsSnapshot[]
   calendarEvents     CalendarEvent[]
+  publishingPolicy   PublishingPolicy?
 
   @@unique([businessId, platform, externalAccountId])
   @@index([businessId, platform])
@@ -1430,7 +1434,7 @@ model Subscription {
   /// Set when the business moved to another payment provider (the previous one, for traceability).
   providerMigratedFrom   String?
   /// When the last payment was confirmed by the provider: events that happened before it cannot undo it (out-of-order delivery).
-  lastPaymentConfirmedAt DateTime? @db.Timestamptz(3)
+  lastPaymentConfirmedAt DateTime?             @db.Timestamptz(3)
   currentPeriodStart     DateTime?             @db.Timestamptz(3)
   currentPeriodEnd       DateTime?             @db.Timestamptz(3)
   cancelAtPeriodEnd      Boolean               @default(false)
@@ -1531,23 +1535,23 @@ model SubscriptionAuditLog {
 
 /// Which payment providers exist on this platform and what they are verified to do. No credential is ever stored here (secrets live in the server environment).
 model PaymentProviderAccount {
-  id           String                     @id @default(cuid())
-  provider     String                     @unique
-  label        String
-  environment  ProviderAccountEnvironment @default(SANDBOX)
-  enabled      Boolean                    @default(false)
-  capabilities Json
-  verifiedAt   DateTime?                  @db.Timestamptz(3)
+  id                  String                     @id @default(cuid())
+  provider            String                     @unique
+  label               String
+  environment         ProviderAccountEnvironment @default(SANDBOX)
+  enabled             Boolean                    @default(false)
+  capabilities        Json
+  verifiedAt          DateTime?                  @db.Timestamptz(3)
   /// The provider's own decision about TOUMA's real product (automated social-media marketing, AI agents). Never set automatically.
-  approvalStatus    ProviderApprovalStatus @default(NOT_SUBMITTED)
+  approvalStatus      ProviderApprovalStatus     @default(NOT_SUBMITTED)
   /// Reference of the provider's written decision (ticket / e-mail id), required to record APPROVED.
-  approvalReference String?
-  approvalNote      String?
-  approvedAt        DateTime?              @db.Timestamptz(3)
+  approvalReference   String?
+  approvalNote        String?
+  approvedAt          DateTime?                  @db.Timestamptz(3)
   approvalUpdatedById String?
-  approvalUpdatedAt DateTime?              @db.Timestamptz(3)
-  createdAt    DateTime                   @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime                   @updatedAt @db.Timestamptz(3)
+  approvalUpdatedAt   DateTime?                  @db.Timestamptz(3)
+  createdAt           DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime                   @updatedAt @db.Timestamptz(3)
 }
 
 // ─────────────────────────────── Analytics ───────────────────────────────
@@ -2685,7 +2689,6 @@ model ExecutiveSettings {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
 
-
 // ─────────────────────────── Agents, guardian and cost engine (N28) ───────────────────────────
 // The run engine above (AgentRun / AgentRunStep: queue, retries, dead letters, idempotency, approvals, recovery) stays THE job engine. These tables add
 // configured agents, their conversations, single-use publication approvals, versioned prices, usage and budgets, period quotas and the stop switches.
@@ -2729,17 +2732,17 @@ enum ControlScope {
 
 /// A configured agent of one business. `config` is validated in code (role, permissions, allowed tools, model tier, budget and limits).
 model Agent {
-  id            String    @id @default(cuid())
-  businessId    String
-  type          AgentType
-  name          String
-  enabled       Boolean   @default(true)
-  config        Json
-  createdById   String?
-  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  id          String    @id @default(cuid())
+  businessId  String
+  type        AgentType
+  name        String
+  enabled     Boolean   @default(true)
+  config      Json
+  createdById String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
 
-  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([businessId, name])
   @@index([businessId, type, enabled])
@@ -2779,21 +2782,21 @@ model AgentMessage {
 
 /// Single-use authorization to publish ONE exact version of a content on ONE channel. Changing the content supersedes it.
 model AgentApproval {
-  id           String              @id @default(cuid())
-  businessId   String
-  runId        String
-  stepKey      String
-  agentId      String
-  contentId    String
-  channel      String
+  id          String              @id @default(cuid())
+  businessId  String
+  runId       String
+  stepKey     String
+  agentId     String
+  contentId   String
+  channel     String
   /// SHA-256 of the exact content version (title, body, hashtags) that was reviewed.
-  contentHash  String
-  status       AgentApprovalStatus @default(PENDING)
-  decidedById  String?
-  decidedAt    DateTime?           @db.Timestamptz(3)
-  consumedAt   DateTime?           @db.Timestamptz(3)
-  expiresAt    DateTime            @db.Timestamptz(3)
-  createdAt    DateTime            @default(now()) @db.Timestamptz(3)
+  contentHash String
+  status      AgentApprovalStatus @default(PENDING)
+  decidedById String?
+  decidedAt   DateTime?           @db.Timestamptz(3)
+  consumedAt  DateTime?           @db.Timestamptz(3)
+  expiresAt   DateTime            @db.Timestamptz(3)
+  createdAt   DateTime            @default(now()) @db.Timestamptz(3)
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
@@ -2805,18 +2808,18 @@ model AgentApproval {
 
 /// Versioned price per model, in micro-units of the currency per million tokens (integer arithmetic only). A new price is a new version.
 model ModelPrice {
-  id                        String   @id @default(cuid())
-  modelId                   String
-  version                   Int
-  currency                  String   @default("USD")
-  inputPerMillionMicros     Int
+  id                          String   @id @default(cuid())
+  modelId                     String
+  version                     Int
+  currency                    String   @default("USD")
+  inputPerMillionMicros       Int
   cachedInputPerMillionMicros Int?
-  outputPerMillionMicros    Int
-  effectiveFrom             DateTime @db.Timestamptz(3)
+  outputPerMillionMicros      Int
+  effectiveFrom               DateTime @db.Timestamptz(3)
   /// configured (from the environment) | admin
-  source                    String
-  createdById               String?
-  createdAt                 DateTime @default(now()) @db.Timestamptz(3)
+  source                      String
+  createdById                 String?
+  createdAt                   DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([modelId, version])
   @@index([modelId, effectiveFrom])
@@ -2922,4 +2925,99 @@ model AgentControl {
   changedAt   DateTime     @default(now()) @db.Timestamptz(3)
 
   @@unique([scope, scopeId])
+}
+
+// ─────────────────────────── Publishing policies (N21) ───────────────────────────
+
+enum PublishingMode {
+  MANUAL
+  HYBRID
+  AUTO
+}
+
+enum PublishingRisk {
+  LOW_RISK
+  REVIEW_REQUIRED
+  BLOCKED
+}
+
+/// How one connected account is published: by hand (default), with conditional review (HYBRID) or automatically (AUTO), after an explicit, versioned consent.
+model PublishingPolicy {
+  id                           String         @id @default(cuid())
+  businessId                   String
+  socialAccountId              String         @unique
+  platform                     SocialPlatform
+  mode                         PublishingMode @default(MANUAL)
+  consentVersion               String?
+  consentGrantedAt             DateTime?      @db.Timestamptz(3)
+  consentGrantedById           String?
+  consentRevokedAt             DateTime?      @db.Timestamptz(3)
+  /// The platform permissions the person agreed TOUMA may use for automatic publishing (a copy of what the account holds at consent time).
+  authorizedScopes             String[]
+  allowedContentTypes          String[]
+  maximumPostsPerDay           Int            @default(2)
+  timezone                     String
+  /// [{ days: [0..6], from: "HH:MM", to: "HH:MM" }] read in `timezone`.
+  allowedPublishingHours       Json
+  requiresPlatformConfirmation Boolean        @default(false)
+  automationEnabled            Boolean        @default(false)
+  pausedAt                     DateTime?      @db.Timestamptz(3)
+  pausedById                   String?
+  updatedById                  String?
+  createdAt                    DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime       @updatedAt @db.Timestamptz(3)
+
+  business      Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, mode])
+}
+
+/// The decision taken for one version of one calendar entry: classification, reasons, what happened, and for an approval by a person its validity and who gave it.
+model PublishingDecision {
+  id              String          @id @default(cuid())
+  businessId      String
+  calendarEventId String
+  contentId       String
+  contentVersion  Int
+  socialAccountId String?
+  platform        SocialPlatform?
+  policyId        String?
+  mode            PublishingMode
+  risk            PublishingRisk
+  reasons         Json
+  /// AUTO_SCHEDULED | SENT_TO_REVIEW | BLOCKED | AWAITING_PLATFORM_CONFIRMATION | HUMAN_APPROVED | REJECTED | WITHDRAWN
+  action          String
+  /// true when the policy (not a person) scheduled it under the consent on file.
+  automated       Boolean         @default(false)
+  /// Hash of the exact snapshot (content, media, account, time) the decision covers.
+  snapshotHash    String?
+  approvedById    String?
+  approvedAt      DateTime?       @db.Timestamptz(3)
+  validUntil      DateTime?       @db.Timestamptz(3)
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarEventId, contentVersion])
+  @@index([businessId, createdAt])
+  @@index([businessId, action])
+}
+
+/// Append-only history of what the publishing automation did and why (consent, mode changes, passes, decisions, pauses, stops).
+model PublishingEvent {
+  id              String   @id @default(cuid())
+  businessId      String
+  socialAccountId String?
+  calendarEventId String?
+  type            String
+  actorId         String?
+  data            Json?
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
+  @@index([socialAccountId, createdAt])
 }

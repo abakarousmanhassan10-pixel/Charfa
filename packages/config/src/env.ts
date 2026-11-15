@@ -281,6 +281,12 @@ export const appEnvSchema = z.object({
   BILLING_MAX_FAILED_PAYMENTS: z.coerce.number().int().min(1).max(10).default(3),
   /** Comma-separated e-mails of the founder(s): owners with a VERIFIED e-mail on this list keep free lifetime access. */
   FOUNDER_EMAILS: z.string().default('').transform((v) => v.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)),
+  // ─── Autonomous & hybrid publishing (Phase N21): off by default. A policy per connected account (MANUAL/HYBRID/AUTO) after a versioned consent; the platform rules and the publication gate always apply ───
+  AUTOPUBLISH_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  AUTOPUBLISH_TICK_MS: z.coerce.number().int().min(1_000).default(30_000),
+  /** How long after the planned time an approval stays valid; later the post is not published and needs a new approval. */
+  AUTOPUBLISH_APPROVAL_GRACE_MINUTES: z.coerce.number().int().min(5).max(1_440).default(120),
+  AUTOPUBLISH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   // ─── AI agents, guardian and cost engine (Phase N28): off by default; agents use the configured text provider (the mock in demos), never act outside TOUMA ───
   AGENTS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   AGENTS_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
