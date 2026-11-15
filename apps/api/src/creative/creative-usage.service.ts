@@ -24,11 +24,11 @@ export class CreativeUsageService {
     @InjectEnv() private readonly env: AppEnv,
   ) {}
 
-  /** An ACTIVE or TRIALING plan's `aiImagesPerMonth` / `aiVideoSecondsPerMonth`, else the defaults. */
+  /** An ACTIVE (trial included), PAST_DUE or GRACE_PERIOD plan's `aiImagesPerMonth` / `aiVideoSecondsPerMonth`, else the defaults. */
   async limitsFor(businessId: string, db: Db | PrismaService = this.prisma) {
     const defaults = { images: this.env.CREATIVE_MONTHLY_IMAGES_PER_BUSINESS, videoSeconds: this.env.CREATIVE_MONTHLY_VIDEO_SECONDS_PER_BUSINESS };
     const sub = await db.subscription.findUnique({ where: { businessId }, select: { status: true, plan: { select: { code: true, limits: true } } } });
-    if (sub && (sub.status === 'ACTIVE' || sub.status === 'TRIALING')) {
+    if (sub && (sub.status === 'ACTIVE' || sub.status === 'PAST_DUE' || sub.status === 'GRACE_PERIOD')) {
       const l = (sub.plan.limits ?? {}) as Record<string, unknown>;
       const images = num(l.aiImagesPerMonth);
       const videoSeconds = num(l.aiVideoSecondsPerMonth);

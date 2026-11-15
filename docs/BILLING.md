@@ -94,3 +94,51 @@ Plans, subscriptions, trial, entitlement, payments and webhook storage are provi
 - while the old provider still holds a live subscription, `card-setup`, `subscribe` and `cancel` are refused (`PROVIDER_MIGRATION_BLOCKED`) so nobody is billed twice: end it at the old provider first;
 - then the merchant captures a new card on the new provider's hosted page (card tokens cannot be copied between providers by TOUMA unless both providers offer an official token migration), TOUMA creates the new customer, records `providerMigratedFrom`, and the same subscription row continues with the same plan and history.
 Recommended order: create the business entity → open the professional account → build and sandbox-test the adapter → enable for new customers → move existing ones in batches with advance notice.
+
+---
+
+## N26 – Hybrid billing engine (AUTO and MANUAL renewal)
+
+Status: implemented and tested locally with a **mock provider only**. `BILLING_ENABLED=false` by default; no real payment, charge or provider activation exists. Production start-up refuses `BILLING_ENABLED=true` until a provider adapter is verified.
+
+### Decisions (founder-approved)
+1. **Extend, do not duplicate.** The requested entities map onto the existing ones: `SubscriptionPlan` = `Plan`; `CustomerSubscription` = `Subscription` (one per business); `PaymentTransaction` = `Payment`; `BillingEvent` = `WebhookEvent` (verified provider deliveries, unique on provider + event id) plus `SubscriptionAuditLog` (our own decisions); new tables `Invoice`, `SubscriptionAuditLog`, `PaymentProviderAccount`.
+2. **State set replaced** by `PENDING, ACTIVE, PAST_DUE, GRACE_PERIOD, CANCELED, EXPIRED` (the old `TRIALING/INCOMPLETE/UNPAID` enum values stay in PostgreSQL, unused, because an enum value cannot be dropped safely). A 72-hour trial is an **ACTIVE** subscription whose current period is the trial (`trialEndsAt` = `currentPeriodEnd`).
+3. `userId` is "who subscribed"; **one subscription per business** (`tenantId` = `businessId`).
+
+### Data model (migrations `20261203090000_billing_engine_states`, `20261203090100_billing_engine`, additive)
+`Subscription` gains `userId, billingMode (AUTO|MANUAL), billingInterval (MONTHLY|YEARLY), currency, amountMinor, autoRenewConsentAt, pendingPlanId, pendingBillingInterval`; `Plan` gains `priceAmountMinor, yearlyPriceAmountMinor` (yearly default = 10 monthly prices, editable); `Payment` gains `amountMinor, kind, idempotencyKey (unique), periodStart/End, failureCode, sessionUrl, simulated`. **All amounts are integers in minor units** (the legacy decimal columns are kept as copies; the code never computes with floats: `majorToMinor`, `minorToMajorString`, `formatMinor` in `@touma/shared`, with per-currency exponents). `Invoice` is unique per (subscription, period start) and numbered from a PostgreSQL sequence (`SIM-<year>-<n>` for simulated invoices, which are not tax documents). The local data migration converts rows: `TRIALING → ACTIVE` (period = trial), `INCOMPLETE → PENDING`, `UNPAID → EXPIRED`. Not applied anywhere but local test databases.
+
+### State machine (`packages/shared/src/billing.ts`, validated on the server)
+```
+PENDING      -> ACTIVE | CANCELED | EXPIRED
+ACTIVE       -> PAST_DUE | GRACE_PERIOD | CANCELED | EXPIRED
+PAST_DUE     -> ACTIVE | GRACE_PERIOD | CANCELED | EXPIRED
+GRACE_PERIOD -> ACTIVE | CANCELED | EXPIRED
+CANCELED     -> ACTIVE | EXPIRED
+EXPIRED      -> ACTIVE
+```
+Every status write goes through `setStatus` (validated transition, 409 `INVALID_TRANSITION` otherwise, one `SubscriptionAuditLog` row with from/to/reason). **A subscription becomes ACTIVE only when a payment is confirmed by a verified provider event** (`BillingEngine.applyEvent`); no customer endpoint, redirect or query parameter can do it. PAST_DUE = an automatic charge failed (provider retrying); GRACE_PERIOD = the period ended unpaid (manual) or retries ran out (`BILLING_MAX_FAILED_PAYMENTS`); both keep access for `BILLING_GRACE_DAYS` (default 3, configurable; trials get no grace); then EXPIRED.
+
+### Flows (all simulated)
+- **AUTO**: sign-up with explicit consent (`autoRenewConsentAt`) → hosted card page (URL only) → `subscribe` schedules the recurring charge at the provider → at the due date the provider charges and notifies → verified webhook → period extended by one interval (UTC calendar math with end-of-month clamping), invoice issued, access follows. A decline → PAST_DUE with retries, then GRACE_PERIOD, then the customer can pay by hand.
+- **MANUAL**: expiry date shown, reminder `BILLING_REMINDER_DAYS` before the end (in-app notification, once), **Renew** opens a hosted payment session (a pending `Payment`, nothing changes), the provider's verified confirmation extends the period **once** (idempotency key = subscription + period boundary + attempt number; invoice unique per period). Renewal opens only within the reminder window or after expiry (no paying months ahead).
+- **Switch mode**: AUTO needs consent; MANUAL stops the provider's recurring schedule and withdraws the consent. **Plan/interval change**: recorded now, applied at the next renewal (no proration, no refund); for a live recurring schedule the provider's own subscription would also need updating — not implemented, flagged as an integration task.
+- **Cancel / resume**: at the end of the paid period; a provider cancellation event moves to CANCELED (access until the end), then EXPIRED.
+
+### Security
+Tenant isolation on every route (404 for another business's invoice/payment); `billing.read` for reads, `billing.manage` (owner) for changes; DTO validation (plans, modes, intervals, https-only `returnUrl`); a row lock per subscription serializes renewals, webhooks and the due sweep; unique keys make renewals, payments, invoices and webhook deliveries idempotent; amounts confirmed by the provider must equal the expected amount, otherwise nothing is extended and the case is flagged (`amount_mismatch`); a second charge for an already paid period is recorded and flagged, never extended; the webhook path verifies the signature on the raw body (HMAC + replay window in the mock; a real adapter must implement its provider's scheme) before storing anything; no card number, expiry or CVC is ever stored or accepted (only opaque provider references); the founder is exempt everywhere.
+
+### Providers
+`PaymentProvider` (capabilities explicit and `unverified` by default, including `hostedPaymentSession` and the verified `methods` list — Visa/Mastercard/wallets are shown only once a provider is verified for them). `MockPaymentProvider` (id `simulated`, test only), `PayoneerAdapter`, `IyzicoAdapter` and `FutureProviderAdapter` extend `UnverifiedPaymentProvider`: no HTTP, no endpoint, no assumed API; every operation refuses with `PROVIDER_NOT_VERIFIED`. `PaymentProviderAccount` records which providers exist, whether one is selected, and what is verified (nothing is). Add a provider: copy `future.provider.ts`, add its `ProviderId` and `WebhookProvider` value, implement only documented, sandbox-tested calls, register it in `billing-provider.ts`.
+
+### Simulator (mock provider only; refused outside `APP_ENV=test`)
+`POST /billing/simulator/{confirm,due,card-saved,rewind,process-due}`: the simulator plays the *provider*, sending correctly signed notifications through the **same webhook processor** as production, so the engine behaves exactly as it will with a real provider. UI buttons exist only when `simulation: true` and are labelled "Simulation — no real payment".
+
+### Admin
+`GET /admin/billing/overview` (SUPER_ADMIN/SUPPORT) and `/dashboard/operations/billing`: subscriptions by state, expired, failed payments, upcoming renewals (14 days), recent events, provider readiness, and revenue split into **simulated** (never presented as collected money) and **real** (empty until a verified provider is live).
+
+### Needs a merchant account or further validation before any real use
+- A provider that is verified for: recurring card charges (Visa/Mastercard), hosted card capture and payment pages, signed webhooks, a sandbox, and availability for the founder's company (Payoneer and iyzico are unverified; eligibility for a Türkiye-based company must be confirmed in writing).
+- Real webhook signature verification per provider; refunds, disputes and tax invoicing (VAT/KDV, e-invoicing) — the simulated invoices are not tax documents.
+- Provider-side subscription updates for plan changes in AUTO mode; a worker job calling `processDue` on a schedule; legal pages (terms, refund, privacy, automatic-renewal disclosure and cancellation rules of the customer's country).

@@ -1,4 +1,6 @@
 import { ProviderUnavailableError, WebhookSignatureError } from '../payment-provider';
+import { FutureProviderAdapter } from './future.provider';
+import { IyzicoPaymentProvider } from './iyzico.provider';
 import { PayoneerPaymentProvider } from './payoneer.provider';
 import { SimulatedPaymentProvider } from './simulated.provider';
 
@@ -26,11 +28,31 @@ describe('SimulatedPaymentProvider', () => {
 describe('PayoneerPaymentProvider', () => {
   const p = new PayoneerPaymentProvider();
   it('declares every capability unverified', () => {
-    expect(p.capabilities()).toEqual({ id: 'payoneer', recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', verifiedWebhooks: 'unverified', verifiedAgainstOfficialDocs: false, live: false });
+    expect(p.capabilities()).toEqual({ id: 'payoneer', recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', hostedPaymentSession: 'unverified', verifiedWebhooks: 'unverified', methods: [], verifiedAgainstOfficialDocs: false, live: false });
   });
   it('refuses every operation without doing anything', async () => {
     await expect(p.createCustomer()).rejects.toBeInstanceOf(ProviderUnavailableError);
     await expect(p.createCardSetup()).rejects.toMatchObject({ code: 'PROVIDER_NOT_VERIFIED' });
+    await expect(p.createSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
+    await expect(p.cancelSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
+    await expect(p.resumeSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
+    expect(() => p.verifyWebhook()).toThrow(ProviderUnavailableError);
+  });
+});
+
+describe.each([
+  ['iyzico', () => new IyzicoPaymentProvider()],
+  ['future', () => new FutureProviderAdapter()],
+])('%s adapter (preparatory)', (id, make) => {
+  const p = make();
+  it('has no verified capability, no payment method, and is never live', () => {
+    expect(p.id).toBe(id);
+    expect(p.capabilities()).toMatchObject({ recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', hostedPaymentSession: 'unverified', verifiedWebhooks: 'unverified', methods: [], verifiedAgainstOfficialDocs: false, live: false });
+  });
+  it('refuses every operation, including payment sessions and webhooks', async () => {
+    await expect(p.createCustomer()).rejects.toMatchObject({ code: 'PROVIDER_NOT_VERIFIED' });
+    await expect(p.createCardSetup()).rejects.toBeInstanceOf(ProviderUnavailableError);
+    await expect(p.createPaymentSession()).rejects.toBeInstanceOf(ProviderUnavailableError);
     await expect(p.createSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
     await expect(p.cancelSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
     await expect(p.resumeSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);

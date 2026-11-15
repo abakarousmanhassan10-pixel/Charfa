@@ -255,10 +255,14 @@ export const appEnvSchema = z.object({
   // ─── Sales assistant 2.0 (Phase N5): off by default; no outbound channel exists, nothing is ever sent ───
   // ─── Billing (Phase N24): provider-independent architecture, simulation only. Off by default; no real charge exists.
   BILLING_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
-  /** none = no provider; simulated = test-only in-process provider (APP_ENV=test); payoneer = adapter that refuses everything until its capabilities are verified against Payoneer's official documentation. */
+  /** none = no provider; simulated = test-only in-process provider (APP_ENV=test); payoneer / iyzico = preparatory adapters that refuse everything until their capabilities are verified against the provider's official documentation. */
   /** Server-side subscription authorization for paid AI actions (text, image, video generation). Off by default: nothing is blocked. Requires BILLING_ENABLED. The founder is always exempt. */
   BILLING_ENFORCEMENT_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
-  BILLING_PROVIDER: z.enum(['none', 'simulated', 'payoneer']).default('none'),
+  BILLING_PROVIDER: z.enum(['none', 'simulated', 'payoneer', 'iyzico']).default('none'),
+  /** Days of access after a billing period ends unpaid (policy; 0 = none). */
+  BILLING_GRACE_DAYS: z.coerce.number().int().min(0).max(30).default(3),
+  /** Days before a manual subscription ends when the renewal reminder is sent. */
+  BILLING_REMINDER_DAYS: z.coerce.number().int().min(1).max(30).default(3),
   BILLING_WEBHOOK_SECRET: z.string().min(16).optional(),
   /** Which kind of Payoneer account would be connected. A PERSONAL account must never be used for automatic customer payments: BILLING_PROVIDER=payoneer is refused unless this is "business". */
   PAYONEER_ACCOUNT_TYPE: z.enum(['personal', 'business']).default('personal'),

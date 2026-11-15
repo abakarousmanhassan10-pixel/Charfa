@@ -71,7 +71,7 @@ export class AiUsageService {
   async limitsFor(businessId: string, db: Db | PrismaService = this.prisma): Promise<UsageLimits> {
     const defaults = { generations: this.env.AI_MONTHLY_GENERATIONS_PER_BUSINESS, tokens: this.env.AI_MONTHLY_TOKENS_PER_BUSINESS };
     const sub = await db.subscription.findUnique({ where: { businessId }, select: { status: true, plan: { select: { code: true, limits: true } } } });
-    if (sub && (sub.status === 'ACTIVE' || sub.status === 'TRIALING')) {
+    if (sub && (sub.status === 'ACTIVE' || sub.status === 'PAST_DUE' || sub.status === 'GRACE_PERIOD')) {
       const l = (sub.plan.limits ?? {}) as Record<string, unknown>;
       const generations = num(l.aiGenerationsPerMonth) ?? num(l.aiCreditsPerMonth);
       const tokens = num(l.aiTokensPerMonth);

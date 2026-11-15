@@ -9,19 +9,27 @@ export interface ProviderCapabilities {
   recurringSubscriptions: CapabilityStatus;
   /** Card capture on a page hosted by the provider, so TOUMA never sees card data. */
   hostedCardCapture: CapabilityStatus;
+  /** One-off payment on a provider-hosted page (manual renewals). */
+  hostedPaymentSession: CapabilityStatus;
   /** Signed webhook notifications TOUMA can verify. */
   verifiedWebhooks: CapabilityStatus;
+  /** Payment methods the provider is verified to accept (e.g. visa, mastercard, wallet). Empty until verified: never assumed. */
+  methods: readonly string[];
   /** True only when the adapter was checked against the provider's official documentation and a sandbox. */
   verifiedAgainstOfficialDocs: boolean;
   /** True only for a provider that moves real money. No adapter in this repository is live. */
   live: boolean;
 }
 
-export type ProviderId = 'simulated' | 'payoneer';
+/** `future` is the template for a provider added later; it can never be selected by configuration. */
+export type ProviderId = 'simulated' | 'payoneer' | 'iyzico' | 'future';
 
 export interface NormalizedBillingEvent {
   /** Provider event id: the idempotency key. */
   id: string;
+  /** Our own payment reference echoed by the provider (the idempotency key of the charge or payment session). */
+  reference?: string;
+  failureCode?: string;
   type: BillingEventType;
   customerRef?: string;
   subscriptionRef?: string;
@@ -40,7 +48,10 @@ export interface PaymentProvider {
   createCustomer(input: { businessId: string; email: string }): Promise<{ customerRef: string }>;
   /** Starts a card capture on a provider-hosted page. The result holds a URL only: card data never reaches TOUMA. */
   createCardSetup(input: { customerRef: string; returnUrl: string }): Promise<{ setupRef: string; hostedUrl: string }>;
-  createSubscription(input: { customerRef: string; paymentMethodRef: string; amount: string; currency: string; interval: 'MONTH'; firstChargeAt: Date | null }): Promise<{ subscriptionRef: string }>;
+  /** One-off payment on a provider-hosted page (manual renewal). The result holds a URL only. */
+  createPaymentSession(input: { customerRef: string; amountMinor: number; currency: string; reference: string; returnUrl: string }): Promise<{ sessionRef: string; hostedUrl: string }>;
+  /** Automatic renewals: amounts are integer minor units. */
+  createSubscription(input: { customerRef: string; paymentMethodRef: string; amountMinor: number; currency: string; interval: 'MONTHLY' | 'YEARLY'; firstChargeAt: Date | null }): Promise<{ subscriptionRef: string }>;
   cancelSubscription(input: { subscriptionRef: string; atPeriodEnd: boolean }): Promise<void>;
   /** Undoes a cancellation scheduled for the end of the period. */
   resumeSubscription(input: { subscriptionRef: string }): Promise<void>;

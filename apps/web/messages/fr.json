@@ -1531,7 +1531,11 @@
         "unpaid": "Abonnement suspendu après plusieurs échecs de paiement",
         "canceled": "Votre abonnement a été annulé",
         "trial_ending": "Votre essai gratuit se termine dans moins de 24 heures",
-        "trial_ended": "Votre essai gratuit est terminé"
+        "trial_ended": "Votre essai gratuit est terminé",
+        "renewal_reminder": "Votre abonnement se termine bientôt : renouvelez pour garder l'accès",
+        "renewal_overdue": "Votre période d'abonnement est terminée : renouvelez pendant la période de grâce",
+        "expired": "Votre abonnement a expiré",
+        "grace_started": "Paiement échoué plusieurs fois : mettez à jour votre paiement pendant la période de grâce"
       }
     }
   },
@@ -2787,7 +2791,10 @@
       "PAST_DUE_GRACE": "Paiement en retard",
       "CANCELED_UNTIL_PERIOD_END": "Annulé",
       "EXPIRED": "Expiré",
-      "NONE": "Aucune offre"
+      "NONE": "Aucune offre",
+      "PAST_DUE": "Paiement échoué — nouvelle tentative",
+      "GRACE_PERIOD": "En retard — période de grâce",
+      "PENDING": "En attente de paiement"
     },
     "stateHelp": {
       "TRIALING": "Tout est disponible pendant votre essai gratuit.",
@@ -2795,7 +2802,10 @@
       "PAST_DUE_GRACE": "Un paiement a échoué. L'accès continue quelques jours pendant les nouvelles tentatives.",
       "CANCELED_UNTIL_PERIOD_END": "L'accès continue jusqu'à la fin de la période payée.",
       "EXPIRED": "Votre accès est terminé. Démarrez un abonnement pour continuer.",
-      "NONE": "Démarrez votre essai gratuit pour utiliser les fonctions IA de TOUMA."
+      "NONE": "Démarrez votre essai gratuit pour utiliser les fonctions IA de TOUMA.",
+      "PAST_DUE": "Un paiement automatique a échoué. L'accès continue pendant la période de grâce, le temps des nouvelles tentatives.",
+      "GRACE_PERIOD": "La période s'est terminée impayée. Renouvelez pendant la période de grâce pour garder l'accès.",
+      "PENDING": "Votre abonnement démarre quand le prestataire de paiement confirme votre premier paiement."
     },
     "payment": {
       "SUCCEEDED": "Payé",
@@ -2808,7 +2818,17 @@
       "billing_trial_started": "Essai gratuit démarré",
       "billing_cancel_requested": "Annulation demandée",
       "billing_resume_requested": "Annulation retirée",
-      "billing_event_applied": "Mise à jour du prestataire de paiement"
+      "billing_event_applied": "Mise à jour du prestataire de paiement",
+      "trial_started": "Essai gratuit démarré",
+      "created": "Abonnement créé",
+      "status_changed": "Statut modifié",
+      "payment_session_created": "Page de paiement ouverte",
+      "provider_event": "Mise à jour du prestataire de paiement",
+      "mode_changed": "Mode de renouvellement modifié",
+      "plan_change_requested": "Changement de forfait demandé",
+      "cancel_requested": "Annulation demandée",
+      "cancel_withdrawn": "Annulation retirée",
+      "provider_subscription_scheduled": "Renouvellement automatique programmé"
     },
     "errors": {
       "TRIAL_ALREADY_USED": "Cette entreprise a déjà utilisé son essai gratuit.",
@@ -2819,7 +2839,95 @@
       "PROVIDER_MIGRATION_BLOCKED": "L'ancien prestataire a encore un abonnement actif : annulez-le d'abord chez lui.",
       "PROVIDER_MIGRATION_REQUIRED": "Enregistrez d'abord une carte chez le nouveau prestataire.",
       "ALREADY_SUBSCRIBED": "Un abonnement existe déjà.",
-      "NOTHING_TO_RESUME": "Aucune annulation en attente."
-    }
+      "NOTHING_TO_RESUME": "Aucune annulation en attente.",
+      "CONSENT_REQUIRED": "Le renouvellement automatique nécessite votre consentement explicite.",
+      "RENEWAL_NOT_DUE": "Cette période est payée. Le renouvellement ouvre quelques jours avant sa fin.",
+      "ALREADY_PAID": "Cette période est déjà payée.",
+      "SUBSCRIPTION_EXISTS": "Cette entreprise a déjà un abonnement.",
+      "PLAN_NOT_FOUND": "Forfait introuvable.",
+      "SUBSCRIPTION_NOT_CHANGEABLE": "Renouvelez d'abord, puis changez de forfait.",
+      "INVALID_TRANSITION": "Ce changement n'est pas autorisé dans l'état actuel.",
+      "PAYMENT_NOT_PENDING": "Ce paiement est déjà réglé.",
+      "NOT_AUTOMATIC": "Le renouvellement automatique n'est pas configuré.",
+      "CAPABILITY_UNSUPPORTED": "Ce prestataire de paiement ne le permet pas."
+    },
+    "simulationBanner": "Simulation — aucun paiement réel",
+    "mode": "Renouvellement",
+    "modes": {
+      "AUTO": "Renouvellement automatique",
+      "MANUAL": "Renouvellement manuel"
+    },
+    "modeHelp": {
+      "AUTO": "Vous êtes débité automatiquement à chaque échéance jusqu'à l'annulation. Nécessite votre consentement et une carte enregistrée.",
+      "MANUAL": "Rien n'est débité automatiquement : vous renouvelez vous-même avant chaque échéance."
+    },
+    "interval": {
+      "MONTHLY": "Mensuel",
+      "YEARLY": "Annuel"
+    },
+    "amount": "Prix par période",
+    "nextPayment": "Prochain paiement",
+    "afterFirstPayment": "après le premier paiement",
+    "pendingChange": "Changement de forfait",
+    "atNextRenewal": "s'applique au prochain renouvellement",
+    "graceInfo": "Si une période se termine impayée, vous gardez l'accès pendant {days} jours.",
+    "chooseInterval": "Période de facturation",
+    "chooseMode": "Comment voulez-vous renouveler ?",
+    "consent": "J'accepte d'être débité automatiquement à chaque renouvellement jusqu'à mon annulation.",
+    "renew": "Renouveler",
+    "disableAuto": "Désactiver le renouvellement automatique",
+    "enableAuto": "Activer le renouvellement automatique",
+    "enableAutoConfirm": "Confirmer le renouvellement automatique",
+    "sessionTitle": "Payer {amount}",
+    "simulatedPaymentPage": "Page de paiement simulée. En production, vous êtes redirigé vers la page sécurisée du prestataire ; TOUMA ne voit jamais votre carte.",
+    "redirectToProvider": "Vous allez être redirigé vers la page sécurisée du prestataire de paiement.",
+    "simSuccess": "Simuler un paiement réussi",
+    "simDeclined": "Simuler un paiement refusé",
+    "waitForConfirmation": "Votre abonnement n'est prolongé qu'une fois le paiement confirmé par le prestataire à notre serveur, et non à votre retour sur cette page.",
+    "simDueHelp": "Simulation :",
+    "simDueSuccess": "L'échéance arrive — paiement réussi",
+    "simDueDeclined": "L'échéance arrive — paiement refusé",
+    "changePlanTitle": "Changer de forfait",
+    "changePlanHelp": "Le changement s'applique au prochain renouvellement. Pas de prorata ni de remboursement.",
+    "changePlanSubmit": "Demander le changement",
+    "methodsTitle": "Moyens de paiement",
+    "methodsSimulated": "Simulation : paiements Visa, Mastercard et portefeuille simulés. Aucune vraie carte n'est utilisée.",
+    "methodsUnverified": "Visa, Mastercard et portefeuilles numériques dépendent du prestataire de paiement, pas encore vérifié. Ils seront listés ici une fois vérifiés.",
+    "invoicesTitle": "Factures",
+    "invoicesEmpty": "Aucune facture pour le moment.",
+    "invoiceStatus": {
+      "OPEN": "Ouverte",
+      "PAID": "Payée",
+      "VOID": "Annulée"
+    },
+    "simulatedTag": "Simulée",
+    "admin": {
+      "title": "Vue d'ensemble de la facturation",
+      "subtitle": "Abonnements, échecs, revenus simulés et prochains renouvellements (administrateurs de la plateforme).",
+      "activePaid": "Actifs (payants)",
+      "trialing": "En essai gratuit",
+      "pending": "En attente",
+      "pastDue": "En retard de paiement",
+      "gracePeriod": "Période de grâce",
+      "canceled": "Annulés",
+      "expired": "Expirés",
+      "failed30": "Paiements échoués (30 jours)",
+      "revenueTitle": "Revenus",
+      "revenueNote": "Les revenus simulés ne sont PAS de l'argent encaissé. Les revenus réels restent vides tant qu'un prestataire vérifié n'est pas en service.",
+      "noRevenue": "Aucune facture pour le moment.",
+      "upcomingTitle": "Renouvellements dans les 14 prochains jours",
+      "providersTitle": "Prestataires de paiement",
+      "providersHelp": "Ce que chaque prestataire est vérifié pour faire. Aucun n'est encore vérifié.",
+      "enabled": "sélectionné",
+      "disabled": "non sélectionné",
+      "cap": {
+        "supported": "simulation",
+        "unverified": "non vérifié",
+        "unsupported": "non pris en charge"
+      },
+      "eventsTitle": "Événements récents",
+      "link": "Vue d'ensemble de la facturation"
+    },
+    "simCardSaved": "Simuler : la page de carte a enregistré une carte"
   }
 }

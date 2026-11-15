@@ -1531,7 +1531,11 @@
         "unpaid": "Subscription suspended after repeated payment failures",
         "canceled": "Your subscription has been canceled",
         "trial_ending": "Your free trial ends within 24 hours",
-        "trial_ended": "Your free trial has ended"
+        "trial_ended": "Your free trial has ended",
+        "renewal_reminder": "Your subscription ends soon: renew to keep access",
+        "renewal_overdue": "Your subscription period has ended: renew within the grace period",
+        "expired": "Your subscription has expired",
+        "grace_started": "Payment failed repeatedly: update your payment within the grace period"
       }
     }
   },
@@ -2787,7 +2791,10 @@
       "PAST_DUE_GRACE": "Payment late",
       "CANCELED_UNTIL_PERIOD_END": "Canceled",
       "EXPIRED": "Expired",
-      "NONE": "No plan"
+      "NONE": "No plan",
+      "PAST_DUE": "Payment failed — retrying",
+      "GRACE_PERIOD": "Overdue — grace period",
+      "PENDING": "Waiting for payment"
     },
     "stateHelp": {
       "TRIALING": "Everything is available during your free trial.",
@@ -2795,7 +2802,10 @@
       "PAST_DUE_GRACE": "A payment failed. Access continues for a few days while it is retried.",
       "CANCELED_UNTIL_PERIOD_END": "Access continues until the end of the period you paid for.",
       "EXPIRED": "Your access has ended. Start a subscription to continue.",
-      "NONE": "Start your free trial to use TOUMA's AI features."
+      "NONE": "Start your free trial to use TOUMA's AI features.",
+      "PAST_DUE": "An automatic payment failed. Access continues during the grace period while it is retried.",
+      "GRACE_PERIOD": "The period ended unpaid. Renew within the grace period to keep access.",
+      "PENDING": "Your subscription starts after the payment provider confirms your first payment."
     },
     "payment": {
       "SUCCEEDED": "Paid",
@@ -2808,7 +2818,17 @@
       "billing_trial_started": "Free trial started",
       "billing_cancel_requested": "Cancellation requested",
       "billing_resume_requested": "Cancellation withdrawn",
-      "billing_event_applied": "Update from the payment provider"
+      "billing_event_applied": "Update from the payment provider",
+      "trial_started": "Free trial started",
+      "created": "Subscription created",
+      "status_changed": "Status changed",
+      "payment_session_created": "Payment page opened",
+      "provider_event": "Update from the payment provider",
+      "mode_changed": "Renewal mode changed",
+      "plan_change_requested": "Plan change requested",
+      "cancel_requested": "Cancellation requested",
+      "cancel_withdrawn": "Cancellation withdrawn",
+      "provider_subscription_scheduled": "Automatic renewal scheduled"
     },
     "errors": {
       "TRIAL_ALREADY_USED": "This business has already used its free trial.",
@@ -2819,7 +2839,95 @@
       "PROVIDER_MIGRATION_BLOCKED": "The previous provider still has a live subscription: cancel it there first.",
       "PROVIDER_MIGRATION_REQUIRED": "Save a card with the new payment provider first.",
       "ALREADY_SUBSCRIBED": "A subscription already exists.",
-      "NOTHING_TO_RESUME": "There is no pending cancellation."
-    }
+      "NOTHING_TO_RESUME": "There is no pending cancellation.",
+      "CONSENT_REQUIRED": "Automatic renewal needs your explicit consent.",
+      "RENEWAL_NOT_DUE": "This period is paid. Renewal opens a few days before it ends.",
+      "ALREADY_PAID": "This period is already paid.",
+      "SUBSCRIPTION_EXISTS": "This business already has a subscription.",
+      "PLAN_NOT_FOUND": "Plan not found.",
+      "SUBSCRIPTION_NOT_CHANGEABLE": "Renew first, then change the plan.",
+      "INVALID_TRANSITION": "This change is not allowed in the current state.",
+      "PAYMENT_NOT_PENDING": "This payment is already settled.",
+      "NOT_AUTOMATIC": "Automatic renewal is not set up.",
+      "CAPABILITY_UNSUPPORTED": "This payment provider does not support that."
+    },
+    "simulationBanner": "Simulation — no real payment",
+    "mode": "Renewal",
+    "modes": {
+      "AUTO": "Automatic renewal",
+      "MANUAL": "Manual renewal"
+    },
+    "modeHelp": {
+      "AUTO": "You are charged automatically at each renewal until you cancel. Needs your consent and a saved card.",
+      "MANUAL": "Nothing is charged automatically: you renew yourself before each due date."
+    },
+    "interval": {
+      "MONTHLY": "Monthly",
+      "YEARLY": "Yearly"
+    },
+    "amount": "Price per period",
+    "nextPayment": "Next payment",
+    "afterFirstPayment": "after the first payment",
+    "pendingChange": "Plan change",
+    "atNextRenewal": "applies at the next renewal",
+    "graceInfo": "If a billing period ends unpaid you keep access for {days} days.",
+    "chooseInterval": "Billing period",
+    "chooseMode": "How do you want to renew?",
+    "consent": "I agree to be charged automatically at each renewal until I cancel.",
+    "renew": "Renew",
+    "disableAuto": "Turn off automatic renewal",
+    "enableAuto": "Turn on automatic renewal",
+    "enableAutoConfirm": "Confirm automatic renewal",
+    "sessionTitle": "Pay {amount}",
+    "simulatedPaymentPage": "Simulated payment page. In production you are sent to the payment provider's secure page; TOUMA never sees your card.",
+    "redirectToProvider": "You will be taken to the payment provider's secure page.",
+    "simSuccess": "Simulate a successful payment",
+    "simDeclined": "Simulate a declined payment",
+    "waitForConfirmation": "Your subscription is extended only after the payment provider confirms the payment to our server, not when you come back to this page.",
+    "simDueHelp": "Simulation:",
+    "simDueSuccess": "Renewal falls due — payment succeeds",
+    "simDueDeclined": "Renewal falls due — payment declined",
+    "changePlanTitle": "Change plan",
+    "changePlanHelp": "The change applies at the next renewal. There is no proration or refund.",
+    "changePlanSubmit": "Request change",
+    "methodsTitle": "Payment methods",
+    "methodsSimulated": "Simulation: simulated Visa, Mastercard and wallet payments. No real card is used.",
+    "methodsUnverified": "Visa, Mastercard and digital wallets depend on the payment provider, which is not verified yet. They are listed here once it is.",
+    "invoicesTitle": "Invoices",
+    "invoicesEmpty": "No invoice yet.",
+    "invoiceStatus": {
+      "OPEN": "Open",
+      "PAID": "Paid",
+      "VOID": "Void"
+    },
+    "simulatedTag": "Simulated",
+    "admin": {
+      "title": "Billing overview",
+      "subtitle": "Subscriptions, failures, simulated revenue and upcoming renewals (platform administrators).",
+      "activePaid": "Active (paid)",
+      "trialing": "In free trial",
+      "pending": "Pending",
+      "pastDue": "Past due",
+      "gracePeriod": "Grace period",
+      "canceled": "Canceled",
+      "expired": "Expired",
+      "failed30": "Failed payments (30 days)",
+      "revenueTitle": "Revenue",
+      "revenueNote": "Simulated revenue is NOT money collected. Real revenue stays empty until a verified payment provider is live.",
+      "noRevenue": "No invoice yet.",
+      "upcomingTitle": "Renewals in the next 14 days",
+      "providersTitle": "Payment providers",
+      "providersHelp": "What each provider is verified to do. None is verified yet.",
+      "enabled": "selected",
+      "disabled": "not selected",
+      "cap": {
+        "supported": "simulation",
+        "unverified": "not verified",
+        "unsupported": "unsupported"
+      },
+      "eventsTitle": "Recent events",
+      "link": "Billing overview"
+    },
+    "simCardSaved": "Simulate: the card page saved a card"
   }
 }

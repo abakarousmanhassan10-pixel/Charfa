@@ -44,6 +44,11 @@ async function main() {
   for (const p of plans) {
     const price = process.env[`PLAN_${p.code}_PRICE`] ?? p.defaultPrice;
     const providerPriceId = process.env[`PLAN_${p.code}_PROVIDER_PRICE_ID`] || null;
+    // Integer minor units, parsed from the decimal string (no floating point). Yearly defaults to 10 monthly prices (two months free).
+    const [whole = '0', frac = ''] = price.split('.');
+    const priceMinor = Number(whole + frac.padEnd(2, '0').slice(0, 2));
+    const yearlyEnv = process.env[`PLAN_${p.code}_YEARLY_PRICE`];
+    const yearlyMinor = yearlyEnv ? Number(yearlyEnv.split('.')[0] + (yearlyEnv.split('.')[1] ?? '').padEnd(2, '0').slice(0, 2)) : priceMinor * 10;
     await prisma.plan.upsert({
       where: { code: p.code },
       create: {
@@ -51,6 +56,8 @@ async function main() {
         name: p.name,
         description: p.description,
         priceAmount: new Prisma.Decimal(price),
+        priceAmountMinor: priceMinor,
+        yearlyPriceAmountMinor: yearlyMinor,
         currency: 'USD',
         limits: p.limits,
         sortOrder: p.sortOrder,

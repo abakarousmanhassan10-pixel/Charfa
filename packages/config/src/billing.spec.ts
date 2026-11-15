@@ -45,3 +45,17 @@ describe('billing enforcement flag (N23.2)', () => {
     expect(loadEnv({ ...valid, BILLING_ENFORCEMENT_ENABLED: 'true', BILLING_ENABLED: 'true' }).BILLING_ENFORCEMENT_ENABLED).toBe(true);
   });
 });
+
+describe('billing engine configuration (N26)', () => {
+  it('grace and reminder policies are configurable and bounded; iyzico is selectable but inert', () => {
+    const env = loadEnv(valid);
+    expect(env).toMatchObject({ BILLING_GRACE_DAYS: 3, BILLING_REMINDER_DAYS: 3 });
+    expect(loadEnv({ ...valid, BILLING_GRACE_DAYS: '0' }).BILLING_GRACE_DAYS).toBe(0);
+    expect(loadEnv({ ...valid, BILLING_GRACE_DAYS: '10', BILLING_REMINDER_DAYS: '7' })).toMatchObject({ BILLING_GRACE_DAYS: 10, BILLING_REMINDER_DAYS: 7 });
+    expect(() => loadEnv({ ...valid, BILLING_GRACE_DAYS: '-1' })).toThrow();
+    expect(() => loadEnv({ ...valid, BILLING_GRACE_DAYS: '31' })).toThrow();
+    expect(() => loadEnv({ ...valid, BILLING_REMINDER_DAYS: '0' })).toThrow();
+    expect(loadEnv({ ...valid, BILLING_PROVIDER: 'iyzico' }).BILLING_PROVIDER).toBe('iyzico');
+    expect(() => loadEnv({ ...valid, BILLING_PROVIDER: 'stripe' })).toThrow();
+  });
+});

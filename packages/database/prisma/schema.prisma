@@ -302,6 +302,8 @@ enum BillingInterval {
   YEAR
 }
 
+/// N26 state machine: PENDING, ACTIVE, PAST_DUE, GRACE_PERIOD, CANCELED, EXPIRED (transitions validated by the server, see @touma/shared billing).
+/// TRIALING, INCOMPLETE and UNPAID are legacy values kept only because a PostgreSQL enum value cannot be dropped safely; no code writes them.
 enum SubscriptionStatus {
   TRIALING
   ACTIVE
@@ -309,6 +311,36 @@ enum SubscriptionStatus {
   CANCELED
   INCOMPLETE
   UNPAID
+  PENDING
+  GRACE_PERIOD
+  EXPIRED
+}
+
+enum BillingMode {
+  AUTO
+  MANUAL
+}
+
+enum SubscriptionInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum InvoiceStatus {
+  OPEN
+  PAID
+  VOID
+}
+
+enum PaymentKind {
+  INITIAL
+  RENEWAL_AUTO
+  RENEWAL_MANUAL
+}
+
+enum ProviderAccountEnvironment {
+  SANDBOX
+  LIVE
 }
 
 enum PaymentStatus {
@@ -339,6 +371,7 @@ enum NotificationChannel {
 enum WebhookProvider {
   STRIPE
   PAYONEER
+  IYZICO
   SIMULATED_BILLING
   META
   TIKTOK
@@ -443,22 +476,23 @@ model User {
   updatedAt        DateTime     @updatedAt @db.Timestamptz(3)
   deletedAt        DateTime?    @db.Timestamptz(3)
 
-  sessions            Session[]
-  memberships         Membership[]
-  invitationsSent     Membership[]     @relation("MembershipInviter")
-  customerNotes       CustomerNote[]   @relation("CustomerNoteAuthor")
-  contentsCreated     Content[]        @relation("ContentCreator")
-  contentsApproved    Content[]        @relation("ContentApprover")
-  mediaUploaded       MediaAsset[]
-  messagesAuthored    Message[]
-  notifications       Notification[]
-  auditLogs           AuditLog[]
-  aiUsages            AIUsage[]
-  knowledgeVerified   KnowledgeEntry[] @relation("KnowledgeVerifier")
-  aiGenerations       AIGeneration[]
-  authTokens          AuthToken[]
-  invitationsCreated  Invitation[]     @relation("InvitationInviter")
-  invitationsAccepted Invitation[]     @relation("InvitationAcceptor")
+  sessions             Session[]
+  subscriptionsStarted Subscription[]   @relation("SubscriptionStarter")
+  memberships          Membership[]
+  invitationsSent      Membership[]     @relation("MembershipInviter")
+  customerNotes        CustomerNote[]   @relation("CustomerNoteAuthor")
+  contentsCreated      Content[]        @relation("ContentCreator")
+  contentsApproved     Content[]        @relation("ContentApprover")
+  mediaUploaded        MediaAsset[]
+  messagesAuthored     Message[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  aiUsages             AIUsage[]
+  knowledgeVerified    KnowledgeEntry[] @relation("KnowledgeVerifier")
+  aiGenerations        AIGeneration[]
+  authTokens           AuthToken[]
+  invitationsCreated   Invitation[]     @relation("InvitationInviter")
+  invitationsAccepted  Invitation[]     @relation("InvitationAcceptor")
 
   @@index([status])
   @@index([deletedAt])
@@ -530,6 +564,7 @@ model Business {
   conversations       Conversation[]
   comments            Comment[]
   subscription        Subscription?
+  invoices            Invoice[]
   payments            Payment[]
   analyticsSnapshots  AnalyticsSnapshot[]
   notifications       Notification[]
@@ -1328,51 +1363,71 @@ model AgentFeedback {
 // ─────────────────────────────── Billing ───────────────────────────────
 
 model Plan {
-  id              String          @id @default(cuid())
-  code            PlanCode        @unique
-  name            String
-  description     String?
-  priceAmount     Decimal         @db.Decimal(12, 2)
-  currency        String          @default("USD")
-  interval        BillingInterval @default(MONTH)
+  id                     String          @id @default(cuid())
+  code                   PlanCode        @unique
+  name                   String
+  description            String?
+  priceAmount            Decimal         @db.Decimal(12, 2)
+  /// Money is stored as integer minor units (cents). priceAmount is the legacy decimal copy.
+  priceAmountMinor       Int             @default(0)
+  /// Price of one year (default: 10 monthly prices, i.e. two months free; editable).
+  yearlyPriceAmountMinor Int             @default(0)
+  currency               String          @default("USD")
+  interval               BillingInterval @default(MONTH)
   /// Payment-provider price identifier (e.g. Stripe price id). Null = not configured with provider.
-  providerPriceId String?         @unique
+  providerPriceId        String?         @unique
   /// Limits e.g. { "businesses": 1, "socialAccounts": 3, "aiCreditsPerMonth": 200, "seats": 2 }
-  limits          Json
-  isActive        Boolean         @default(true)
-  sortOrder       Int             @default(0)
-  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+  limits                 Json
+  isActive               Boolean         @default(true)
+  sortOrder              Int             @default(0)
+  createdAt              DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime        @updatedAt @db.Timestamptz(3)
 
   subscriptions Subscription[]
+  pendingFor    Subscription[] @relation("PendingPlan")
 }
 
 model Subscription {
-  id                     String             @id @default(cuid())
-  businessId             String             @unique
+  id                     String                @id @default(cuid())
+  businessId             String                @unique
   planId                 String
-  status                 SubscriptionStatus @default(INCOMPLETE)
-  provider               String             @default("stripe")
+  status                 SubscriptionStatus    @default(PENDING)
+  /// Who subscribed (the business owner who accepted the terms). One subscription per business.
+  userId                 String?
+  billingMode            BillingMode           @default(MANUAL)
+  billingInterval        SubscriptionInterval  @default(MONTHLY)
+  currency               String                @default("USD")
+  /// Integer minor units charged per period.
+  amountMinor            Int                   @default(0)
+  /// Explicit consent to automatic renewal (null = none given).
+  autoRenewConsentAt     DateTime?             @db.Timestamptz(3)
+  /// Plan change requested by the customer, applied at the next renewal (no proration).
+  pendingPlanId          String?
+  pendingBillingInterval SubscriptionInterval?
+  provider               String                @default("stripe")
   providerCustomerId     String?
-  providerSubscriptionId String?            @unique
+  providerSubscriptionId String?               @unique
   /// Opaque provider token for the saved card (hosted capture). Never a card number, expiry or CVC.
   paymentMethodRef       String?
   /// Consecutive failed renewals (reset by a successful payment). Drives PAST_DUE -> UNPAID.
-  failedPaymentCount     Int                @default(0)
-  lastPaymentFailureAt   DateTime?          @db.Timestamptz(3)
+  failedPaymentCount     Int                   @default(0)
+  lastPaymentFailureAt   DateTime?             @db.Timestamptz(3)
   /// Set when the business moved to another payment provider (the previous one, for traceability).
   providerMigratedFrom   String?
-  currentPeriodStart     DateTime?          @db.Timestamptz(3)
-  currentPeriodEnd       DateTime?          @db.Timestamptz(3)
-  cancelAtPeriodEnd      Boolean            @default(false)
-  canceledAt             DateTime?          @db.Timestamptz(3)
-  trialEndsAt            DateTime?          @db.Timestamptz(3)
-  createdAt              DateTime           @default(now()) @db.Timestamptz(3)
-  updatedAt              DateTime           @updatedAt @db.Timestamptz(3)
+  currentPeriodStart     DateTime?             @db.Timestamptz(3)
+  currentPeriodEnd       DateTime?             @db.Timestamptz(3)
+  cancelAtPeriodEnd      Boolean               @default(false)
+  canceledAt             DateTime?             @db.Timestamptz(3)
+  trialEndsAt            DateTime?             @db.Timestamptz(3)
+  createdAt              DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime              @updatedAt @db.Timestamptz(3)
 
-  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  plan     Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
-  payments Payment[]
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  plan        Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  pendingPlan Plan?     @relation("PendingPlan", fields: [pendingPlanId], references: [id], onDelete: SetNull)
+  user        User?     @relation("SubscriptionStarter", fields: [userId], references: [id], onDelete: SetNull)
+  payments    Payment[]
+  invoices    Invoice[]
 
   @@index([status])
   @@index([providerCustomerId])
@@ -1388,6 +1443,18 @@ model Payment {
   providerInvoiceId String?
   amount            Decimal       @db.Decimal(12, 2)
   amountRefunded    Decimal       @default(0) @db.Decimal(12, 2)
+  /// Integer minor units; `amount` is the legacy decimal copy.
+  amountMinor       Int           @default(0)
+  kind              PaymentKind?
+  /// One attempt per (subscription, period, kind): a retried request or a duplicate event can never create a second charge.
+  idempotencyKey    String?       @unique
+  periodStart       DateTime?     @db.Timestamptz(3)
+  periodEnd         DateTime?     @db.Timestamptz(3)
+  failureCode       String?
+  /// Provider-hosted payment page for a pending session (a URL, never card data); lets a repeated request return the same session.
+  sessionUrl        String?
+  /// True when no real money was involved (mock provider).
+  simulated         Boolean       @default(false)
   currency          String
   status            PaymentStatus
   description       String?
@@ -1400,6 +1467,62 @@ model Payment {
   subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
   @@index([businessId, createdAt])
+}
+
+/// Invoices. One per paid period (unique on subscription + period start). `simulated` invoices are not tax documents.
+model Invoice {
+  id             String        @id @default(cuid())
+  businessId     String
+  subscriptionId String
+  number         String        @unique
+  status         InvoiceStatus @default(OPEN)
+  amountMinor    Int
+  currency       String
+  planCode       String
+  description    String?
+  periodStart    DateTime      @db.Timestamptz(3)
+  periodEnd      DateTime      @db.Timestamptz(3)
+  issuedAt       DateTime      @default(now()) @db.Timestamptz(3)
+  paidAt         DateTime?     @db.Timestamptz(3)
+  paymentId      String?       @unique
+  simulated      Boolean       @default(true)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+
+  business     Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, periodStart])
+  @@index([businessId, issuedAt])
+}
+
+/// Every state change and billing decision of a subscription (who, from, to, why). Outlives the subscription row.
+model SubscriptionAuditLog {
+  id             String   @id @default(cuid())
+  businessId     String
+  subscriptionId String?
+  actorId        String?
+  action         String
+  fromStatus     String?
+  toStatus       String?
+  reason         String?
+  metadata       Json?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([subscriptionId, createdAt])
+  @@index([businessId, createdAt])
+}
+
+/// Which payment providers exist on this platform and what they are verified to do. No credential is ever stored here (secrets live in the server environment).
+model PaymentProviderAccount {
+  id           String                     @id @default(cuid())
+  provider     String                     @unique
+  label        String
+  environment  ProviderAccountEnvironment @default(SANDBOX)
+  enabled      Boolean                    @default(false)
+  capabilities Json
+  verifiedAt   DateTime?                  @db.Timestamptz(3)
+  createdAt    DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime                   @updatedAt @db.Timestamptz(3)
 }
 
 // ─────────────────────────────── Analytics ───────────────────────────────

@@ -27,6 +27,7 @@ async function ensurePlans() {
   }
 }
 
+const RUN = Date.now();
 describe('Billing (simulated provider)', () => {
   const env = withEnv({ BILLING_ENABLED: 'true', BILLING_PROVIDER: 'simulated', BILLING_WEBHOOK_SECRET: SECRET, FOUNDER_EMAILS: FOUNDER });
   let app: INestApplication;
@@ -59,7 +60,7 @@ describe('Billing (simulated provider)', () => {
   it('full lifecycle: 72h trial, hosted card, monthly subscription, payments, failure, cancellation', async () => {
     const t = await h.tenant('Lifecycle Shop');
     const before = Date.now();
-    const trial = (await post('trial', t, { plan: 'STARTER' }).expect(201)).body;
+    const trial = (await post('trial', t, { plan: 'STARTER', billingMode: 'AUTO', autoRenewConsent: true }).expect(201)).body;
     expect(trial.entitlement).toMatchObject({ state: 'TRIALING', hasAccess: true });
     const row = await prisma.subscription.findUniqueOrThrow({ where: { businessId: t.businessId } });
     const hours = (row.trialEndsAt!.getTime() - before) / 3_600_000;
@@ -67,33 +68,33 @@ describe('Billing (simulated provider)', () => {
     expect(hours).toBeLessThan(72.1);
     await post('trial', t, { plan: 'STARTER' }).expect(409).expect((r) => expect(r.body.code ?? r.body.error?.code).toBe('TRIAL_ALREADY_USED'));
 
-    await post('subscribe', t).expect(409).expect((r) => expect(r.body.code ?? r.body.error?.code).toBe('CARD_REQUIRED'));
+    await post('subscribe', t).expect(409).expect((r) => expect(r.body.code ?? r.body.error?.code).toBe('CARD_REQUIRED')); // consent given at sign-up, card still missing
     const setup = (await post('card-setup', t, { returnUrl: 'https://app.example.com/billing' }).expect(201)).body;
     expect(Object.keys(setup)).toEqual(['hostedUrl']);
     expect(setup.hostedUrl).toMatch(/^https:\/\/simulated\.invalid\//);
     const customerRef = (await prisma.subscription.findUniqueOrThrow({ where: { businessId: t.businessId } })).providerCustomerId!;
     expect(customerRef).toMatch(/^sim_cus_/);
 
-    await deliver({ id: 'evt_pm_1', type: 'payment_method.attached', customerRef, paymentMethodRef: 'sim_pm_1' }).expect(200);
+    await deliver({ id: `evt_pm_1-${RUN}`, type: 'payment_method.attached', customerRef, paymentMethodRef: 'sim_pm_1' }).expect(200);
     const subscribed = (await post('subscribe', t).expect(201)).body;
-    expect(subscribed.subscription).toMatchObject({ status: 'TRIALING', cardSaved: true }); // not ACTIVE until the provider says so
+    expect(subscribed.subscription).toMatchObject({ status: 'ACTIVE', trial: true, cardSaved: true, subscribed: true }); // the trial is ACTIVE; the first charge happens at its end
     const subRef = (await prisma.subscription.findUniqueOrThrow({ where: { businessId: t.businessId } })).providerSubscriptionId!;
 
     const end = new Date(Date.now() + 30 * 86_400_000).toISOString();
-    await deliver({ id: 'evt_act_1', type: 'subscription.activated', subscriptionRef: subRef, periodEnd: end }).expect(200);
-    expect((await prisma.subscription.findUniqueOrThrow({ where: { businessId: t.businessId } })).status).toBe('ACTIVE');
-    await deliver({ id: 'evt_pay_1', type: 'payment.succeeded', subscriptionRef: subRef, paymentRef: 'sim_pay_1', amount: '19.00', currency: 'USD', periodEnd: end }).expect(200);
+    await deliver({ id: `evt_act_1-${RUN}`, type: 'subscription.activated', subscriptionRef: subRef, periodEnd: end }).expect(200);
+    expect((await prisma.subscription.findUniqueOrThrow({ where: { businessId: t.businessId } })).status).toBe('ACTIVE'); // unchanged: the provider's schedule confirmation grants nothing
+    await deliver({ id: `evt_pay_1-${RUN}`, type: 'payment.succeeded', subscriptionRef: subRef, paymentRef: `sim_pay_1-${RUN}`, amount: '19.00', currency: 'USD', periodEnd: end }).expect(200);
     expect(await prisma.payment.findMany({ where: { businessId: t.businessId }, select: { status: true, amount: true } })).toEqual([{ status: 'SUCCEEDED', amount: expect.anything() }]);
     // Redelivery of the same event changes nothing.
-    expect((await deliver({ id: 'evt_pay_1', type: 'payment.succeeded', subscriptionRef: subRef, paymentRef: 'sim_pay_1', amount: '19.00', currency: 'USD' }).expect(200)).body).toMatchObject({ duplicate: true });
+    expect((await deliver({ id: `evt_pay_1-${RUN}`, type: 'payment.succeeded', subscriptionRef: subRef, paymentRef: `sim_pay_1-${RUN}`, amount: '19.00', currency: 'USD' }).expect(200)).body).toMatchObject({ duplicate: true });
     expect(await prisma.payment.count({ where: { businessId: t.businessId } })).toBe(1);
 
-    await deliver({ id: 'evt_pay_2', type: 'payment.failed', subscriptionRef: subRef, paymentRef: 'sim_pay_2', amount: '19.00', currency: 'USD' }).expect(200);
+    await deliver({ id: `evt_pay_2-${RUN}`, type: 'payment.failed', subscriptionRef: subRef, paymentRef: `sim_pay_2-${RUN}`, amount: '19.00', currency: 'USD' }).expect(200);
     expect((await prisma.subscription.findUniqueOrThrow({ where: { businessId: t.businessId } })).status).toBe('PAST_DUE');
 
     const canceled = (await post('cancel', t).expect(200)).body;
     expect(canceled.subscription.cancelAtPeriodEnd).toBe(true);
-    await deliver({ id: 'evt_can_1', type: 'subscription.canceled', subscriptionRef: subRef }).expect(200);
+    await deliver({ id: `evt_can_1-${RUN}`, type: 'subscription.canceled', subscriptionRef: subRef }).expect(200);
     expect((await prisma.subscription.findUniqueOrThrow({ where: { businessId: t.businessId } })).status).toBe('CANCELED');
 
     // No card data anywhere in the database rows or API answers; no network request was made.
@@ -116,7 +117,7 @@ describe('Billing (simulated provider)', () => {
     const other = await h.tenant('Hist Other');
     await post('trial', t, { plan: 'STARTER' }).expect(201);
     const hist = (await request(h.http).get('/api/v1/billing/history').set(as(t)).expect(200)).body;
-    expect(hist.events.map((e: { action: string }) => e.action)).toEqual(['billing.trial_started']);
+    expect(hist.events.map((e: { action: string }) => e.action)).toEqual(['trial_started']);
     expect((await request(h.http).get('/api/v1/billing/history').set(as(other)).expect(200)).body).toEqual({ payments: [], events: [] });
     const viewer = await h.member(t, 'VIEWER');
     await request(h.http).get('/api/v1/billing/history').set(as(viewer)).expect(403);
@@ -143,7 +144,7 @@ describe('Billing (simulated provider)', () => {
   });
 
   it('rejects webhooks that cannot prove their sender and stores nothing', async () => {
-    const ev = { id: 'evt_bad', type: 'payment.succeeded' as const, subscriptionRef: 'x' };
+    const ev = { id: `evt_bad-${RUN}`, type: 'payment.succeeded' as const, subscriptionRef: 'x' };
     const good = sim.sign(ev);
     const url = '/api/v1/billing/webhooks/simulated';
     const send = (headers: Record<string, string>, body: Buffer) => request(h.http).post(url).set(headers).set('Content-Type', 'application/json').send(body.toString());
@@ -155,12 +156,12 @@ describe('Billing (simulated provider)', () => {
     await send(old.headers, old.rawBody).expect(401); // replayed after 5 minutes
     await request(h.http).post('/api/v1/billing/webhooks/payoneer').send({}).expect(404); // not the configured provider
     await request(h.http).post('/api/v1/billing/webhooks/unknown').send({}).expect(404);
-    expect(await prisma.webhookEvent.count({ where: { externalEventId: 'evt_bad' } })).toBe(1); // only the control delivery
+    expect(await prisma.webhookEvent.count({ where: { externalEventId: `evt_bad-${RUN}` } })).toBe(1); // only the control delivery
   });
 
   it('an event for no known subscription is stored as IGNORED, never applied', async () => {
-    await deliver({ id: 'evt_orphan', type: 'subscription.canceled', subscriptionRef: 'sim_sub_unknown' }).expect(200);
-    expect((await prisma.webhookEvent.findFirstOrThrow({ where: { externalEventId: 'evt_orphan' } })).status).toBe('IGNORED');
+    await deliver({ id: `evt_orphan-${RUN}`, type: 'subscription.canceled', subscriptionRef: 'sim_sub_unknown' }).expect(200);
+    expect((await prisma.webhookEvent.findFirstOrThrow({ where: { externalEventId: `evt_orphan-${RUN}` } })).status).toBe('IGNORED');
   });
 
   it('the founder keeps free lifetime access and can never be asked to pay', async () => {
@@ -205,7 +206,7 @@ describe('Billing off by default and Payoneer unverified', () => {
       const h = aiHelpers(app);
       const t = await h.tenant('Payoneer Shop');
       const s = (await request(h.http).get('/api/v1/billing/status').set(as(t)).expect(200)).body;
-      expect(s.provider).toEqual({ id: 'payoneer', recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', verifiedWebhooks: 'unverified', verifiedAgainstOfficialDocs: false, live: false });
+      expect(s.provider).toEqual({ id: 'payoneer', recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', hostedPaymentSession: 'unverified', verifiedWebhooks: 'unverified', methods: [], verifiedAgainstOfficialDocs: false, live: false });
       await request(h.http).post('/api/v1/billing/trial').set(as(t)).send({ plan: 'STARTER' }).expect(201); // the free trial needs no provider
       await request(h.http).post('/api/v1/billing/card-setup').set(as(t)).send({ returnUrl: 'https://app.example.com/b' }).expect(503).expect((r) => expect(r.body.code ?? r.body.error?.code).toBe('PROVIDER_NOT_VERIFIED'));
       await request(h.http).post('/api/v1/billing/webhooks/payoneer').set('Content-Type', 'application/json').send({ id: 'x' }).expect(503);

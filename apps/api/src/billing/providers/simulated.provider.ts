@@ -16,15 +16,16 @@ const eq = (a: string, b: string) => {
  * a saved card is just an opaque reference. Webhooks are HMAC-SHA256 signed over "<timestamp>.<raw body>" like a real provider's,
  * so the verification path of the platform is exercised for real.
  */
-export class SimulatedPaymentProvider implements PaymentProvider {
+export class MockPaymentProvider implements PaymentProvider {
   readonly id = 'simulated' as const;
   constructor(private readonly webhookSecret: string | undefined) {}
 
   capabilities(): ProviderCapabilities {
-    return { id: 'simulated', recurringSubscriptions: 'supported', hostedCardCapture: 'supported', verifiedWebhooks: 'supported', verifiedAgainstOfficialDocs: false, live: false };
+    return { id: 'simulated', recurringSubscriptions: 'supported', hostedCardCapture: 'supported', hostedPaymentSession: 'supported', verifiedWebhooks: 'supported', methods: ['simulated-visa', 'simulated-mastercard', 'simulated-wallet'], verifiedAgainstOfficialDocs: false, live: false };
   }
   async createCustomer() { return { customerRef: `sim_cus_${randomUUID()}` }; }
   async createCardSetup() { const id = randomUUID(); return { setupRef: `sim_setup_${id}`, hostedUrl: `https://simulated.invalid/card-setup/${id}` }; }
+  async createPaymentSession() { const id = randomUUID(); return { sessionRef: `sim_sess_${id}`, hostedUrl: `https://simulated.invalid/pay/${id}` }; }
   async createSubscription() { return { subscriptionRef: `sim_sub_${randomUUID()}` }; }
   async cancelSubscription() { /* nothing to cancel anywhere */ }
   async resumeSubscription() { /* nothing to resume anywhere */ }
@@ -50,8 +51,11 @@ export class SimulatedPaymentProvider implements PaymentProvider {
     const str = (k: string) => (typeof j[k] === 'string' ? (j[k] as string) : undefined);
     const date = (k: string) => { const v = str(k); const d = v ? new Date(v) : undefined; return d && !Number.isNaN(d.getTime()) ? d : undefined; };
     return {
-      id: j.id as string, type: j.type as NormalizedBillingEvent['type'], customerRef: str('customerRef'), subscriptionRef: str('subscriptionRef'), paymentMethodRef: str('paymentMethodRef'),
+      id: j.id as string, reference: str('reference'), failureCode: str('failureCode'), type: j.type as NormalizedBillingEvent['type'], customerRef: str('customerRef'), subscriptionRef: str('subscriptionRef'), paymentMethodRef: str('paymentMethodRef'),
       paymentRef: str('paymentRef'), amount: str('amount'), currency: str('currency'), periodStart: date('periodStart'), periodEnd: date('periodEnd'), occurredAt: date('occurredAt') ?? new Date(),
     };
   }
 }
+
+/** Kept for existing imports. */
+export { MockPaymentProvider as SimulatedPaymentProvider };
