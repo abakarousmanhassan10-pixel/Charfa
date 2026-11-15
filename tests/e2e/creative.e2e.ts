@@ -54,7 +54,7 @@ test('overview shows providers, usage and quick links', async ({ page }) => {
   await expect(page.getByTestId('creative-providers')).toContainText('Image provider');
   await expect(page.getByTestId('creative-providers')).toContainText('Configured');
   await expect(page.getByTestId('creative-usage-card')).toContainText('Images');
-  await expect(page.getByRole('navigation', { name: 'Creative Studio' }).getByRole('link')).toHaveCount(7);
+  await expect(page.getByRole('navigation', { name: 'Creative Studio' }).getByRole('link')).toHaveCount(8);
 });
 
 test('image studio: generate variations, favorite and download', async ({ page }) => {
@@ -80,6 +80,7 @@ test('product photo in EXACT mode keeps the real product and offers a comparison
   await picker.getByTestId('media-file-input').setInputFiles({ name: 'bottle.png', mimeType: 'image/png', buffer: await studioPhoto() });
   await picker.getByRole('button', { name: 'Use selected (1)' }).click({ timeout: 20_000 });
   await expect(page.getByTestId('source-photo')).toContainText('bottle.png');
+  await page.getByRole('checkbox', { name: /I own this photo/ }).check(); // the rights declaration is required since N25
   await expect(page.getByRole('radio', { name: /Exact/ })).toBeChecked();
   await page.getByRole('button', { name: 'Generate' }).click();
   await expect(page.getByTestId('creative-results')).toBeVisible({ timeout: 30_000 });
@@ -97,6 +98,7 @@ test('guided mode warns that the product may differ', async ({ page }) => {
   const picker = page.getByRole('dialog');
   await picker.getByTestId('media-file-input').setInputFiles({ name: 'bottle.png', mimeType: 'image/png', buffer: await studioPhoto() });
   await picker.getByRole('button', { name: 'Use selected (1)' }).click({ timeout: 20_000 });
+  await page.getByRole('checkbox', { name: /I own this photo/ }).check();
   await page.getByRole('radio', { name: /Guided/ }).check();
   await page.getByRole('button', { name: 'Generate' }).click();
   await expect(page.getByTestId('creative-results')).toContainText('Guided', { timeout: 30_000 });

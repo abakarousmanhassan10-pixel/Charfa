@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { CreativeProviderError } from './types';
+import { checkVideoProvider } from './video-contract';
+import { FakeVideoProvider } from './testing/fake';
 import { HiggsfieldProvider, MOCK_VIDEO_SECONDS, MockScriptProvider, MockVideoProvider } from './mock-studio';
 
 describe('free test mode providers', () => {
@@ -38,5 +40,11 @@ describe('free test mode providers', () => {
     await expect(h.submit()).rejects.toThrow(/disabled/);
     await expect(h.status()).rejects.toThrow(/disabled/);
     await expect(h.download()).rejects.toThrow(/disabled/);
+  });
+  it('every VideoProvider passes the same contract: the simulators do, so a real provider can be swapped in and checked the same way', async () => {
+    expect(await checkVideoProvider(new MockVideoProvider())).toEqual([]);
+    expect(await checkVideoProvider(new FakeVideoProvider())).toEqual([]);
+    // The disabled Higgsfield placeholder must NOT pass (it is not connected): it is reported, never silently accepted.
+    await expect(checkVideoProvider(new HiggsfieldProvider())).resolves.toContain('isConfigured() must be true for a provider that is ready to run');
   });
 });

@@ -28,9 +28,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const body = exception.getResponse();
       if (typeof body === 'string') message = body;
       else if (body && typeof body === 'object') {
-        const b = body as { message?: string | string[]; code?: string; error?: string; generationId?: unknown; usage?: unknown; issues?: unknown; conflicts?: unknown; missing?: unknown; planId?: unknown; recurrenceId?: unknown; existingId?: unknown };
+        const b = body as { message?: string | string[]; code?: string; error?: string; generationId?: unknown; usage?: unknown; issues?: unknown; conflicts?: unknown; missing?: unknown; planId?: unknown; recurrenceId?: unknown; existingId?: unknown; contentHash?: unknown };
         message = b.message ?? exception.message;
-        for (const k of ['generationId', 'usage', 'issues', 'conflicts', 'missing', 'planId', 'recurrenceId', 'existingId'] as const) if (b[k] !== undefined) extra[k] = b[k];
+        for (const k of ['generationId', 'usage', 'issues', 'conflicts', 'missing', 'planId', 'recurrenceId', 'existingId', 'contentHash'] as const) if (b[k] !== undefined) extra[k] = b[k];
         code = b.code ?? (b.error ? b.error.toUpperCase().replace(/\s+/g, '_') : code);
       }
       if (code === 'INTERNAL_ERROR') code = HttpStatus[status] ?? 'ERROR';

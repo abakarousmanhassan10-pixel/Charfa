@@ -5,6 +5,8 @@ import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { MediaModule } from '../media/media.module';
 import { BrandKitService } from './brand-kit.service';
 import { CreativeAdminController } from './creative-admin.controller';
+import { CreativeCampaignsController } from './creative-campaigns.controller';
+import { CreativeCampaignsService } from './creative-campaigns.service';
 import { CreativeController } from './creative.controller';
 import { CreativeProjectsController } from './creative-projects.controller';
 import { CreativeProjectsService } from './creative-projects.service';
@@ -17,10 +19,10 @@ import { CreativeWorkerService } from './creative-worker.service';
 /** Everything the Creative Studio needs without HTTP (a singleton module, like AiCoreModule). */
 @Module({
   imports: [CreativeProviderModule, MediaModule, KnowledgeModule, AiCoreModule, BillingCoreModule],
-  providers: [CreativeService, CreativeProjectsService, CreativeUsageService, CreativeQueueService, CreativeWorkerService, BrandKitService],
-  exports: [CreativeService, CreativeProjectsService, CreativeUsageService, CreativeQueueService, CreativeWorkerService, BrandKitService],
+  providers: [CreativeService, CreativeProjectsService, CreativeCampaignsService, CreativeUsageService, CreativeQueueService, CreativeWorkerService, BrandKitService],
+  exports: [CreativeService, CreativeProjectsService, CreativeCampaignsService, CreativeUsageService, CreativeQueueService, CreativeWorkerService, BrandKitService],
 })
 export class CreativeCoreModule {}
 
-@Module({ imports: [CreativeCoreModule, AiCoreModule], controllers: [CreativeController, CreativeProjectsController, CreativeAdminController] })
+@Module({ imports: [CreativeCoreModule, AiCoreModule], controllers: [CreativeController, CreativeProjectsController, CreativeCampaignsController, CreativeAdminController] })
 export class CreativeModule {}

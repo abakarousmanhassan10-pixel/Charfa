@@ -127,7 +127,13 @@ export class CreativeUsageService {
     const biz = await db.business.findUnique({ where: { id: businessId }, select: { timezone: true } });
     const bizTz = biz?.timezone ?? 'UTC';
     let clock = await db.creativeQuotaClock.findUnique({ where: { businessId } });
-    if (!clock) clock = await db.creativeQuotaClock.upsert({ where: { businessId }, create: { businessId, timezone: bizTz, changedAt: now }, update: {} });
+    if (!clock) {
+      // Two first requests can race on the unique row (Prisma's upsert is not atomic): the loser simply reads the winner's row.
+      clock = await db.creativeQuotaClock.create({ data: { businessId, timezone: bizTz, changedAt: now } }).catch(async (e: unknown) => {
+        if ((e as { code?: string }).code !== 'P2002') throw e;
+        return db.creativeQuotaClock.findUniqueOrThrow({ where: { businessId } });
+      });
+    }
     if (clock.pendingTimezone && clock.pendingFrom && now >= clock.pendingFrom) {
       clock = await db.creativeQuotaClock.update({ where: { businessId }, data: { timezone: clock.pendingTimezone, changedAt: clock.pendingFrom, pendingTimezone: null, pendingFrom: null } });
     } else if (bizTz === clock.timezone && clock.pendingTimezone) {

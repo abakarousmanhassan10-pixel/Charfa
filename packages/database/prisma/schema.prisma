@@ -586,6 +586,7 @@ model Business {
   creativeDailyUsage  CreativeDailyUsage[]
   creativeQuotaClock  CreativeQuotaClock?
   creativeProjects    CreativeProject[]
+  creativeCampaigns   CreativeCampaign[]
   marketplaceReviews  MarketplaceReview[]
   agentConversations  AgentConversation[]
   agentApprovals      AgentApproval[]
@@ -3368,4 +3369,120 @@ model CreativeProject {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId, deletedAt, updatedAt])
+}
+
+/// N29: an automated advertising campaign run on the Creative Studio (free test mode: simulated media, fictitious scheduling, nothing is published).
+model CreativeCampaign {
+  id             String    @id @default(cuid())
+  businessId     String
+  name           String
+  /// The product or service being advertised (free text from the client, or a catalog name).
+  subject        String
+  objective      String
+  audience       String
+  /// INSTAGRAM | TIKTOK | YOUTUBE
+  platform       String
+  language       String
+  /// { tone?, colors?: string[], style?, tagline? }
+  brand          Json
+  photoCount     Int
+  videoCount     Int
+  /// First fictitious posting time and the gap between posts.
+  startAt        DateTime  @db.Timestamptz(3)
+  intervalHours  Int       @default(24)
+  /// AUTO | HYBRID (what the client asked for; the effective mode per post is stored on the post).
+  publishMode    String
+  /// DRAFT | RUNNING | AWAITING_APPROVAL | COMPLETED | NEEDS_ATTENTION | CANCELLED | STOPPED
+  status         String    @default("DRAFT")
+  /// Emergency stop: nothing runs, nothing is scheduled or published until a person resumes it.
+  stoppedAt      DateTime? @db.Timestamptz(3)
+  stoppedById    String?
+  idempotencyKey String
+  createdById    String?
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  business Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  tasks    CreativeCampaignTask[]
+  posts    CreativeCampaignPost[]
+  events   CreativeCampaignEvent[]
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, status, createdAt])
+}
+
+/// One step of the multi-agent workflow. Resumable: a failed task can be retried without redoing (or recounting) what succeeded.
+model CreativeCampaignTask {
+  id           String    @id @default(cuid())
+  campaignId   String
+  businessId   String
+  /// CAMPAIGN | SCRIPT | IMAGE | VIDEO | QUALITY | SCHEDULE
+  agent        String
+  seq          Int
+  /// Index of the item for IMAGE / VIDEO tasks.
+  itemIndex    Int       @default(0)
+  /// PENDING | RUNNING | SUCCEEDED | FAILED | CANCELLED
+  status       String    @default("PENDING")
+  attempts     Int       @default(0)
+  generationId String?
+  errorCode    String?
+  errorMessage String?
+  output       Json?
+  startedAt    DateTime? @db.Timestamptz(3)
+  finishedAt   DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+
+  campaign CreativeCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, seq])
+  @@index([businessId, status])
+}
+
+/// A FICTITIOUS post. The approval is bound to `contentHash` (the exact caption, media, platform and time): changing any of them invalidates it.
+model CreativeCampaignPost {
+  id             String    @id @default(cuid())
+  campaignId     String
+  businessId     String
+  platform       String
+  generationId   String
+  outputId       String
+  kind           String
+  caption        String
+  hashtags       String[]
+  scheduledAt    DateTime  @db.Timestamptz(3)
+  contentHash    String
+  /// PENDING_APPROVAL | APPROVED | SIMULATED_SCHEDULED | SIMULATED_PUBLISHED | REJECTED | CANCELLED | STOPPED
+  status         String
+  requestedMode  String
+  effectiveMode  String
+  risk           String
+  reasons        Json
+  approvedHash   String?
+  approvedById   String?
+  approvedAt     DateTime? @db.Timestamptz(3)
+  publishedAt    DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  campaign CreativeCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, outputId])
+  @@index([businessId, status, scheduledAt])
+}
+
+/// Timeline and error history of a campaign.
+model CreativeCampaignEvent {
+  id         String   @id @default(cuid())
+  campaignId String
+  businessId String
+  /// INFO | ERROR
+  level      String
+  type       String
+  detail     Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  campaign CreativeCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, level, createdAt])
+  @@index([campaignId, createdAt])
 }

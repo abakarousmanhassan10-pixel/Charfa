@@ -61,3 +61,5 @@ ffmpeg -f lavfi -i "gradients=s=360x640:d=8:r=24" -vf "drawtext=text='SIMULATED 
 - `packages/config/src/env.spec.ts` — mode forcing, production refusal, Higgsfield refusal.
 - `apps/api/test/creative-mock-mode.e2e-spec.ts` — image, video (4 formats), download, projects, script, library, restore, daily quotas and reset, cancellation, simulated failure, cross-client isolation, fictitious scheduling, zero outbound calls.
 - `tests/e2e/creative.e2e.ts` — browser flow (generate, save, library, download, no horizontal scroll on a phone).
+
+See also [CREATIVE-CAMPAIGNS.md](CREATIVE-CAMPAIGNS.md) (automated campaigns in simulation, N29).

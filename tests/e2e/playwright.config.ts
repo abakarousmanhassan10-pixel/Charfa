@@ -37,6 +37,8 @@ const testEnv = {
   // TEST-ONLY deterministic image/video providers (refused unless APP_ENV=test). Real providers are never faked in production.
   IMAGE_PROVIDER: 'fake',
   VIDEO_PROVIDER: 'fake',
+  // Opt-in: E2E_CREATIVE_MODE=mock runs the free test mode (labelled mock providers, automated campaigns).
+  ...(process.env.E2E_CREATIVE_MODE === 'mock' ? { CREATIVE_STUDIO_MODE: 'mock' } : {}),
   CREATIVE_VIDEO_POLL_MS: '60',
   CREATIVE_JOB_BACKOFF_MS: '40',
   CREATIVE_RATE_LIMIT_PER_MINUTE: '1000',
