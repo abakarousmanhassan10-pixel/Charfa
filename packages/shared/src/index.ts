@@ -19,3 +19,4 @@ export * from './billing';
 export * from './entitlements';
 export * from './agents';
 export * from './publishing-policy';
+export * from './learning-core';

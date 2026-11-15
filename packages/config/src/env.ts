@@ -281,6 +281,15 @@ export const appEnvSchema = z.object({
   BILLING_MAX_FAILED_PAYMENTS: z.coerce.number().int().min(1).max(10).default(3),
   /** Comma-separated e-mails of the founder(s): owners with a VERIFIED e-mail on this list keep free lifetime access. */
   FOUNDER_EMAILS: z.string().default('').transform((v) => v.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)),
+  // ─── Adaptive learning (Phase N22): off by default. Analyzes the merchant's own posts, proposes changes; never bypasses the publishing policy ───
+  LEARNING_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  /** platform = the official APIs through the social adapters; mock = deterministic SIMULATED metrics (test-only, never shown as real). */
+  ANALYTICS_PROVIDER: z.enum(['platform', 'mock']).default('platform'),
+  /** A post is not measured before this age: platforms report metrics late and early numbers mislead. */
+  ANALYTICS_MATURITY_HOURS: z.coerce.number().int().min(0).max(720).default(48),
+  LEARNING_TICK_MS: z.coerce.number().int().min(1_000).default(3_600_000),
+  LEARNING_MAX_RUNS_PER_DAY: z.coerce.number().int().min(1).max(24).default(2),
+  LEARNING_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   // ─── Autonomous & hybrid publishing (Phase N21): off by default. A policy per connected account (MANUAL/HYBRID/AUTO) after a versioned consent; the platform rules and the publication gate always apply ───
   AUTOPUBLISH_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   AUTOPUBLISH_TICK_MS: z.coerce.number().int().min(1_000).default(30_000),
@@ -459,6 +468,9 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
   if (env.LINKEDIN_ORG_ENABLED && !env.LINKEDIN_ORG_APPROVAL_REF?.trim()) {
     throw new EnvValidationError(['LINKEDIN_ORG_ENABLED=true requires LINKEDIN_ORG_APPROVAL_REF: record what LinkedIn approved (product, date, reference) before enabling organization publishing']);
   }
+  if (env.ANALYTICS_PROVIDER === 'mock' && env.APP_ENV !== 'test') {
+    throw new EnvValidationError(['ANALYTICS_PROVIDER=mock is only allowed when APP_ENV=test']);
+  }
   if (env.SOCIAL_PROVIDER_MODE === 'fake' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['SOCIAL_PROVIDER_MODE=fake is only allowed when APP_ENV=test']);
   }
@@ -507,6 +519,7 @@ export function productionProblems(env: AppEnv): string[] {
   if (env.BILLING_PROVIDER === 'paddle-sandbox' || env.BILLING_PROVIDER === 'lemonsqueezy') p.push(`BILLING_PROVIDER=${env.BILLING_PROVIDER} is not approved for production`);
   if (env.BILLING_ENABLED) p.push('BILLING_ENABLED must stay false until a payment provider adapter is verified against its official documentation (none is yet)');
   if (env.SOCIAL_PROVIDER_MODE === 'fake') p.push('SOCIAL_PROVIDER_MODE=fake is test-only');
+  if (env.ANALYTICS_PROVIDER === 'mock') p.push('ANALYTICS_PROVIDER=mock is test-only (simulated metrics)');
   const socialConfigured = Boolean(env.META_APP_ID || env.TIKTOK_CLIENT_KEY || env.GOOGLE_CLIENT_ID || env.LINKEDIN_CLIENT_ID);
   if (socialConfigured && !env.PUBLIC_API_URL) p.push('PUBLIC_API_URL is required when a social platform is configured (OAuth redirect URIs, webhooks and media URLs)');
   if (env.PUBLIC_API_URL && !https(env.PUBLIC_API_URL)) p.push('PUBLIC_API_URL must use https');

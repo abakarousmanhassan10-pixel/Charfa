@@ -37,6 +37,8 @@ export const PERMISSIONS = [
   'agents.approve',
   'autopublish.read',
   'autopublish.manage',
+  'learning.read',
+  'learning.manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -52,6 +54,7 @@ const VIEWER: Permission[] = [
   'knowledge.read',
   'agents.read',
   'autopublish.read',
+  'learning.read',
 ];
 
 const EDITOR: Permission[] = [
@@ -81,6 +84,8 @@ const ADMIN: Permission[] = [
   'agents.approve',
   // Granting consent to automatic publishing and changing its limits are management decisions.
   'autopublish.manage',
+  // Learning settings, consent and applying optimizations are management decisions.
+  'learning.manage',
 ];
 
 const OWNER: Permission[] = [...ADMIN, 'business.delete', 'billing.manage'];

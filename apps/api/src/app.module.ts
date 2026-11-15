@@ -39,6 +39,7 @@ import { ExecutiveModule } from './executive/executive.module';
 import { OpenAIModule } from './openai/openai.module';
 import { AgentsModule } from './agents/agents.module';
 import { PublishingModule } from './publishing/publishing.module';
+import { LearningModule } from './learning/learning.module';
 
 @Global()
 @Module({})
@@ -95,6 +96,7 @@ export class AppModule {
         OpenAIModule,
         AgentsModule,
         PublishingModule,
+        LearningModule,
         AdminModule,
         HealthModule,
         FeaturesModule,

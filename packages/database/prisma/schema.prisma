@@ -1577,6 +1577,11 @@ model AnalyticsSnapshot {
   linkClicks      Int?
   engagementRate  Decimal?       @db.Decimal(8, 4)
   followers       Int?
+  /// Average watch time of a video, when the platform provides it (null = unavailable).
+  avgWatchSeconds Decimal?       @db.Decimal(10, 2)
+  /// Which collector produced the row (platform adapter name, or mock-analytics) and whether the numbers are simulated.
+  provider        String?
+  simulated       Boolean        @default(false)
   raw             Json?
   fetchedAt       DateTime       @default(now()) @db.Timestamptz(3)
   createdAt       DateTime       @default(now()) @db.Timestamptz(3)
