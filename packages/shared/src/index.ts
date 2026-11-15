@@ -20,3 +20,5 @@ export * from './entitlements';
 export * from './agents';
 export * from './publishing-policy';
 export * from './learning-core';
+export * from './preferences';
+export * from './learning-engine';

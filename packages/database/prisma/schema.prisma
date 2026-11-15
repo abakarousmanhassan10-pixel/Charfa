@@ -579,6 +579,9 @@ model Business {
   publishingPolicies  PublishingPolicy[]
   publishingDecisions PublishingDecision[]
   publishingEvents    PublishingEvent[]
+  learningProfile     LearningProfile?
+  clientPreferences   ClientPreference[]
+  learningRuns        LearningRun[]
   agentConversations  AgentConversation[]
   agentApprovals      AgentApproval[]
   budgetPolicy        BudgetPolicy?
@@ -3025,4 +3028,113 @@ model PublishingEvent {
 
   @@index([businessId, createdAt])
   @@index([socialAccountId, createdAt])
+}
+
+// ─────────────────────── Adaptive learning (N22) ───────────────────────
+// Reuses AnalyticsSnapshot (performance), Recommendation (source LEARNING), Experiment and EvaluationRun. Nothing here publishes, spends or reads another tenant's data.
+
+enum PreferenceOrigin {
+  DECLARED
+  INFERRED
+  HYPOTHESIS
+}
+
+/// Consent and limits of the learning loop for one business.
+model LearningProfile {
+  id                 String    @id @default(cuid())
+  businessId         String    @unique
+  consentVersion     String?
+  consentGrantedAt   DateTime? @db.Timestamptz(3)
+  consentGrantedById String?
+  consentRevokedAt   DateTime? @db.Timestamptz(3)
+  enabled            Boolean   @default(false)
+  /// The loop may prepare next week's drafts at the recommended times; every draft still goes through the publishing policy (AUTO / HYBRID / MANUAL).
+  autoPlan           Boolean   @default(false)
+  maxRunsPerDay      Int       @default(2)
+  lastRunAt          DateTime? @db.Timestamptz(3)
+  updatedById        String?
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+/// What TOUMA knows about a client's wishes, kept apart by origin: DECLARED (the client said it), INFERRED (the system observed it) and HYPOTHESIS (to confirm).
+/// A declared value always wins over the other two.
+model ClientPreference {
+  id          String           @id @default(cuid())
+  businessId  String
+  key         String
+  origin      PreferenceOrigin
+  value       Json
+  /// ACTIVE | REJECTED (the client refused it: never inferred again) | SUPERSEDED (replaced by a declared value)
+  status      String           @default("ACTIVE")
+  evidence    Json?
+  confidence  String?
+  version     Int              @default(1)
+  updatedById String?
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, key, origin])
+  @@index([businessId, origin])
+}
+
+/// Every change of a preference, so it can be audited, exported and rolled back. Deleted with the preference when the client erases their data.
+model PreferenceRevision {
+  id         String           @id @default(cuid())
+  businessId String
+  key        String
+  origin     PreferenceOrigin
+  version    Int
+  value      Json?
+  /// SET | CONFIRM | REJECT | SUPERSEDE | LEARN | ROLLBACK
+  action     String
+  actorId    String?
+  reason     String?
+  runId      String?
+  createdAt  DateTime         @default(now()) @db.Timestamptz(3)
+
+  @@index([businessId, key, createdAt])
+  @@index([runId])
+}
+
+model RecommendationFeedback {
+  id               String   @id @default(cuid())
+  businessId       String
+  recommendationId String
+  /// ACCEPTED | REJECTED | USEFUL | NOT_USEFUL
+  decision         String
+  reason           String?
+  actorId          String?
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([businessId, recommendationId])
+  @@index([businessId, createdAt])
+}
+
+/// One pass of COLLECT -> ANALYZE -> RECOMMEND -> VALIDATE POLICY -> EXECUTE IF AUTHORIZED -> MEASURE, with what each step did and the configuration before and after.
+model LearningRun {
+  id            String    @id @default(cuid())
+  businessId    String
+  trigger       String
+  /// RUNNING | COMPLETED | BLOCKED | FAILED | ROLLED_BACK
+  status        String    @default("RUNNING")
+  steps         Json
+  counts        Json?
+  blockedReason String?
+  costEstimate  Json?
+  /// The inferred preferences before and after this run, and the engagement baseline used to measure it later.
+  configBefore  Json?
+  configAfter   Json?
+  baseline      Json?
+  outcome       Json?
+  startedAt     DateTime  @default(now()) @db.Timestamptz(3)
+  finishedAt    DateTime? @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, startedAt])
 }
