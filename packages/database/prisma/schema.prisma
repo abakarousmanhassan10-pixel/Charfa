@@ -582,6 +582,7 @@ model Business {
   learningProfile     LearningProfile?
   clientPreferences   ClientPreference[]
   learningRuns        LearningRun[]
+  agentDefinitions    AgentDefinition[]
   agentConversations  AgentConversation[]
   agentApprovals      AgentApproval[]
   budgetPolicy        BudgetPolicy?
@@ -3142,4 +3143,61 @@ model LearningRun {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId, startedAt])
+}
+
+// ─────────────────────── No-code agent builder (N23, first slice) ───────────────────────
+
+enum AgentDefinitionStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+/// A custom agent defined by a client without code. In this slice it can only be a DRAFT: saved, duplicated, validated and tested in a simulator.
+model AgentDefinition {
+  id               String                @id @default(cuid())
+  businessId       String
+  name             String
+  category         String
+  status           AgentDefinitionStatus @default(DRAFT)
+  /// The normalized definition (see AgentBuilderConfig). Never holds secrets; the server re-validates it on every save.
+  config           Json
+  /// Hash of the config: a test counts only for the exact configuration it ran against.
+  configHash       String
+  revision         Int                   @default(1)
+  duplicatedFromId String?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime              @updatedAt @db.Timestamptz(3)
+
+  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  tests    AgentTestRun[]
+
+  @@unique([businessId, name])
+  @@index([businessId, status])
+}
+
+/// One simulated test of an agent definition. The simulator calls no model, tool or network; cost is always 0.
+model AgentTestRun {
+  id           String   @id @default(cuid())
+  businessId   String
+  definitionId String
+  configHash   String
+  revision     Int
+  /// COMPLETED | INVALID_CONFIG | REFUSED
+  status       String
+  input        String
+  output       Json?
+  trace        Json
+  simulated    Boolean  @default(true)
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  createdById  String?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  definition AgentDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
+  @@index([definitionId, createdAt])
 }

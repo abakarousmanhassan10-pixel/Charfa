@@ -41,9 +41,8 @@ export class MockAnalyticsProvider implements AnalyticsProvider {
     if (ageH < this.delayHours) return { ...NO_METRICS, unavailableReason: 'METRICS_DELAYED: the simulated platform has not published metrics for this post yet' };
     const r = rng(post.id);
     const hour = post.publishedAt.getUTCHours();
-    const dow = post.publishedAt.getUTCDay();
     const cap = post.caption ?? '';
-    const effect = (hour >= 17 && hour <= 20 ? 1.9 : hour >= 6 && hour <= 9 ? 0.8 : 1) * ([2, 4].includes(dow) ? 1.1 : dow === 0 ? 0.9 : 1) * (post.kind === 'VIDEO' ? 2.2 : 1) * (cap.length >= 60 && cap.length <= 140 ? 1.7 : cap.length > 300 ? 0.6 : 1) * (/\?/.test(post.title ?? cap.slice(0, 80)) ? 1.5 : 1);
+    const effect = (hour >= 17 && hour <= 20 ? 1.9 : hour >= 6 && hour <= 9 ? 0.8 : 1) * (post.kind === 'VIDEO' ? 2.2 : 1) * (cap.length >= 60 && cap.length <= 140 ? 1.7 : cap.length > 300 ? 0.6 : 1) * (/\?/.test(post.title ?? cap.slice(0, 80)) ? 1.5 : 1);
     const reach0 = Math.round((800 + r() * 400) * (post.platform === 'TIKTOK' ? 2 : post.platform === 'YOUTUBE' ? 1.2 : 1));
     // Counts keep growing after publication and flatten out (simulated).
     const growth = 1 - Math.exp(-Math.max(ageH, 0) / 96);

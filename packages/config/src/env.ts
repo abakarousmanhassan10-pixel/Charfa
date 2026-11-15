@@ -281,6 +281,10 @@ export const appEnvSchema = z.object({
   BILLING_MAX_FAILED_PAYMENTS: z.coerce.number().int().min(1).max(10).default(3),
   /** Comma-separated e-mails of the founder(s): owners with a VERIFIED e-mail on this list keep free lifetime access. */
   FOUNDER_EMAILS: z.string().default('').transform((v) => v.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)),
+  // ─── No-code agent builder (Phase N23): off by default. Tests of an agent run in a simulator: no model, tool or network call ───
+  AGENT_BUILDER_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  AGENT_BUILDER_TESTS_PER_DAY: z.coerce.number().int().min(1).max(1000).default(20),
+  AGENT_BUILDER_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   // ─── Adaptive learning (Phase N22): off by default. Analyzes the merchant's own posts, proposes changes; never bypasses the publishing policy ───
   LEARNING_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   /** platform = the official APIs through the social adapters; mock = deterministic SIMULATED metrics (test-only, never shown as real). */

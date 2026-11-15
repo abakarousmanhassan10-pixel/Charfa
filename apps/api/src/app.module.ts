@@ -40,6 +40,7 @@ import { OpenAIModule } from './openai/openai.module';
 import { AgentsModule } from './agents/agents.module';
 import { PublishingModule } from './publishing/publishing.module';
 import { LearningModule } from './learning/learning.module';
+import { AgentBuilderModule } from './agent-builder/agent-builder.module';
 
 @Global()
 @Module({})
@@ -97,6 +98,7 @@ export class AppModule {
         AgentsModule,
         PublishingModule,
         LearningModule,
+        AgentBuilderModule,
         AdminModule,
         HealthModule,
         FeaturesModule,

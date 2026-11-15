@@ -27,6 +27,7 @@ export class FeaturesController {
       agents: this.env.AGENTS_ENABLED,
       autopublish: this.env.AUTOPUBLISH_ENABLED,
       learning: this.env.LEARNING_ENABLED,
+      agentBuilder: this.env.AGENT_BUILDER_ENABLED,
       ai: i.openai,
       media: i.storage,
     };
