@@ -23,6 +23,7 @@ export class FeaturesController {
       campaigns: this.env.CAMPAIGNS_ENABLED,
       intelligence: this.env.INTELLIGENCE_ENABLED,
       autopilot: this.env.AUTOPILOT_ENABLED,
+      billing: this.env.BILLING_ENABLED,
       ai: i.openai,
       media: i.storage,
     };

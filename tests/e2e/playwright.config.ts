@@ -25,6 +25,10 @@ const testEnv = {
   STORAGE_DRIVER: 'memory',
   // TEST-ONLY deterministic AI provider (the API refuses it unless APP_ENV=test).
   AI_PROVIDER: 'fake',
+  // TEST-ONLY simulated payment provider (refused unless APP_ENV=test): no real payment exists. Enforcement stays off.
+  BILLING_ENABLED: 'true',
+  BILLING_PROVIDER: 'simulated',
+  BILLING_WEBHOOK_SECRET: 'playwright-billing-secret-0123456789',
   AI_RATE_LIMIT_PER_MINUTE: '1000',
   // Generation runs in a BullMQ worker; the E2E API hosts it inline (production runs `node dist/ai-worker.js`).
   AI_WORKER_INLINE: 'true',

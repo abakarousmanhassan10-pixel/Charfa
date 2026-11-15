@@ -90,7 +90,7 @@
       "social": "Réseaux sociaux",
       "inbox": "Messagerie",
       "analytics": "Statistiques",
-      "billing": "Abonnement",
+      "billing": "Facturation",
       "settings": "Paramètres",
       "profile": "Profil",
       "services": "Services",
@@ -145,7 +145,19 @@
     "members": "Membres",
     "switchBusiness": "Entreprise active",
     "yourRole": "Votre rôle",
-    "notSet": "Non renseigné"
+    "notSet": "Non renseigné",
+    "account": {
+      "aiTitle": "Agents IA",
+      "aiUsage": "{used} générations utilisées sur {limit} ce mois-ci",
+      "aiLink": "Voir la consommation IA",
+      "billingTitle": "Abonnement",
+      "billingLink": "Gérer la facturation",
+      "mode": {
+        "real": "IA réelle",
+        "simulated": "IA simulée (résultats de test)",
+        "disabled": "IA non active sur ce serveur"
+      }
+    }
   },
   "business": {
     "fields": {
@@ -2736,6 +2748,78 @@
       "customerQuestions": "Questions clients",
       "salesData": "Données de vente",
       "marketData": "Données de marché"
+    }
+  },
+  "billing": {
+    "title": "Facturation",
+    "subtitle": "Votre essai, votre abonnement, l'état de votre carte et l'historique des paiements.",
+    "notEnabled": "La facturation n'est pas encore activée sur ce serveur.",
+    "loadFailed": "Impossible de charger la facturation. Réessayez.",
+    "providerNone": "Aucun prestataire de paiement n'est configuré : aucun paiement ne peut être encaissé.",
+    "providerSimulated": "Paiements simulés : aucun argent réel ne circule et aucune vraie carte n'est utilisée.",
+    "providerUnverified": "Ce prestataire de paiement n'est pas encore vérifié : les paiements ne sont pas disponibles.",
+    "migrationNeeded": "Le prestataire de paiement a changé : enregistrez une nouvelle carte pour continuer la facturation.",
+    "simulatedCardPage": "Page de carte simulée : en production, vous êtes redirigé vers la page sécurisée du prestataire. TOUMA ne voit ni ne stocke jamais votre numéro de carte.",
+    "currentTitle": "Accès",
+    "plan": "Offre",
+    "trialEnds": "Fin de l'essai gratuit",
+    "periodEnd": "Fin de la période en cours",
+    "card": "Carte",
+    "cardSaved": "Enregistrée chez le prestataire",
+    "cardMissing": "Pas encore enregistrée",
+    "failedPayments": "Paiements échoués",
+    "cancellation": "Annulation",
+    "cancelPending": "Prend effet à la fin de la période payée",
+    "startTrial": "Démarrer l'essai gratuit de 72 h",
+    "saveCard": "Enregistrer une carte",
+    "subscribe": "Démarrer l'abonnement mensuel",
+    "cancel": "Annuler en fin de période",
+    "resume": "Conserver mon abonnement",
+    "ownerOnly": "Seul le propriétaire de l'entreprise peut modifier la facturation.",
+    "trialTerms": "L'essai gratuit dure 72 heures, une seule fois par entreprise, sans carte. Annulation possible à tout moment.",
+    "founderNote": "Ce compte bénéficie d'un accès gratuit à vie. Aucun paiement ne sera jamais demandé.",
+    "historyTitle": "Historique",
+    "historyEmpty": "Rien pour le moment.",
+    "states": {
+      "FOUNDER_LIFETIME": "Gratuit à vie",
+      "TRIALING": "Essai gratuit",
+      "ACTIVE": "Actif",
+      "PAST_DUE_GRACE": "Paiement en retard",
+      "CANCELED_UNTIL_PERIOD_END": "Annulé",
+      "EXPIRED": "Expiré",
+      "NONE": "Aucune offre"
+    },
+    "stateHelp": {
+      "TRIALING": "Tout est disponible pendant votre essai gratuit.",
+      "ACTIVE": "Votre abonnement est actif.",
+      "PAST_DUE_GRACE": "Un paiement a échoué. L'accès continue quelques jours pendant les nouvelles tentatives.",
+      "CANCELED_UNTIL_PERIOD_END": "L'accès continue jusqu'à la fin de la période payée.",
+      "EXPIRED": "Votre accès est terminé. Démarrez un abonnement pour continuer.",
+      "NONE": "Démarrez votre essai gratuit pour utiliser les fonctions IA de TOUMA."
+    },
+    "payment": {
+      "SUCCEEDED": "Payé",
+      "FAILED": "Échoué",
+      "PENDING": "En attente",
+      "REFUNDED": "Remboursé",
+      "PARTIALLY_REFUNDED": "Remboursé en partie"
+    },
+    "event": {
+      "billing_trial_started": "Essai gratuit démarré",
+      "billing_cancel_requested": "Annulation demandée",
+      "billing_resume_requested": "Annulation retirée",
+      "billing_event_applied": "Mise à jour du prestataire de paiement"
+    },
+    "errors": {
+      "TRIAL_ALREADY_USED": "Cette entreprise a déjà utilisé son essai gratuit.",
+      "CARD_REQUIRED": "Enregistrez d'abord une carte.",
+      "FOUNDER_FREE_ACCESS": "Ce compte est gratuit à vie : rien à payer.",
+      "BILLING_PROVIDER_NOT_CONFIGURED": "Aucun prestataire de paiement n'est configuré.",
+      "PROVIDER_NOT_VERIFIED": "Ce prestataire de paiement n'est pas encore vérifié.",
+      "PROVIDER_MIGRATION_BLOCKED": "L'ancien prestataire a encore un abonnement actif : annulez-le d'abord chez lui.",
+      "PROVIDER_MIGRATION_REQUIRED": "Enregistrez d'abord une carte chez le nouveau prestataire.",
+      "ALREADY_SUBSCRIBED": "Un abonnement existe déjà.",
+      "NOTHING_TO_RESUME": "Aucune annulation en attente."
     }
   }
 }

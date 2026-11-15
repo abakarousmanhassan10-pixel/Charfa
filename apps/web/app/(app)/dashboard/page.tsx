@@ -8,6 +8,7 @@ import { useI18n } from '@/components/i18n-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DashboardAccountCards } from '@/components/dashboard-account-cards';
 import { api } from '@/lib/api-client';
 
 interface DashboardSummary {
@@ -88,6 +89,8 @@ export default function DashboardPage() {
           </Link>
         </Button>
       </section>
+
+      <DashboardAccountCards />
 
       {error && (
         <div role="alert" className="mt-6 flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">

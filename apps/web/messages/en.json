@@ -90,7 +90,7 @@
       "social": "Social media",
       "inbox": "Inbox",
       "analytics": "Analytics",
-      "billing": "Subscription",
+      "billing": "Billing",
       "settings": "Settings",
       "profile": "Profile",
       "services": "Services",
@@ -145,7 +145,19 @@
     "members": "Members",
     "switchBusiness": "Active business",
     "yourRole": "Your role",
-    "notSet": "Not set"
+    "notSet": "Not set",
+    "account": {
+      "aiTitle": "AI agents",
+      "aiUsage": "{used} of {limit} generations used this month",
+      "aiLink": "See AI consumption",
+      "billingTitle": "Subscription",
+      "billingLink": "Manage billing",
+      "mode": {
+        "real": "Live AI",
+        "simulated": "Simulated AI (test results)",
+        "disabled": "AI not active on this server"
+      }
+    }
   },
   "business": {
     "fields": {
@@ -2736,6 +2748,78 @@
       "customerQuestions": "Customer questions",
       "salesData": "Sales data",
       "marketData": "Market data"
+    }
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Your trial, subscription, card status and payment history.",
+    "notEnabled": "Billing is not enabled on this server yet.",
+    "loadFailed": "Billing could not be loaded. Try again.",
+    "providerNone": "No payment provider is configured: no payment can be taken.",
+    "providerSimulated": "Simulated payments: no real money moves and no real card is used.",
+    "providerUnverified": "This payment provider is not verified yet: payments are not available.",
+    "migrationNeeded": "The payment provider changed: save a new card to continue billing.",
+    "simulatedCardPage": "Simulated card page: in production you are sent to the payment provider's secure page. TOUMA never sees or stores your card number.",
+    "currentTitle": "Access",
+    "plan": "Plan",
+    "trialEnds": "Free trial ends",
+    "periodEnd": "Current period ends",
+    "card": "Card",
+    "cardSaved": "Saved at the provider",
+    "cardMissing": "Not saved yet",
+    "failedPayments": "Failed payments",
+    "cancellation": "Cancellation",
+    "cancelPending": "Ends at the end of the paid period",
+    "startTrial": "Start 72-hour free trial",
+    "saveCard": "Save a card",
+    "subscribe": "Start monthly subscription",
+    "cancel": "Cancel at period end",
+    "resume": "Keep my subscription",
+    "ownerOnly": "Only the business owner can change billing.",
+    "trialTerms": "The free trial lasts 72 hours, once per business, with no card needed. Cancel any time.",
+    "founderNote": "This account has free lifetime access. No payment will ever be requested.",
+    "historyTitle": "History",
+    "historyEmpty": "Nothing yet.",
+    "states": {
+      "FOUNDER_LIFETIME": "Free for life",
+      "TRIALING": "Free trial",
+      "ACTIVE": "Active",
+      "PAST_DUE_GRACE": "Payment late",
+      "CANCELED_UNTIL_PERIOD_END": "Canceled",
+      "EXPIRED": "Expired",
+      "NONE": "No plan"
+    },
+    "stateHelp": {
+      "TRIALING": "Everything is available during your free trial.",
+      "ACTIVE": "Your subscription is active.",
+      "PAST_DUE_GRACE": "A payment failed. Access continues for a few days while it is retried.",
+      "CANCELED_UNTIL_PERIOD_END": "Access continues until the end of the period you paid for.",
+      "EXPIRED": "Your access has ended. Start a subscription to continue.",
+      "NONE": "Start your free trial to use TOUMA's AI features."
+    },
+    "payment": {
+      "SUCCEEDED": "Paid",
+      "FAILED": "Failed",
+      "PENDING": "Pending",
+      "REFUNDED": "Refunded",
+      "PARTIALLY_REFUNDED": "Partly refunded"
+    },
+    "event": {
+      "billing_trial_started": "Free trial started",
+      "billing_cancel_requested": "Cancellation requested",
+      "billing_resume_requested": "Cancellation withdrawn",
+      "billing_event_applied": "Update from the payment provider"
+    },
+    "errors": {
+      "TRIAL_ALREADY_USED": "This business has already used its free trial.",
+      "CARD_REQUIRED": "Save a card first.",
+      "FOUNDER_FREE_ACCESS": "This account is free for life: nothing to pay.",
+      "BILLING_PROVIDER_NOT_CONFIGURED": "No payment provider is configured.",
+      "PROVIDER_NOT_VERIFIED": "This payment provider is not verified yet.",
+      "PROVIDER_MIGRATION_BLOCKED": "The previous provider still has a live subscription: cancel it there first.",
+      "PROVIDER_MIGRATION_REQUIRED": "Save a card with the new payment provider first.",
+      "ALREADY_SUBSCRIBED": "A subscription already exists.",
+      "NOTHING_TO_RESUME": "There is no pending cancellation."
     }
   }
 }

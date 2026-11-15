@@ -62,14 +62,25 @@ export class BillingService {
   async status(t: TenantContext) {
     const [sub, founder] = await Promise.all([this.prisma.subscription.findUnique({ where: { businessId: t.businessId }, include: { plan: { select: { code: true, name: true, priceAmount: true, currency: true, interval: true } } } }), this.isFounder(t.businessId)]);
     const ent = resolveEntitlement({ now: new Date(), isFounder: founder, subscription: sub });
+    const plans = await this.prisma.plan.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' }, select: { code: true, name: true, description: true, priceAmount: true, currency: true, interval: true } });
     return {
+      plans,
       enabled: this.env.BILLING_ENABLED,
       provider: this.provider?.capabilities() ?? null,
       entitlement: ent,
-      subscription: sub ? { status: sub.status, plan: sub.plan.code, trialEndsAt: sub.trialEndsAt, currentPeriodEnd: sub.currentPeriodEnd, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, cardSaved: Boolean(sub.paymentMethodRef), failedPayments: sub.failedPaymentCount } : null,
+      subscription: sub ? { status: sub.status, plan: sub.plan.code, trialEndsAt: sub.trialEndsAt, currentPeriodEnd: sub.currentPeriodEnd, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, cardSaved: Boolean(sub.paymentMethodRef), subscribed: Boolean(sub.providerSubscriptionId), failedPayments: sub.failedPaymentCount } : null,
       /** True when the saved customer/card belongs to another provider than the one now configured: a new card must be captured (see docs/BILLING.md). */
       providerMigration: { required: Boolean(sub && this.provider && sub.provider !== 'none' && sub.provider !== this.provider.id), from: sub?.provider ?? null },
     };
+  }
+
+  /** Payments and billing events of one business, newest first (ids and amounts only; never card data or secrets). */
+  async history(t: TenantContext) {
+    const [payments, events] = await Promise.all([
+      this.prisma.payment.findMany({ where: { businessId: t.businessId }, orderBy: { createdAt: 'desc' }, take: 50, select: { id: true, amount: true, currency: true, status: true, paidAt: true, createdAt: true } }),
+      this.prisma.auditLog.findMany({ where: { businessId: t.businessId, action: { startsWith: 'billing.' } }, orderBy: { createdAt: 'desc' }, take: 50, select: { id: true, action: true, createdAt: true, metadata: true } }),
+    ]);
+    return { payments, events: events.map((e) => ({ id: e.id, action: e.action, at: e.createdAt, eventType: (e.metadata as { eventType?: string } | null)?.eventType ?? null })) };
   }
 
   /** Starts the 72-hour trial. Once per business, no card needed, nothing charged. A founder has nothing to start. */

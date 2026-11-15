@@ -20,6 +20,11 @@ export class BillingController {
   @RequireTenantPermission('billing.read')
   status(@Tenant() t: TenantContext) { return this.svc.status(t); }
 
+  @Get('history')
+  @ApiOperation({ summary: 'Payments and billing events of this business' })
+  @RequireTenantPermission('billing.read')
+  history(@Tenant() t: TenantContext) { return this.svc.history(t); }
+
   @Post('trial')
   @HttpCode(201)
   @ApiOperation({ summary: 'Start the 72-hour free trial (once per business, no card, nothing charged)' })

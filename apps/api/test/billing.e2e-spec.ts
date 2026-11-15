@@ -111,6 +111,28 @@ describe('Billing (simulated provider)', () => {
     await request(h.http).get('/api/v1/billing/status').set(as(viewer)).expect(403);
   });
 
+  it('history is tenant-scoped and role-limited; inputs and credentials are validated', async () => {
+    const t = await h.tenant('Hist Shop');
+    const other = await h.tenant('Hist Other');
+    await post('trial', t, { plan: 'STARTER' }).expect(201);
+    const hist = (await request(h.http).get('/api/v1/billing/history').set(as(t)).expect(200)).body;
+    expect(hist.events.map((e: { action: string }) => e.action)).toEqual(['billing.trial_started']);
+    expect((await request(h.http).get('/api/v1/billing/history').set(as(other)).expect(200)).body).toEqual({ payments: [], events: [] });
+    const viewer = await h.member(t, 'VIEWER');
+    await request(h.http).get('/api/v1/billing/history').set(as(viewer)).expect(403);
+    const status = (await request(h.http).get('/api/v1/billing/status').set(as(t)).expect(200)).body;
+    expect(status.plans.map((p: { code: string }) => p.code)).toEqual(expect.arrayContaining(['STARTER', 'PRO']));
+    expect(JSON.stringify(status)).not.toMatch(/providerCustomerId|paymentMethodRef|sim_cus|sim_pm|secret/i); // no provider reference reaches the browser
+    // Not signed in.
+    await request(h.http).get('/api/v1/billing/status').expect(401);
+    // Bad inputs are refused before any provider call.
+    await post('trial', t, { plan: 'ENTERPRISE' }).expect(400);
+    await post('trial', t, {}).expect(400);
+    for (const returnUrl of ['http://evil.example.com/x', 'javascript:alert(1)', 'ftp://x.example.com', 'https://', '']) await post('card-setup', t, { returnUrl }).expect(400);
+    await post('card-setup', t, { returnUrl: 'http://localhost:3100/dashboard/billing' }).expect(201);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('tenants are isolated', async () => {
     const a = await h.tenant('Iso A');
     const b = await h.tenant('Iso B');
