@@ -18,7 +18,7 @@ export interface PlannedPost { title: string; caption: string; hashtags?: string
 export class PublishingPlannerService {
   constructor(private readonly prisma: PrismaService, private readonly calendar: CalendarService, private readonly policies: PublishingPolicyService, private readonly automation: PublishingAutomationService) {}
 
-  async plan(t: TenantContext, o: { accountId: string; days: number; startDate?: string; posts?: PlannedPost[]; process: boolean }) {
+  async plan(t: TenantContext, o: { accountId: string; days: number; startDate?: string; posts?: PlannedPost[]; process: boolean; /** Preferred local hour (0-23); used only when it falls inside the allowed publishing hours. */ hour?: number; /** How many posts to prepare at most. */ maxPosts?: number }) {
     const view = await this.policies.get(t, o.accountId);
     const p = view.policy;
     if (!p) throw new ConflictException({ code: 'CONSENT_REQUIRED', message: 'Accept the consent and configure the account before planning' });
@@ -26,7 +26,7 @@ export class PublishingPlannerService {
     const hours = p.allowedPublishingHours as unknown as HoursWindow[];
     const tz = p.timezone;
     const start = o.startDate ?? addDays(todayIn(tz), 1);
-    const posts = o.posts?.length ? o.posts : await this.fromCatalog(t.businessId, o.days);
+    const posts = (o.posts?.length ? o.posts : await this.fromCatalog(t.businessId, o.days)).slice(0, o.maxPosts ?? 14);
     const created: Array<{ entryId: string; title: string; scheduledAt: string; decision: { action: string; risk: string; reasons: unknown } | null; error?: string }> = [];
     let i = 0;
     for (let d = 0; d < o.days && i < posts.length; d++) {
@@ -35,7 +35,8 @@ export class PublishingPlannerService {
       if (!win) continue;
       // One post per day, an hour after the window opens: simple, predictable and inside the allowed hours.
       const [h, m] = win.from.split(':').map(Number);
-      const time = `${String(Math.min((h ?? 8) + 1, 23)).padStart(2, '0')}:${String(m ?? 0).padStart(2, '0')}`;
+      const preferred = o.hour !== undefined && `${String(o.hour).padStart(2, '0')}:00` >= win.from && `${String(o.hour).padStart(2, '0')}:00` < win.to ? `${String(o.hour).padStart(2, '0')}:00` : null;
+      const time = preferred ?? `${String(Math.min((h ?? 8) + 1, 23)).padStart(2, '0')}:${String(m ?? 0).padStart(2, '0')}`;
       const post = posts[i++]!;
       try {
         const at = zonedToUtc(date, time, tz).utc;
@@ -53,11 +54,13 @@ export class PublishingPlannerService {
   }
 
   private async fromCatalog(businessId: string, n: number): Promise<PlannedPost[]> {
-    const products = await this.prisma.product.findMany({ where: { businessId, status: 'ACTIVE', deletedAt: null }, orderBy: { createdAt: 'asc' }, take: Math.min(n, 14) });
+    const products = await this.prisma.product.findMany({ where: { businessId, status: 'ACTIVE', deletedAt: null }, orderBy: { createdAt: 'asc' }, take: Math.min(n, 14), include: { media: { orderBy: { position: 'asc' }, take: 1, select: { mediaId: true } } } });
     return products.map((pr) => ({
       title: pr.name,
       caption: [pr.name, pr.description?.trim(), pr.price != null ? `${pr.price.toString()}${pr.currency ? ` ${pr.currency}` : ''}` : null].filter(Boolean).join(' — '),
       productId: pr.id,
+      // The product's own first image, when it has one: a post that needs media is never prepared without it.
+      ...(pr.media[0] ? { mediaIds: [pr.media[0].mediaId], contentType: 'IMAGE' } : {}),
     }));
   }
 }

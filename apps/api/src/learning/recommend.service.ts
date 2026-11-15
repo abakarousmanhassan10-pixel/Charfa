@@ -45,10 +45,14 @@ export class RecommendService {
       const r = analyze(posts, { now, timezone: c.timezone, hours: c.hours, maxPostsPerDay: c.maxPostsPerDay, allowedKinds: eff['content.preferredTypes']?.origin === 'DECLARED' ? (eff['content.preferredTypes']!.value as string[]) : [], restrictions: eff['editorial.restrictions']?.origin === 'DECLARED' ? (eff['editorial.restrictions']!.value as string[]) : [], rejectedKeys });
       out.results[platform] = r;
       out.analyzed[platform] = { usable: r.usable, origin: r.origin, insufficient: r.insufficient, dropped: r.dropped.length };
+      const keep = new Set<string>();
       for (const rec of r.recommendations) {
         const s = await this.store(businessId, platform, rec, r);
         out[s]++;
+        keep.add(`learn:${platform}:${rec.key}:${rec.kind}`.slice(0, 190));
       }
+      // An open proposal the data no longer supports (or that now conflicts with the client's wishes) is withdrawn, not left lying around.
+      await this.prisma.recommendation.updateMany({ where: { businessId, source: 'LEARNING', status: 'PROPOSED', dedupeKey: { startsWith: `learn:${platform}:`, notIn: [...keep] } }, data: { status: 'DISMISSED' } });
       for (const h of r.hypotheses) if (await this.prefs.learn(businessId, runId ?? 'manual', h.key, 'HYPOTHESIS', h.value as Record<string, unknown>, { statement: h.statement, n: h.n, platform }, 'LOW')) out.hypotheses++;
       for (const i of r.inferences) if (await this.prefs.learn(businessId, runId ?? 'manual', i.key, 'INFERRED', i.value, { n: i.n, platform, basis: r.origin }, i.confidence)) out.inferences++;
     }

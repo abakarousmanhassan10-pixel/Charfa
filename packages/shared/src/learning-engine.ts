@@ -108,6 +108,8 @@ export function analyze(posts: PerfPost[], o: EngineOptions): EngineResult {
       else dropped(key, 'Gap too small and not distinguishable from noise');
       continue;
     }
+    // A difference that is statistically visible but practically tiny is not worth a change.
+    if (rel < 0.1) { dropped(key, 'Effect smaller than 10%: not worth a change'); continue; }
     const pct = `${(Math.abs(rel) * 100).toFixed(0)}%`;
     const common = { dataUsed, confidence: conf, limitations: LIMITS.concat(origin === 'REAL' ? [] : ['The numbers come from the simulator: they exercise the workflow and say nothing about real audiences.']), key };
     const fx = (statement: string) => [{ statement, metric: 'engagementRate', toVerify: true as const }];
@@ -149,7 +151,11 @@ export function analyze(posts: PerfPost[], o: EngineOptions): EngineResult {
   if (wk.length >= 5) {
     const r = pearson(wk.map((x) => x.length), wk.map((x) => mean(x)));
     const key = 'frequency';
-    if (r !== null && Math.abs(r) >= 0.5 && !o.rejectedKeys.includes(key)) {
+    const counts = wk.map((x) => x.length);
+    const hi = wk.filter((x) => x.length >= mean(counts)).map(mean), lo = wk.filter((x) => x.length < mean(counts)).map(mean);
+    // Practical size: weeks with more posts must differ from the others by at least 15% on mean engagement, and the weekly counts must really vary.
+    const gap = hi.length && lo.length && mean(lo) > 0 ? Math.abs(mean(hi) - mean(lo)) / mean(lo) : 0;
+    if (r !== null && Math.abs(r) >= 0.5 && gap >= 0.15 && Math.max(...counts) - Math.min(...counts) >= 2 && !o.rejectedKeys.includes(key)) {
       const ceiling = Math.min(7, o.maxPostsPerDay * 7);
       const target = r > 0 ? Math.min(Math.ceil(current) + 1, ceiling) : Math.max(Math.floor(current) - 1, 1);
       if (target !== Math.round(current)) {

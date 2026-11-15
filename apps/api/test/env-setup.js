@@ -96,3 +96,5 @@ process.env.SOCIAL_MAX_REPLIES_PER_DAY = '1000';
 process.env.CAMPAIGNS_ENABLED = 'true';
 process.env.INTELLIGENCE_ENABLED = 'true';
 process.env.AUTOPILOT_ENABLED = 'true';
+process.env.LEARNING_RATE_LIMIT_PER_MINUTE = '1000';
+process.env.AUTOPUBLISH_RATE_LIMIT_PER_MINUTE = '1000';

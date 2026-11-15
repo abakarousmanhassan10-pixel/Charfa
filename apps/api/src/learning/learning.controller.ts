@@ -9,6 +9,8 @@ import { RequireTenantPermission } from '../tenancy/business-access.guard';
 import { Tenant, type TenantContext } from '../tenancy/tenant-context';
 import { seedHistory } from './demo-history';
 import { LearningEnabledGuard } from './learning.guard';
+import { ExperimentsService } from './experiments.service';
+import { LearningService } from './learning.service';
 import { LearningProfileService } from './learning-profile.service';
 import { PerformanceService } from './performance.service';
 import { PreferencesService } from './preferences.service';
@@ -20,6 +22,8 @@ function parse<S extends z.ZodTypeAny>(schema: S, v: unknown): z.output<S> {
   return r.data;
 }
 const perfQuery = z.object({ platform: z.enum(['INSTAGRAM', 'TIKTOK', 'YOUTUBE']).optional(), days: z.coerce.number().int().min(1).max(365).optional(), weeks: z.coerce.number().int().min(1).max(52).optional() });
+const expBody = z.object({ hypothesis: z.string().trim().min(5).max(300), metric: z.enum(['engagementRate', 'likes', 'reach', 'views']).default('engagementRate'), entryA: z.string().min(1).max(40), entryB: z.string().min(1).max(40), minSamplePerArm: z.number().int().min(10).max(100_000).optional() }).strict();
+const prepBody = z.object({ hypothesis: z.string().trim().min(5).max(300), platform: z.enum(['INSTAGRAM', 'TIKTOK', 'YOUTUBE']), base: z.object({ title: z.string().trim().min(1).max(120), caption: z.string().trim().min(1).max(2200), hashtags: z.array(z.string().max(60)).max(30).default([]), mediaIds: z.array(z.string().max(40)).max(10).optional(), contentType: z.enum(['TEXT', 'IMAGE', 'CAROUSEL', 'VIDEO']).optional() }).strict(), scheduledAtA: z.string().max(40), scheduledAtB: z.string().max(40) }).strict();
 const idParam = z.string().min(1).max(190);
 const consentBody = z.object({ accept: z.literal(true), consentVersion: z.string().max(30) }).strict();
 const settingsBody = z.object({ enabled: z.boolean().optional(), autoPlan: z.boolean().optional(), maxRunsPerDay: z.number().int().min(1).max(24).optional() }).strict();
@@ -36,7 +40,7 @@ export const rl = () => ({ default: { limit: Number(process.env.LEARNING_RATE_LI
 @UseGuards(LearningEnabledGuard)
 @Controller('learning')
 export class LearningController {
-  constructor(private readonly perf: PerformanceService, private readonly prisma: PrismaService, private readonly profile: LearningProfileService, private readonly prefs: PreferencesService, private readonly recs: RecommendService, @InjectEnv() private readonly env: AppEnv) {}
+  constructor(private readonly perf: PerformanceService, private readonly prisma: PrismaService, private readonly profile: LearningProfileService, private readonly prefs: PreferencesService, private readonly recs: RecommendService, private readonly loop: LearningService, private readonly experiments: ExperimentsService, @InjectEnv() private readonly env: AppEnv) {}
 
   @Get('analytics-capabilities') @RequireTenantPermission('learning.read')
   capabilities() { return { platforms: PLATFORM_ANALYTICS, provider: this.env.ANALYTICS_PROVIDER, simulated: this.env.ANALYTICS_PROVIDER === 'mock', maturityHours: this.env.ANALYTICS_MATURITY_HOURS, note: 'Statements about the platforms come from official documentation read by TOUMA; none was tested against a real account. A metric a platform does not give stays null.' }; }
@@ -91,4 +95,21 @@ export class LearningController {
     const eff = await this.prefs.effective(t.businessId);
     try { return makeVariants(base, { language: (eff.language?.value as string) ?? 'en', restrictions: (eff['editorial.restrictions']?.value as string[]) ?? [] }); } catch (e) { throw new BadRequestException({ code: 'RESTRICTED_CONTENT', message: (e as Error).message }); }
   }
+
+  // ─── The learning loop ─────────────────────────────────────────────────
+  /** Runs one pass now (collect, analyze, recommend, validate policy, execute if authorized, measure). A refused run is recorded with its reason. */
+  @Post('runs') @HttpCode(200) @Throttle(rl()) @RequireTenantPermission('learning.manage') run(@Tenant() t: TenantContext) { return this.loop.run(t.businessId, 'MANUAL', t); }
+  @Get('runs') @RequireTenantPermission('learning.read') runs(@Tenant() t: TenantContext) { return this.loop.list(t.businessId); }
+  @Post('runs/:id/rollback') @HttpCode(200) @RequireTenantPermission('learning.manage')
+  async rollback(@Tenant() t: TenantContext, @Param('id') id: string) { const r = await this.loop.rollback(t, parse(idParam, id)); if (!r) throw new BadRequestException({ code: 'NOTHING_TO_ROLL_BACK', message: 'This run has no earlier configuration to restore' }); return r; }
+
+  // ─── Quality evaluation ────────────────────────────────────────────────
+  @Post('quality/evaluate') @HttpCode(200) @RequireTenantPermission('learning.manage') evaluate(@Tenant() t: TenantContext) { return this.loop.evaluate(t.businessId); }
+  @Get('quality') @RequireTenantPermission('learning.read') quality(@Tenant() t: TenantContext) { return this.loop.quality(t.businessId); }
+
+  // ─── Comparison tests ──────────────────────────────────────────────────
+  @Get('experiments') @RequireTenantPermission('learning.read') listExperiments(@Tenant() t: TenantContext) { return this.experiments.list(t.businessId); }
+  @Post('experiments') @HttpCode(201) @RequireTenantPermission('learning.manage') createExperiment(@Tenant() t: TenantContext, @Body() b: unknown) { return this.experiments.create(t, parse(expBody, b)); }
+  @Post('experiments/prepare') @HttpCode(201) @RequireTenantPermission('learning.manage') prepareExperiment(@Tenant() t: TenantContext, @Body() b: unknown) { return this.experiments.prepare(t, parse(prepBody, b)); }
+  @Post('experiments/:id/conclude') @HttpCode(200) @RequireTenantPermission('learning.manage') concludeExperiment(@Tenant() t: TenantContext, @Param('id') id: string) { return this.experiments.conclude(t, parse(idParam, id)); }
 }

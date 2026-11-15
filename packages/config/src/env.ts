@@ -288,6 +288,8 @@ export const appEnvSchema = z.object({
   /** A post is not measured before this age: platforms report metrics late and early numbers mislead. */
   ANALYTICS_MATURITY_HOURS: z.coerce.number().int().min(0).max(720).default(48),
   LEARNING_TICK_MS: z.coerce.number().int().min(1_000).default(3_600_000),
+  /** The scheduled loop runs for a business at most this often. */
+  LEARNING_RUN_INTERVAL_HOURS: z.coerce.number().int().min(1).max(720).default(168),
   LEARNING_MAX_RUNS_PER_DAY: z.coerce.number().int().min(1).max(24).default(2),
   LEARNING_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   // ─── Autonomous & hybrid publishing (Phase N21): off by default. A policy per connected account (MANUAL/HYBRID/AUTO) after a versioned consent; the platform rules and the publication gate always apply ───

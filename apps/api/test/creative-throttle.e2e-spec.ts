@@ -10,6 +10,12 @@ describe('Creative Studio: rate limits (e2e)', () => {
 
   beforeAll(async () => {
     process.env.CREATIVE_RATE_LIMIT_PER_MINUTE = '3';
+    // Counters live in Redis and are shared by the suites that ran in the same minute: start from empty ones.
+    const Redis = (await import('ioredis')).default;
+    const redis = new Redis(process.env.REDIS_URL as string);
+    const keys = await redis.keys('touma:rl:*');
+    if (keys.length) await redis.del(...keys);
+    await redis.quit();
     jest.resetModules();
     helpers = await import('./helpers');
     await helpers.resetDb();

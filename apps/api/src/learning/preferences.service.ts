@@ -57,6 +57,15 @@ export class PreferencesService {
   async supersedeConflicting(businessId: string, actorId?: string | null) {
     const eff = await this.effective(businessId);
     const kinds = (eff['content.preferredTypes']?.origin === 'DECLARED' ? (eff['content.preferredTypes']!.value as string[]) : []);
+    // Open proposals that now contradict what the client declared are withdrawn (DISMISSED by the system, not decided by the client).
+    const restrictions = eff['editorial.restrictions']?.origin === 'DECLARED' ? (eff['editorial.restrictions']!.value as string[]) : [];
+    const open = await this.prisma.recommendation.findMany({ where: { businessId, source: 'LEARNING', status: 'PROPOSED' } });
+    for (const r of open) {
+      const a = r.proposedAction as { kind?: string } | null;
+      const text = `${r.title} ${JSON.stringify(r.proposedAction ?? {})}`.toLowerCase();
+      const conflict = (a?.kind && kinds.length > 0 && !kinds.includes(a.kind)) || restrictions.some((x) => x && text.includes(x.toLowerCase()));
+      if (conflict) await this.prisma.recommendation.update({ where: { id: r.id }, data: { status: 'DISMISSED' } });
+    }
     const inferred = await this.prisma.clientPreference.findMany({ where: { businessId, origin: 'INFERRED', status: 'ACTIVE' } });
     for (const r of inferred) {
       const conflict = r.key === 'inferred.bestKind' && kinds.length > 0 && !kinds.includes((r.value as { kind?: string }).kind ?? '');

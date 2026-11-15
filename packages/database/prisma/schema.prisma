@@ -2543,6 +2543,11 @@ model Experiment {
   /// [{ label: "A"|"B", calendarEventId }]; both are ordinary N18 entries that need their own approval.
   variants        Json
   minSamplePerArm Int              @default(100)
+  /// How the comparison was run. TOUMA publishes to one audience, so it is never a randomized test: NON_RANDOMIZED_SEQUENTIAL (or LEGACY for older rows).
+  design          String           @default("LEGACY")
+  /// Delivery conditions of both variants (account, platform, time, format, changed elements).
+  conditions      Json?
+  biasFlags       Json?
   result          Json?
   createdById     String?
   createdAt       DateTime         @default(now()) @db.Timestamptz(3)

@@ -77,7 +77,9 @@ describe('Learning: preferences and recommendations (simulated)', () => {
     // The next analysis never proposes the disallowed format, and does not bring the observation back.
     await generate(b).expect(200);
     const recs = (await api('get', 'recommendations', b.owner).expect(200)).body;
-    expect(recs.filter((x: { proposedAction: { kind?: string } }) => x.proposedAction.kind === 'VIDEO')).toEqual([]);
+    // The proposal made before the client declared IMAGE only is withdrawn, and the format is not proposed again.
+    expect(recs.filter((x: { proposedAction: { kind?: string }; status: string }) => x.proposedAction.kind === 'VIDEO' && x.status === 'PROPOSED')).toEqual([]);
+    expect(recs.find((x: { proposedAction: { kind?: string } }) => x.proposedAction.kind === 'VIDEO')?.status).toBe('DISMISSED');
     expect((await api('get', 'preferences', b.owner).expect(200)).body.effective['inferred.bestKind']).toBeUndefined();
   });
 

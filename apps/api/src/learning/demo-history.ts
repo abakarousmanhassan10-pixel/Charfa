@@ -20,7 +20,7 @@ export async function seedHistory(prisma: PrismaService, o: { businessId: string
     at.setUTCHours(HOURS[i % HOURS.length]!, 0, 0, 0);
     const kind = o.platform === 'INSTAGRAM' ? (i % 4 === 0 ? 'VIDEO' : 'IMAGE') : 'VIDEO';
     const caption = [SHORT, MEDIUM, LONG][i % 3]!;
-    const question = i % 3 === 0;
+    const question = i % 5 === 0 || i % 5 === 3;
     const content = await prisma.content.create({ data: { businessId: o.businessId, type: kind as never, title: question ? `Have you tried our bissap #${i + 1}?` : `Fresh bissap #${i + 1}`, caption, hashtags: [POOL[i % POOL.length]!, '#bissap'], status: 'PUBLISHED', origin: 'HUMAN', targetPlatforms: [o.platform], createdAt: at } });
     const pub = await prisma.publication.create({ data: { businessId: o.businessId, contentId: content.id, socialAccountId: o.socialAccountId, platform: o.platform, status: 'PUBLISHED', scheduledAt: at, publishedAt: at, timezone: 'UTC', idempotencyKey: `demo-${randomBytes(8).toString('hex')}`, simulated: true, confirmedByProvider: true, externalPostId: `sim-${randomBytes(4).toString('hex')}`, createdAt: at } });
     ids.push(pub.id);

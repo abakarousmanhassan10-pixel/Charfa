@@ -22,3 +22,5 @@ export * from './publishing-policy';
 export * from './learning-core';
 export * from './preferences';
 export * from './learning-engine';
+export * from './experiment-design';
+export * from './learning-eval';
