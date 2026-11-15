@@ -39,7 +39,8 @@ export class MockAnalyticsProvider implements AnalyticsProvider {
     if (this.down) throw new SocialApiError('transient', 'Simulated analytics API unreachable', { status: 503, outcome: 'not_created' });
     const ageH = (at.getTime() - post.publishedAt.getTime()) / 3_600_000;
     if (ageH < this.delayHours) return { ...NO_METRICS, unavailableReason: 'METRICS_DELAYED: the simulated platform has not published metrics for this post yet' };
-    const r = rng(post.id);
+    // Seeded from what the post is, not from its database id, so the same post content always gets the same simulated numbers.
+    const r = rng(`${post.platform}|${post.title ?? ''}|${post.kind}|${post.publishedAt.getUTCHours()}`);
     const hour = post.publishedAt.getUTCHours();
     const cap = post.caption ?? '';
     const effect = (hour >= 17 && hour <= 20 ? 1.9 : hour >= 6 && hour <= 9 ? 0.8 : 1) * (post.kind === 'VIDEO' ? 2.2 : 1) * (cap.length >= 60 && cap.length <= 140 ? 1.7 : cap.length > 300 ? 0.6 : 1) * (/\?/.test(post.title ?? cap.slice(0, 80)) ? 1.5 : 1);
@@ -47,7 +48,7 @@ export class MockAnalyticsProvider implements AnalyticsProvider {
     // Counts keep growing after publication and flatten out (simulated).
     const growth = 1 - Math.exp(-Math.max(ageH, 0) / 96);
     const reach = Math.round(reach0 * growth);
-    const rate = 0.03 * effect * (0.9 + r() * 0.2);
+    const rate = 0.03 * effect * (0.95 + r() * 0.1);
     const likes = Math.round(reach * rate), comments = Math.round(likes * 0.08), shares = Math.round(likes * 0.1), saves = Math.round(likes * 0.15);
     const full: Record<MetricName, number | null> = { views: Math.round(reach * 1.3), reach, impressions: Math.round(reach * 1.25), likes, comments, shares, saves, avgWatchSeconds: null, linkClicks: null, conversions: null };
     const have = new Set<MetricName>(availableMetrics(post.platform));

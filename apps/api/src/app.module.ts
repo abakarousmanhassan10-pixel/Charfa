@@ -41,6 +41,7 @@ import { AgentsModule } from './agents/agents.module';
 import { PublishingModule } from './publishing/publishing.module';
 import { LearningModule } from './learning/learning.module';
 import { AgentBuilderModule } from './agent-builder/agent-builder.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
 
 @Global()
 @Module({})
@@ -99,6 +100,7 @@ export class AppModule {
         PublishingModule,
         LearningModule,
         AgentBuilderModule,
+        MarketplaceModule,
         AdminModule,
         HealthModule,
         FeaturesModule,

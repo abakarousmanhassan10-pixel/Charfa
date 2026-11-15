@@ -25,3 +25,4 @@ export * from './learning-engine';
 export * from './experiment-design';
 export * from './learning-eval';
 export * from './agent-builder';
+export * from './marketplace';

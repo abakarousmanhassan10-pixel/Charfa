@@ -28,6 +28,7 @@ export class FeaturesController {
       autopublish: this.env.AUTOPUBLISH_ENABLED,
       learning: this.env.LEARNING_ENABLED,
       agentBuilder: this.env.AGENT_BUILDER_ENABLED,
+      marketplace: this.env.MARKETPLACE_ENABLED,
       ai: i.openai,
       media: i.storage,
     };

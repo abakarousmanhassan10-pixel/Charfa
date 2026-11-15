@@ -583,6 +583,7 @@ model Business {
   clientPreferences   ClientPreference[]
   learningRuns        LearningRun[]
   agentDefinitions    AgentDefinition[]
+  marketplaceReviews  MarketplaceReview[]
   agentConversations  AgentConversation[]
   agentApprovals      AgentApproval[]
   budgetPolicy        BudgetPolicy?
@@ -3200,4 +3201,106 @@ model AgentTestRun {
 
   @@index([businessId, createdAt])
   @@index([definitionId, createdAt])
+}
+
+// ─────────────────────── Agent marketplace (N24, block A: catalog) ───────────────────────
+// Listings and versions are PLATFORM data (not tenant data): they describe a package, never a client's information. Packages are data and are never executed.
+
+enum MarketplaceStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  PUBLISHED
+  SUSPENDED
+  ARCHIVED
+}
+
+enum MarketplacePricing {
+  FREE
+  PREMIUM
+}
+
+model CreatorProfile {
+  id          String   @id @default(cuid())
+  /// The business that owns the profile (null for the fictitious demo creator).
+  businessId  String?  @unique
+  displayName String
+  bio         String?
+  /// Identity or business checks done by TOUMA staff. Never set automatically.
+  verified    Boolean  @default(false)
+  /// ACTIVE | SUSPENDED
+  status      String   @default("ACTIVE")
+  demo        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  listings MarketplaceListing[]
+}
+
+model MarketplaceListing {
+  id               String             @id @default(cuid())
+  slug             String             @unique
+  creatorId        String
+  name             String
+  summary          String
+  description      String
+  category         String
+  tags             String[]
+  status           MarketplaceStatus  @default(DRAFT)
+  pricing          MarketplacePricing @default(FREE)
+  /// true = the price/licence is a simulation only (no real payment exists).
+  pricingSimulated Boolean            @default(false)
+  /// Fictitious catalog entry created by the demo seed.
+  demo             Boolean            @default(false)
+  suspendedReason  String?
+  publishedAt      DateTime?          @db.Timestamptz(3)
+  createdAt        DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @db.Timestamptz(3)
+
+  creator  CreatorProfile       @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  versions MarketplaceVersion[]
+  reviews  MarketplaceReview[]
+
+  @@index([status, category])
+  @@index([creatorId])
+}
+
+/// An immutable published package version: the manifest, its hash and the changelog never change (a database trigger refuses it); only the status can.
+model MarketplaceVersion {
+  id           String            @id @default(cuid())
+  listingId    String
+  version      String
+  manifest     Json
+  manifestHash String
+  changelog    String
+  status       MarketplaceStatus @default(DRAFT)
+  publishedAt  DateTime?         @db.Timestamptz(3)
+  createdAt    DateTime          @default(now()) @db.Timestamptz(3)
+
+  listing MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Restrict)
+
+  @@unique([listingId, version])
+  @@index([listingId, status])
+}
+
+/// Written only by a business that installed the agent (enforced when installation exists). Counted in the catalog only when APPROVED by moderation.
+model MarketplaceReview {
+  id         String   @id @default(cuid())
+  listingId  String
+  versionId  String?
+  businessId String
+  userId     String
+  rating     Int
+  comment    String?
+  /// PENDING | APPROVED | REJECTED
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  listing  MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  business Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, businessId])
+  @@index([listingId, status])
 }

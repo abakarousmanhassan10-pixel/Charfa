@@ -281,6 +281,11 @@ export const appEnvSchema = z.object({
   BILLING_MAX_FAILED_PAYMENTS: z.coerce.number().int().min(1).max(10).default(3),
   /** Comma-separated e-mails of the founder(s): owners with a VERIFIED e-mail on this list keep free lifetime access. */
   FOUNDER_EMAILS: z.string().default('').transform((v) => v.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)),
+  // ─── Agent marketplace (Phase N24): off by default. Packages are data and are never executed; payments, sales and revenues are simulated ───
+  MARKETPLACE_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  /** Lets a platform administrator create the three fictitious catalog entries. Refused in production. */
+  MARKETPLACE_DEMO_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  MARKETPLACE_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   // ─── No-code agent builder (Phase N23): off by default. Tests of an agent run in a simulator: no model, tool or network call ───
   AGENT_BUILDER_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   AGENT_BUILDER_TESTS_PER_DAY: z.coerce.number().int().min(1).max(1000).default(20),
@@ -473,6 +478,9 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
   }
   if (env.LINKEDIN_ORG_ENABLED && !env.LINKEDIN_ORG_APPROVAL_REF?.trim()) {
     throw new EnvValidationError(['LINKEDIN_ORG_ENABLED=true requires LINKEDIN_ORG_APPROVAL_REF: record what LinkedIn approved (product, date, reference) before enabling organization publishing']);
+  }
+  if (env.MARKETPLACE_DEMO_ENABLED && env.APP_ENV === 'production') {
+    throw new EnvValidationError(['MARKETPLACE_DEMO_ENABLED is not allowed when APP_ENV=production']);
   }
   if (env.ANALYTICS_PROVIDER === 'mock' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['ANALYTICS_PROVIDER=mock is only allowed when APP_ENV=test']);

@@ -108,7 +108,8 @@
       "agents": "Agents IA",
       "publishing": "Publication auto",
       "learning": "Apprentissage",
-      "agentBuilder": "Constructeur d'agents"
+      "agentBuilder": "Constructeur d'agents",
+      "marketplace": "Marketplace"
     },
     "analyticsTitle": "Performances",
     "noAnalytics": "Aucune donnée pour l'instant. Les statistiques apparaîtront une fois vos comptes connectés et vos publications en ligne — nous n'affichons jamais d'estimations comme des résultats mesurés.",
@@ -3147,5 +3148,36 @@
     "testInput": "Un message à essayer avec l'agent",
     "runTest": "Lancer le test",
     "simulatedTag": "simulé"
+  },
+  "marketplace": {
+    "title": "Marketplace d'agents",
+    "subtitle": "Découvrez des agents IA. Consultation seulement pour l'instant : l'installation, les outils créateurs et les achats viennent dans des versions ultérieures, vérifiées séparément.",
+    "notEnabled": "La marketplace d'agents n'est pas activée sur ce déploiement.",
+    "note": "Catalogue de démonstration : les annonces sont fictives. Les licences premium sont simulées : aucun prix n'est fixé et aucun paiement n'est possible. Rien n'est installé ni exécuté depuis cette page.",
+    "search": "Rechercher un agent",
+    "category": "Catégorie",
+    "allCategories": "Toutes les catégories",
+    "pricing": "Tarification",
+    "allPricing": "Gratuit et premium",
+    "free": "Gratuit",
+    "premium": "Premium",
+    "simulated": "simulé",
+    "none": "Aucun agent ne correspond.",
+    "demo": "démo",
+    "permissions": "permissions",
+    "sensitive": "sensible",
+    "noReviews": "Aucun avis vérifié pour l'instant",
+    "noInstalls": "le nombre d'installations n'est pas encore disponible",
+    "details": "Détails",
+    "verified": "créateur vérifié",
+    "unverified": "créateur non vérifié",
+    "neededPermissions": "Permissions dont cet agent aurait besoin",
+    "capabilities": "Ce qu'il sait faire",
+    "confirm": "demande votre confirmation",
+    "models": "Modèles compatibles",
+    "license": "Licence",
+    "instructions": "Instructions",
+    "history": "Historique des mises à jour",
+    "close": "Fermer"
   }
 }

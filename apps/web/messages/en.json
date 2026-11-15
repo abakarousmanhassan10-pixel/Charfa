@@ -108,7 +108,8 @@
       "agents": "AI agents",
       "publishing": "Auto publishing",
       "learning": "Learning",
-      "agentBuilder": "Agent builder"
+      "agentBuilder": "Agent builder",
+      "marketplace": "Marketplace"
     },
     "analyticsTitle": "Performance",
     "noAnalytics": "No data yet. Metrics appear here once social accounts are connected and posts are published — we never display estimated numbers as measured results.",
@@ -3147,5 +3148,36 @@
     "testInput": "A message to try with the agent",
     "runTest": "Run the test",
     "simulatedTag": "simulated"
+  },
+  "marketplace": {
+    "title": "Agent marketplace",
+    "subtitle": "Discover AI agents. Browsing only for now: installation, creator tools and purchases come in later, separately verified releases.",
+    "notEnabled": "The agent marketplace is not enabled on this deployment.",
+    "note": "Demo catalog: the listings are fictitious. Premium licences are simulated: no price is set and no payment is possible. Nothing is installed or executed from this page.",
+    "search": "Search agents",
+    "category": "Category",
+    "allCategories": "All categories",
+    "pricing": "Pricing",
+    "allPricing": "Free and premium",
+    "free": "Free",
+    "premium": "Premium",
+    "simulated": "simulated",
+    "none": "No agent matches.",
+    "demo": "demo",
+    "permissions": "permissions",
+    "sensitive": "sensitive",
+    "noReviews": "No verified review yet",
+    "noInstalls": "installation counts are not available yet",
+    "details": "Details",
+    "verified": "verified creator",
+    "unverified": "creator not verified",
+    "neededPermissions": "Permissions this agent would need",
+    "capabilities": "What it can do",
+    "confirm": "needs your confirmation",
+    "models": "Compatible models",
+    "license": "Licence",
+    "instructions": "Instructions",
+    "history": "Update history",
+    "close": "Close"
   }
 }
