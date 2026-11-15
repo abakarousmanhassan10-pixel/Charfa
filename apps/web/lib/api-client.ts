@@ -38,7 +38,8 @@ async function parse<T>(res: Response): Promise<T> {
   }
   if (!res.ok) {
     // A gateway answer without an API error body means the API is not answering (for example it is waking up): say so, not "failed".
-    const gateway = [502, 503, 504].includes(res.status) && !body.code;
+    // (Next's proxy answers a bare 500 "Internal Server Error" when the API closes the connection while it wakes up.)
+    const gateway = !body.code && ([502, 503, 504].includes(res.status) || (res.status === 500 && text.trim() === 'Internal Server Error'));
     const code = body.code ?? (res.status === 429 ? 'TOO_MANY_REQUESTS' : res.status === 400 ? 'VALIDATION' : gateway ? 'SERVER_UNAVAILABLE' : 'UNKNOWN');
     throw new ApiError(res.status, code, body.message ?? (gateway ? 'The server is starting up or temporarily unavailable. Wait about a minute and try again.' : res.statusText), Array.isArray(body.issues) ? body.issues.map(String) : undefined, { conflicts: Array.isArray(body.conflicts) ? body.conflicts : undefined, missing: Array.isArray(body.missing) ? body.missing : undefined, planId: typeof body.planId === 'string' ? body.planId : undefined });
   }
@@ -102,10 +103,38 @@ export async function api<T>(path: string, init: ApiInit = {}, retry = true): Pr
   return parse<T>(res);
 }
 
+/** Lets the sign-in form say "the server is waking up" while authRequest waits and retries (free hosting puts the API to sleep). */
+let wakingListener: ((waking: boolean) => void) | null = null;
+export function onServerWaking(fn: ((waking: boolean) => void) | null) { wakingListener = fn; }
+
+/** Wakes a sleeping API in the background (called when the sign-in page opens, so it is up by the time the person has typed). */
+export function warmUpServer() { void fetch('/api/v1/health', { credentials: 'same-origin', cache: 'no-store' }).catch(() => undefined); }
+
+const sleepMs = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const WAKE_RETRIES = 8;
+const WAKE_DELAY_MS = 10_000;
+
+/**
+ * Sign-in / sign-up. When the API does not answer at all (gateway error or network failure: it is waking up), the request never reached the application,
+ * so repeating it is safe: retry every 10 s for about 80 s and tell the form. A real answer from the API (wrong password, validation...) is never retried.
+ */
 export async function authRequest<T>(path: '/auth/login' | '/auth/register', json: unknown): Promise<T> {
-  const body = await api<T & { accessToken: string }>(path, { method: 'POST', json }, false);
-  accessToken = body.accessToken;
-  return body;
+  try {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const body = await api<T & { accessToken: string }>(path, { method: 'POST', json }, false);
+        accessToken = body.accessToken;
+        return body;
+      } catch (err) {
+        const asleep = err instanceof ApiError && (err.code === 'SERVER_UNAVAILABLE' || err.code === 'NETWORK');
+        if (!asleep || attempt >= WAKE_RETRIES) throw err;
+        wakingListener?.(true);
+        await sleepMs(WAKE_DELAY_MS);
+      }
+    }
+  } finally {
+    wakingListener?.(false);
+  }
 }
 
 export async function logout() {

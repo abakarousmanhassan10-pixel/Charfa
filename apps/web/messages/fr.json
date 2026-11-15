@@ -75,8 +75,10 @@
       "TOO_MANY_REQUESTS": "Trop de tentatives. Patientez une minute.",
       "VALIDATION": "Veuillez vérifier les champs signalés.",
       "NETWORK": "Le service est injoignable. Veuillez réessayer.",
-      "UNKNOWN": "Une erreur est survenue. Veuillez réessayer."
-    }
+      "UNKNOWN": "Une erreur est survenue. Veuillez réessayer.",
+      "SERVER_UNAVAILABLE": "Le serveur démarre encore. Réessayez dans une minute."
+    },
+    "waking": "Le serveur se réveille après une période d’inactivité. Merci de patienter, cela peut prendre jusqu’à une minute — nous réessayons automatiquement."
   },
   "dashboard": {
     "greeting": "Bonjour, {name}",

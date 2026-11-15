@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { safeNext } from '@/components/auth-shell';
@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/components/auth-provider';
 import { LocaleSwitcher, useI18n } from '@/components/i18n-provider';
 import { Logo } from '@/components/logo';
-import { ApiError } from '@/lib/api-client';
+import { ApiError, onServerWaking, warmUpServer } from '@/lib/api-client';
 
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const { t, locale } = useI18n();
@@ -24,6 +24,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
+  const [waking, setWaking] = useState(false);
+  useEffect(() => { warmUpServer(); onServerWaking(setWaking); return () => onServerWaking(null); }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -97,6 +99,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 'password',
                 mode === 'login' ? 'current-password' : 'new-password',
                 mode === 'register' ? t('auth.passwordHint') : undefined,
+              )}
+              {waking && (
+                <p role="status" data-testid="server-waking" className="rounded-md bg-amber-500/10 px-3 py-2 text-sm">
+                  {t('auth.waking')}
+                </p>
               )}
               {error && (
                 <p role="alert" data-testid="form-error" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">

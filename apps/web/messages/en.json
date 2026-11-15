@@ -75,8 +75,10 @@
       "TOO_MANY_REQUESTS": "Too many attempts. Please wait a minute.",
       "VALIDATION": "Please check the highlighted fields.",
       "NETWORK": "The service is unreachable. Please try again.",
-      "UNKNOWN": "Something went wrong. Please try again."
-    }
+      "UNKNOWN": "Something went wrong. Please try again.",
+      "SERVER_UNAVAILABLE": "The server is still starting. Please try again in a minute."
+    },
+    "waking": "The server is waking up after a period of inactivity. Please wait, this can take up to a minute — we will retry automatically."
   },
   "dashboard": {
     "greeting": "Hello, {name}",
