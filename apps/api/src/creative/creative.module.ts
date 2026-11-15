@@ -4,6 +4,7 @@ import { AiCoreModule } from '../ai/ai.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { MediaModule } from '../media/media.module';
 import { BrandKitService } from './brand-kit.service';
+import { CreativeAdminController } from './creative-admin.controller';
 import { CreativeController } from './creative.controller';
 import { CreativeProviderModule } from './creative-providers';
 import { CreativeQueueService } from './creative-queue';
@@ -19,5 +20,5 @@ import { CreativeWorkerService } from './creative-worker.service';
 })
 export class CreativeCoreModule {}
 
-@Module({ imports: [CreativeCoreModule, AiCoreModule], controllers: [CreativeController] })
+@Module({ imports: [CreativeCoreModule, AiCoreModule], controllers: [CreativeController, CreativeAdminController] })
 export class CreativeModule {}

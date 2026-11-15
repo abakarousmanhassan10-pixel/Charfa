@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { ImagePlus, Loader2, RefreshCw, Sparkles, X } from 'lucide-react';
 import { ItemSelect, parseItem } from '@/components/ai/selectors';
+import { DailyQuota, useDailyQuota } from '@/components/creative/daily-quota';
 import { useBusiness } from '@/components/business-provider';
 import { CreativeError, CreativeJobProgress } from '@/components/creative/job';
 import { CreativeSection } from '@/components/creative/creative-section';
@@ -32,6 +33,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 export default function ImagesPage() {
   const { t } = useI18n();
   const { active, can } = useBusiness();
+  const quota = useDailyQuota();
   const status = useCreativeStatus();
   const job = useCreativeJob();
   const o = status.data?.options;
@@ -73,7 +75,7 @@ export default function ImagesPage() {
     count, useBrandKit, overlayPosition, logoPlacement, ...(overlayText.trim() ? { overlayText: overlayText.trim() } : {}), ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
   });
   const maxCount = Math.min(o?.limits.maxImagesPerRequest ?? 4, status.data?.image.capabilities?.maxImagesPerRequest ?? 4);
-  const canGenerate = can('ai.use') && configured && !job.pending && (!photo || (rights && (!hasPerson || personOk)));
+  const canGenerate = can('ai.use') && configured && !job.pending && (quota.data ? quota.data.images.remaining >= count : true) && (!photo || (rights && (!hasPerson || personOk)));
   const sel = (label: string, id: string, value: string, set: (v: string) => void, options: string[], text: (v: string) => string) => (
     <Field id={id} label={label}>
       <Select id={id} value={value} onChange={(e) => set(e.target.value)}>
@@ -85,6 +87,7 @@ export default function ImagesPage() {
   return (
     <CreativeSection title={t('creative.images.title')} description={t('creative.images.subtitle')}>
       {status.data && !configured && <NotConfigured kind="image" />}
+      <DailyQuota data={quota.data} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,25rem)_minmax(0,1fr)]">
         <Card className="h-fit">
           <CardContent className="grid gap-5 pt-6">

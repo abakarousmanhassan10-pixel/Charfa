@@ -581,7 +581,7 @@ describe('Creative Studio: brand kit and images (e2e)', () => {
       jest.spyOn(queue, 'enqueue').mockResolvedValueOnce(undefined);
       const gone = await h.submitImage(t, { count: 1 }).expect(202);
       jest.restoreAllMocks();
-      await prisma.creativeGeneration.update({ where: { id: gone.body.id }, data: { status: 'RUNNING', queuedAt: new Date(Date.now() - 3 * 3600_000) } });
+      await prisma.creativeGeneration.update({ where: { id: gone.body.id }, data: { status: 'RUNNING', queuedAt: new Date(Date.now() - 45 * 60_000) } });
       expect(await worker.reconcile()).toMatchObject({ failed: 1 });
       expect(await prisma.creativeGeneration.findUniqueOrThrow({ where: { id: gone.body.id } })).toMatchObject({ status: 'FAILED', errorCode: 'CREATIVE_JOB_STALLED' });
       expect(await h.period(t.businessId)).toMatchObject({ reservedImages: 0 });

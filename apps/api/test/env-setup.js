@@ -99,3 +99,6 @@ process.env.INTELLIGENCE_ENABLED = 'true';
 process.env.AUTOPILOT_ENABLED = 'true';
 process.env.LEARNING_RATE_LIMIT_PER_MINUTE = '1000';
 process.env.AUTOPUBLISH_RATE_LIMIT_PER_MINUTE = '1000';
+// Legacy creative suites generate many media per business in one day: the daily quotas (default 5 + 5) are exercised by their own suite.
+process.env.CREATIVE_DAILY_IMAGES_PER_BUSINESS = '1000';
+process.env.CREATIVE_DAILY_VIDEOS_PER_BUSINESS = '1000';

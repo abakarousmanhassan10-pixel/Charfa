@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { ImagePlus, Loader2, Sparkles, X } from 'lucide-react';
 import { ItemSelect, parseItem } from '@/components/ai/selectors';
 import type { Generation } from '@/components/ai/types';
+import { DailyQuota, useDailyQuota } from '@/components/creative/daily-quota';
 import { useBusiness } from '@/components/business-provider';
 import { CreativeSection } from '@/components/creative/creative-section';
 import { CreativeError, CreativeJobProgress } from '@/components/creative/job';
@@ -26,6 +27,7 @@ import { qs, useResource, type Paged } from '@/lib/use-resource';
 function VideosView() {
   const { t, locale } = useI18n();
   const { active, can } = useBusiness();
+  const quota = useDailyQuota();
   const params = useSearchParams();
   const status = useCreativeStatus();
   const job = useCreativeJob();
@@ -62,13 +64,14 @@ function VideosView() {
   }, [job.result?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current = job.result as CreativeGeneration | null;
-  const canGenerate = can('ai.use') && configured && !job.pending && (!photo || rights);
+  const canGenerate = can('ai.use') && configured && !job.pending && (quota.data ? quota.data.videos.remaining >= 1 : true) && (!photo || rights);
   const aspects = caps?.aspectRatios ?? [];
   const availableFormats = Object.keys(formats).filter((k) => !caps || aspects.includes(formats[k]!.aspect));
 
   return (
     <CreativeSection title={t('creative.videos.title')} description={t('creative.videos.subtitle')}>
       {status.data && !configured && <NotConfigured kind="video" />}
+      <DailyQuota data={quota.data} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
         <Card className="h-fit">
           <CardContent className="grid gap-4 pt-6">

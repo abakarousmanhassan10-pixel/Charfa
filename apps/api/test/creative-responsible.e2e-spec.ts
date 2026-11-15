@@ -5,9 +5,9 @@ import { creativeHelpers } from './creative-helpers';
 import { prisma, resetDb, startApp } from './helpers';
 
 /** N25 MVP additions to the existing Creative Studio: responsible-content gate, daily caps, spend history, honest provider registry, labelled simulators. */
-const ENV: Record<string, string> = { CREATIVE_DAILY_IMAGES_PER_BUSINESS: '3', CREATIVE_DAILY_VIDEO_SECONDS_PER_BUSINESS: '12', CREATIVE_MONTHLY_IMAGES_PER_BUSINESS: '100' };
+const ENV: Record<string, string> = { CREATIVE_MONTHLY_IMAGES_PER_BUSINESS: '100' };
 
-describe('Creative Studio: responsible content, caps and spend (e2e)', () => {
+describe('Creative Studio: responsible content and spend (e2e)', () => {
   const saved: Record<string, string | undefined> = {};
   let app: INestApplication;
   let h: ReturnType<typeof creativeHelpers>;
@@ -52,18 +52,6 @@ describe('Creative Studio: responsible content, caps and spend (e2e)', () => {
     await h.submitImage(t, { overlayText: 'Miracle cure!' }).expect(422);
     expect(await prisma.creativeGeneration.count({ where: { businessId: t.businessId } })).toBe(0);
     await h.submitImage(t, { instructions: 'A bright, friendly product scene' }).expect(202);
-  });
-
-  it('the daily cap stops further generations (images and video seconds) and does not touch other businesses', async () => {
-    const t = await tenant();
-    const other = await tenant();
-    await h.finished(t, (await h.submitImage(t, { count: 2 }).expect(202)).body.id);
-    await h.finished(t, (await h.submitImage(t, { count: 1 }).expect(202)).body.id);
-    const r = await h.submitImage(t, { count: 1 }).expect(429);
-    expect(r.body.code).toBe('CREATIVE_DAILY_LIMIT');
-    await h.submitVideo(t, { seconds: 12 }).expect(202);
-    expect((await h.submitVideo(t, { seconds: 4 }).expect(429)).body.code).toBe('CREATIVE_DAILY_LIMIT');
-    await h.submitImage(other, { count: 3 }).expect(202); // the cap is per business
   });
 
   it('spend history: units per day with estimated cost, simulated generations flagged, isolated per business', async () => {

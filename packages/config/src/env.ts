@@ -131,8 +131,15 @@ export const appEnvSchema = z.object({
   CREATIVE_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(600_000).default(180_000),
   /** Monthly limits per business (an active plan's aiImagesPerMonth / aiVideoSecondsPerMonth take precedence). */
   /** Daily caps on top of the monthly ones (images, video seconds). */
-  CREATIVE_DAILY_IMAGES_PER_BUSINESS: z.coerce.number().int().positive().default(40),
-  CREATIVE_DAILY_VIDEO_SECONDS_PER_BUSINESS: z.coerce.number().int().positive().default(90),
+  CREATIVE_DAILY_IMAGES_PER_BUSINESS: z.coerce.number().int().min(0).default(5),
+  /** Advertising VIDEOS per day (a count of videos, not seconds). A plan's creativeImagesPerDay / creativeVideosPerDay overrides both. */
+  CREATIVE_DAILY_VIDEOS_PER_BUSINESS: z.coerce.number().int().min(0).default(5),
+  /** A reservation older than this is released whatever the job is doing (interrupted tasks never hold quota forever). */
+  CREATIVE_RESERVATION_TTL_MINUTES: z.coerce.number().int().min(5).max(1440).default(60),
+  /** The timezone used for daily resets can change at most once in this many days (and only at the next midnight). */
+  CREATIVE_QUOTA_TZ_CHANGE_DAYS: z.coerce.number().int().min(0).max(365).default(30),
+  /** Monthly creative budget in micro-USD when the plan sets none. 0 = no monetary budget enforced. */
+  CREATIVE_MONTHLY_BUDGET_MICROS: z.coerce.number().int().min(0).default(0),
   CREATIVE_MONTHLY_IMAGES_PER_BUSINESS: z.coerce.number().int().positive().default(100),
   CREATIVE_MONTHLY_VIDEO_SECONDS_PER_BUSINESS: z.coerce.number().int().positive().default(120),
   CREATIVE_JOB_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),

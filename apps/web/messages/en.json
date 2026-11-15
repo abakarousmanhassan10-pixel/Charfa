@@ -1229,7 +1229,17 @@
       "CREATIVE_JOB_FAILED": "The generation stopped unexpectedly. Nothing was charged.",
       "CREATIVE_QUEUE_UNAVAILABLE": "The generation queue is unavailable. Try again shortly."
     },
-    "simulatedBadge": "Simulated — not a real generation"
+    "simulatedBadge": "Simulated — not a real generation",
+    "daily": {
+      "title": "Today's AI creations",
+      "videos": "AI videos",
+      "images": "AI images",
+      "used": "used",
+      "remaining": "remaining",
+      "resets": "Renews",
+      "exhausted": "You have used all your creations available today. Your quota will be renewed tomorrow.",
+      "tzPending": "A timezone change takes effect at the next renewal."
+    }
   },
   "calendar": {
     "title": "Content calendar",

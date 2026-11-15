@@ -44,6 +44,21 @@ export class CreativeController {
     return this.creative.overview(tenant);
   }
 
+  @Get('quota')
+  @ApiOperation({ summary: 'Daily image and video quotas, remaining credits and the next reset (in the business quota timezone)' })
+  @RequireTenantPermission('content.read')
+  quota(@Tenant() tenant: TenantContext) {
+    return this.creative.dailyQuota(tenant);
+  }
+
+  @Post('generations/:id/cancel')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Cancel a generation that has not started; its credits are released' })
+  @RequireTenantPermission('ai.use')
+  cancel(@Tenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.creative.cancel(tenant, id);
+  }
+
   @Get('spend')
   @ApiOperation({ summary: 'Daily generations, produced units and estimated cost (estimates, not an invoice)' })
   @RequireTenantPermission('content.read')

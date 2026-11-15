@@ -350,6 +350,11 @@ export class CreativeWorkerService implements OnApplicationBootstrap, OnApplicat
         requeued++;
       }
     }
+    // Maximum reservation time: whatever the job is doing, a reservation older than the TTL is released so an interrupted task never holds quota.
+    const ttl = new Date(Date.now() - this.env.CREATIVE_RESERVATION_TTL_MINUTES * 60_000);
+    const expired = await this.prisma.creativeGeneration.findMany({ where: { status: { in: ['QUEUED', 'RUNNING'] }, queuedAt: { lt: ttl } }, select: { id: true }, take: 100 });
+    let expiredCount = 0;
+    for (const e of expired) { await this.fail(e.id, 'RESERVATION_EXPIRED', 'The generation exceeded the maximum reservation time and was released'); expiredCount++; }
     // Generations that vanished from the queue long ago.
     const staleBefore = new Date(Date.now() - (this.env.CREATIVE_VIDEO_TIMEOUT_MINUTES + 10) * 60_000);
     const stale = await this.prisma.creativeGeneration.findMany({ where: { status: { in: ['QUEUED', 'RUNNING'] }, queuedAt: { lt: staleBefore } }, select: { id: true }, take: 100 });
@@ -362,7 +367,7 @@ export class CreativeWorkerService implements OnApplicationBootstrap, OnApplicat
         failed++;
       }
     }
-    if (settled || requeued || failed) this.logger.warn(`reconcile: settled ${settled}, re-enqueued ${requeued}, stalled ${failed}`);
-    return { settled, requeued, failed };
+    if (settled || requeued || failed || expiredCount) this.logger.warn(`reconcile: settled ${settled}, re-enqueued ${requeued}, stalled ${failed}, expired ${expiredCount}`);
+    return { settled, requeued, failed, expired: expiredCount };
   }
 }

@@ -20,6 +20,10 @@ export interface PlanEntitlements {
   salesInteractionsPerMonth: number | null;
   aiImagesPerMonth: number | null;
   aiVideoSecondsPerMonth: number | null;
+  /** N26: daily advertising creations (images / videos, separate and not interchangeable) and the monthly creative spending budget (micro-USD). */
+  creativeImagesPerDay: number | null;
+  creativeVideosPerDay: number | null;
+  creativeBudgetMicrosPerMonth: number | null;
   /** N28: how many configured agents a business may have, model calls per billing period, and the agents' spending per period (micro-units of USD). */
   maxAgentInstances: number | null;
   agentCallsPerMonth: number | null;
@@ -41,6 +45,9 @@ export function parseEntitlements(limits: unknown): PlanEntitlements {
     salesInteractionsPerMonth: int(l.salesInteractionsPerMonth),
     aiImagesPerMonth: int(l.aiImagesPerMonth),
     aiVideoSecondsPerMonth: int(l.aiVideoSecondsPerMonth),
+    creativeImagesPerDay: int(l.creativeImagesPerDay),
+    creativeVideosPerDay: int(l.creativeVideosPerDay),
+    creativeBudgetMicrosPerMonth: int(l.creativeBudgetMicrosPerMonth),
     maxAgentInstances: int(l.maxAgentInstances),
     agentCallsPerMonth: int(l.agentCallsPerMonth),
     agentBudgetMicrosPerMonth: int(l.agentBudgetMicrosPerMonth),

@@ -583,6 +583,8 @@ model Business {
   clientPreferences   ClientPreference[]
   learningRuns        LearningRun[]
   agentDefinitions    AgentDefinition[]
+  creativeDailyUsage  CreativeDailyUsage[]
+  creativeQuotaClock  CreativeQuotaClock?
   marketplaceReviews  MarketplaceReview[]
   agentConversations  AgentConversation[]
   agentApprovals      AgentApproval[]
@@ -1893,50 +1895,56 @@ model BrandKit {
 /// One image or video request of the Creative Studio and its background job. Units (images, video seconds) are
 /// reserved atomically against the monthly limits when the request is accepted and settled exactly once.
 model CreativeGeneration {
-  id             String         @id @default(cuid())
-  businessId     String
-  userId         String?
-  kind           CreativeKind
-  status         CreativeStatus @default(QUEUED)
-  provider       String
-  model          String
+  id                  String         @id @default(cuid())
+  businessId          String
+  userId              String?
+  kind                CreativeKind
+  status              CreativeStatus @default(QUEUED)
+  provider            String
+  model               String
   /// The prompt sent to the provider (built by TOUMA from verified facts and the brand kit; never contains secrets).
-  prompt         String
+  prompt              String
   /// Validated request: type, style, aspect ratio, resolution, background, theme, overlay, platform, preservation...
-  params         Json
+  params              Json
   /// Client-supplied key making the submission idempotent; requestHash detects a key reused with different parameters.
-  idempotencyKey String?
-  requestHash    String?
-  itemType       String?
-  itemId         String?
+  idempotencyKey      String?
+  requestHash         String?
+  itemType            String?
+  itemId              String?
   /// The merchant's original product photo (a MediaAsset of this business).
-  sourceMediaId  String?
+  sourceMediaId       String?
   /// Generation this one is a variation of.
-  parentId       String?
-  brandSnapshot  Json?
+  parentId            String?
+  brandSnapshot       Json?
   /// Provider-side job id (video); recorded once so a retry never submits (and pays for) the job twice.
-  providerRef    String?
-  providerStatus String?
-  requestedUnits Int
+  providerRef         String?
+  providerStatus      String?
+  requestedUnits      Int
   /// Units the provider actually produced (billed), whether or not they could all be stored.
-  producedUnits  Int            @default(0)
-  reservedUnits  Int
+  producedUnits       Int            @default(0)
+  reservedUnits       Int
   /// IMAGE | VIDEO_SECOND
-  unitKind       String
-  periodStart    DateTime       @db.Timestamptz(3)
-  settledAt      DateTime?      @db.Timestamptz(3)
-  errorCode      String?
-  errorMessage   String?
-  inputTokens    Int            @default(0)
-  outputTokens   Int            @default(0)
-  costUsd        Decimal        @default(0) @db.Decimal(12, 6)
-  processingMs   Int            @default(0)
-  jobAttempts    Int            @default(0)
-  pollCount      Int            @default(0)
-  queuedAt       DateTime?      @db.Timestamptz(3)
-  startedAt      DateTime?      @db.Timestamptz(3)
-  completedAt    DateTime?      @db.Timestamptz(3)
-  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  unitKind            String
+  periodStart         DateTime       @db.Timestamptz(3)
+  settledAt           DateTime?      @db.Timestamptz(3)
+  errorCode           String?
+  errorMessage        String?
+  inputTokens         Int            @default(0)
+  outputTokens        Int            @default(0)
+  costUsd             Decimal        @default(0) @db.Decimal(12, 6)
+  processingMs        Int            @default(0)
+  jobAttempts         Int            @default(0)
+  pollCount           Int            @default(0)
+  queuedAt            DateTime?      @db.Timestamptz(3)
+  startedAt           DateTime?      @db.Timestamptz(3)
+  completedAt         DateTime?      @db.Timestamptz(3)
+  createdAt           DateTime       @default(now()) @db.Timestamptz(3)
+  /// N26 daily advertising quota: IMAGE | VIDEO, the credits held (images: one per image; video: one per video), and the local day they count against.
+  dailyKind           String?
+  dailyReserved       Int            @default(0)
+  dailyKey            String?
+  /// Estimated cost held against the monthly creative budget while the generation is unsettled (micro-USD); null = no price known.
+  estimatedCostMicros BigInt?
 
   business Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   outputs  CreativeOutput[]
@@ -3303,4 +3311,32 @@ model MarketplaceReview {
 
   @@unique([listingId, businessId])
   @@index([listingId, status])
+}
+
+/// Daily advertising creations per business and local day (N26). Credits are reserved atomically before a generation and settled (delivered media only) when it ends.
+model CreativeDailyUsage {
+  id         String   @id @default(cuid())
+  businessId String
+  /// IMAGE | VIDEO: separate quotas, never interchangeable.
+  kind       String
+  /// Local calendar date (YYYY-MM-DD) in the business's quota timezone.
+  dayKey     String
+  reserved   Int      @default(0)
+  completed  Int      @default(0)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, kind, dayKey])
+}
+
+/// The timezone the daily quota resets in. It follows the business timezone only at a day boundary and at most once per CREATIVE_QUOTA_TZ_CHANGE_DAYS, so changing it cannot buy extra quota.
+model CreativeQuotaClock {
+  businessId      String    @id
+  timezone        String
+  changedAt       DateTime  @default(now()) @db.Timestamptz(3)
+  pendingTimezone String?
+  pendingFrom     DateTime? @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }

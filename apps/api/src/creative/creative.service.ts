@@ -63,6 +63,20 @@ export class CreativeService {
     @InjectEnv() private readonly env: AppEnv,
   ) {}
 
+  // ─── Daily quota and cancellation ──────────────────────────────────────────
+
+  dailyQuota(tenant: TenantContext) { return this.usage.dailyStatus(tenant.businessId); }
+
+  /** Cancels a generation that has not started: its credits and monthly units go back at once. A running one cannot be cancelled (the provider may already be billing it). */
+  async cancel(tenant: TenantContext, id: string) {
+    const g = await this.prisma.creativeGeneration.findFirst({ where: { id, businessId: tenant.businessId } });
+    if (!g) throw new NotFoundException({ code: 'CREATIVE_NOT_FOUND', message: 'Generation not found' });
+    const res = await this.prisma.creativeGeneration.updateMany({ where: { id, businessId: tenant.businessId, status: 'QUEUED' }, data: { status: 'FAILED', errorCode: 'CREATIVE_CANCELLED', errorMessage: 'Cancelled by the user', completedAt: new Date() } });
+    if (!res.count) throw new ConflictException({ code: 'GENERATION_NOT_CANCELLABLE', message: g.status === 'RUNNING' ? 'This generation is already running and cannot be cancelled' : `A ${g.status.toLowerCase()} generation cannot be cancelled` });
+    await this.usage.settle(id);
+    return this.getFull(tenant.businessId, id);
+  }
+
   // ─── Spend history ─────────────────────────────────────────────────────────
 
   /** What was requested and produced per day, with ESTIMATED cost (null when no price is configured: unknown, not zero). Not an invoice. */
@@ -88,7 +102,7 @@ export class CreativeService {
 
   /** What the studio can do right now: providers, capabilities, options, limits and storage. Never contains credentials. */
   async overview(tenant: TenantContext) {
-    const [usage, storage] = await Promise.all([this.usage.monthToDate(tenant.businessId), this.media.usage(tenant.businessId)]);
+    const [usage, storage, daily] = await Promise.all([this.usage.monthToDate(tenant.businessId), this.media.usage(tenant.businessId), this.usage.dailyStatus(tenant.businessId)]);
     const img = this.image?.isConfigured() ? this.image : null;
     const vid = this.video?.isConfigured() ? this.video : null;
     return {
@@ -105,6 +119,7 @@ export class CreativeService {
       storyboard: { configured: this.text.isConfigured() },
       storage: { configured: this.storage.configured, ...storage },
       usage,
+      daily,
       costTracking: this.usage.costConfigured,
       pricing: this.usage.pricingSummary(),
       options: {
@@ -174,13 +189,13 @@ export class CreativeService {
         await lockTenantQuota(tx, 'creative', tenant.businessId);
         const inFlight = await tx.creativeGeneration.count({ where: { businessId: tenant.businessId, status: { in: ['QUEUED', 'RUNNING'] } } });
         if (inFlight >= this.env.CREATIVE_MAX_INFLIGHT_PER_BUSINESS) throw quotaExceeded('CREATIVE_QUEUE_LIMIT', `At most ${this.env.CREATIVE_MAX_INFLIGHT_PER_BUSINESS} image or video generations can be waiting or running at once.`);
-        // Daily cap on top of the monthly quota: units requested today by generations that were not refused.
-        const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
-        const today = await tx.creativeGeneration.aggregate({ where: { businessId: tenant.businessId, unitKind: data.unitKind, createdAt: { gte: dayStart }, NOT: { status: 'FAILED', producedUnits: 0 } }, _sum: { requestedUnits: true } });
-        const dailyCap = data.unitKind === 'IMAGE' ? this.env.CREATIVE_DAILY_IMAGES_PER_BUSINESS : this.env.CREATIVE_DAILY_VIDEO_SECONDS_PER_BUSINESS;
-        if ((today._sum.requestedUnits ?? 0) + data.requestedUnits > dailyCap) throw quotaExceeded('CREATIVE_DAILY_LIMIT', `The daily limit of ${dailyCap} ${data.unitKind === 'IMAGE' ? 'images' : 'video seconds'} was reached. It resets at midnight UTC.`);
+        // N26: money first (a free quota never authorizes an unaffordable generation), then today's credits (images: one per image; videos: one per video), then the monthly units.
+        const estimatedCostMicros = await this.usage.assertBudget(tx, { businessId: tenant.businessId, model: data.model as string, kind: data.unitKind as 'IMAGE' | 'VIDEO_SECOND', units: data.requestedUnits });
+        const dailyKind = data.unitKind === 'IMAGE' ? 'IMAGE' : 'VIDEO';
+        const dailyCredits = dailyKind === 'IMAGE' ? data.requestedUnits : 1;
+        const day = await this.usage.reserveDaily(tx, { businessId: tenant.businessId, kind: dailyKind, credits: dailyCredits });
         const periodStart = await this.usage.reserve(tx, { businessId: tenant.businessId, kind: data.unitKind as 'IMAGE' | 'VIDEO_SECOND', units: data.requestedUnits });
-        return tx.creativeGeneration.create({ data: { ...data, businessId: tenant.businessId, userId: tenant.userId, status: 'QUEUED', periodStart, queuedAt: new Date(), reservedUnits: data.requestedUnits, idempotencyKey: key ?? null } });
+        return tx.creativeGeneration.create({ data: { ...data, businessId: tenant.businessId, userId: tenant.userId, status: 'QUEUED', periodStart, queuedAt: new Date(), reservedUnits: data.requestedUnits, idempotencyKey: key ?? null, dailyKind, dailyReserved: dailyCredits, dailyKey: day.dayKey, estimatedCostMicros: estimatedCostMicros === null ? null : BigInt(estimatedCostMicros) } });
       });
     } catch (err) {
       // Two identical requests raced: the loser returns the winner's generation.

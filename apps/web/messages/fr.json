@@ -1229,7 +1229,17 @@
       "CREATIVE_JOB_FAILED": "La génération s’est arrêtée de façon inattendue. Rien n’a été facturé.",
       "CREATIVE_QUEUE_UNAVAILABLE": "La file de génération est indisponible. Réessayez bientôt."
     },
-    "simulatedBadge": "Simulé — pas une vraie génération"
+    "simulatedBadge": "Simulé — pas une vraie génération",
+    "daily": {
+      "title": "Créations IA du jour",
+      "videos": "Vidéos IA",
+      "images": "Images IA",
+      "used": "utilisées",
+      "remaining": "restantes",
+      "resets": "Renouvellement",
+      "exhausted": "Vous avez utilisé toutes vos créations disponibles aujourd'hui. Votre quota sera renouvelé demain.",
+      "tzPending": "Un changement de fuseau horaire prend effet au prochain renouvellement."
+    }
   },
   "calendar": {
     "title": "Calendrier de contenu",
