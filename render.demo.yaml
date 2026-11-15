@@ -43,6 +43,8 @@ services:
       - { key: AI_PROVIDER, value: fake }
       - { key: IMAGE_PROVIDER, value: fake }
       - { key: VIDEO_PROVIDER, value: fake }
+      # Free creative test mode (N28/N29): labelled demo media, automated campaigns in simulation, no external call. Forces the mock providers.
+      - { key: CREATIVE_STUDIO_MODE, value: mock }
       - { key: SOCIAL_PROVIDER_MODE, value: fake }
       - { key: SOCIAL_PUBLISHING_ENABLED, value: "true" }
       - { key: SOCIAL_COMMENTS_ENABLED, value: "true" }
