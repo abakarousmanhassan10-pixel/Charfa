@@ -42,6 +42,7 @@ function VideosView() {
   const [storyboardId, setStoryboardId] = useState(params.get('storyboard') ?? '');
   const [scene, setScene] = useState('');
   const [photo, setPhoto] = useState<MediaItem | null>(null);
+  const [rights, setRights] = useState(false);
   const [picker, setPicker] = useState(false);
   const [instructions, setInstructions] = useState('');
   const [open, setOpen] = useState<CreativeGeneration | null>(null);
@@ -61,7 +62,7 @@ function VideosView() {
   }, [job.result?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current = job.result as CreativeGeneration | null;
-  const canGenerate = can('ai.use') && configured && !job.pending;
+  const canGenerate = can('ai.use') && configured && !job.pending && (!photo || rights);
   const aspects = caps?.aspectRatios ?? [];
   const availableFormats = Object.keys(formats).filter((k) => !caps || aspects.includes(formats[k]!.aspect));
 
@@ -122,7 +123,8 @@ function VideosView() {
               <Textarea id="vd-instructions" rows={2} maxLength={500} value={instructions} onChange={(e) => setInstructions(e.target.value)} />
             </Field>
             {!can('ai.use') && <p className="text-sm text-muted-foreground">{t('ai.noPermission')}</p>}
-            <Button disabled={!canGenerate} className="w-full" onClick={() => void job.run('/creative/videos', { format, seconds, style, ...parseItem(item), ...(storyboardId ? { storyboardId } : {}), ...(scene ? { sceneOrder: Number(scene) } : {}), ...(photo ? { sourceMediaId: photo.id } : {}), ...(instructions.trim() ? { instructions: instructions.trim() } : {}) })}>
+            {photo && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={rights} onChange={(e) => setRights(e.target.checked)} data-testid="video-rights-check" /><span>{t('creative.images.rights')}</span></label>}
+            <Button disabled={!canGenerate} className="w-full" onClick={() => void job.run('/creative/videos', { format, seconds, style, ...parseItem(item), ...(storyboardId ? { storyboardId } : {}), ...(scene ? { sceneOrder: Number(scene) } : {}), ...(photo ? { sourceMediaId: photo.id, rightsConfirmed: rights } : {}), ...(instructions.trim() ? { instructions: instructions.trim() } : {}) })}>
               {job.pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
               {job.pending ? t('creative.videos.generating') : t('creative.videos.generate')}
             </Button>

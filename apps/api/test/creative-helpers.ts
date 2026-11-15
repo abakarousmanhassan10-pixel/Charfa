@@ -24,12 +24,13 @@ export function creativeHelpers(app: INestApplication) {
   const submitImage = (c: Ctx, body: Record<string, unknown> = {}, key?: string) => {
     const req = request(http).post('/api/v1/creative/images').set(as(c));
     if (key) req.set('Idempotency-Key', key);
-    return req.send({ type: 'PRODUCT_AD', aspectRatio: '1:1', ...body });
+    // A reference photo needs the rights declaration (N25); the helper declares it unless a test sets it explicitly.
+    return req.send({ type: 'PRODUCT_AD', aspectRatio: '1:1', ...(body.sourceMediaId ? { rightsConfirmed: true } : {}), ...body });
   };
   const submitVideo = (c: Ctx, body: Record<string, unknown> = {}, key?: string) => {
     const req = request(http).post('/api/v1/creative/videos').set(as(c));
     if (key) req.set('Idempotency-Key', key);
-    return req.send({ format: 'SHORT_VERTICAL', seconds: 8, ...body });
+    return req.send({ format: 'SHORT_VERTICAL', seconds: 8, ...(body.sourceMediaId ? { rightsConfirmed: true } : {}), ...body });
   };
 
   /** Polls the job until final and its quota reservation is settled; returns the full generation. */

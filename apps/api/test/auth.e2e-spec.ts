@@ -7,6 +7,12 @@ describe('Auth (e2e, real database)', () => {
   let http: ReturnType<INestApplication['getHttpServer']>;
 
   beforeAll(async () => {
+    // Login throttling counters live in Redis and are shared by the suites that ran in the same minute: start from empty ones.
+    const Redis = (await import('ioredis')).default;
+    const redis = new Redis(process.env.REDIS_URL as string);
+    const keys = await redis.keys('touma:rl:*');
+    if (keys.length) await redis.del(...keys);
+    await redis.quit();
     await resetDb();
     app = await startApp();
     http = app.getHttpServer();

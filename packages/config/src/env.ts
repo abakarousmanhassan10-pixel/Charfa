@@ -122,13 +122,17 @@ export const appEnvSchema = z.object({
     .transform((v) => v === 'true'),
   // ─── Creative Studio (images, videos) ────────────────────────────────────────
   /** openai = OpenAI Images (uses OPENAI_API_KEY); none = disabled. fake = deterministic test-only provider (APP_ENV=test only). */
-  IMAGE_PROVIDER: z.enum(['openai', 'none', 'fake']).default('openai'),
+  IMAGE_PROVIDER: z.enum(['openai', 'none', 'fake', 'mock']).default('openai'),
   IMAGE_MODEL: z.string().min(1).default('gpt-image-1'),
   /** Video is opt-in because it is costly: none (default), openai (Sora API, uses OPENAI_API_KEY) or the test-only fake. */
-  VIDEO_PROVIDER: z.enum(['none', 'openai', 'fake']).default('none'),
-  VIDEO_MODEL: z.string().min(1).default('sora-2'),
+  VIDEO_PROVIDER: z.enum(['none', 'openai', 'fake', 'mock']).default('none'),
+  /** No video model is assumed: it must be set explicitly when VIDEO_PROVIDER=openai (the retired Sora 2 API is not a default). */
+  VIDEO_MODEL: z.string().min(1).default('unconfigured'),
   CREATIVE_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(600_000).default(180_000),
   /** Monthly limits per business (an active plan's aiImagesPerMonth / aiVideoSecondsPerMonth take precedence). */
+  /** Daily caps on top of the monthly ones (images, video seconds). */
+  CREATIVE_DAILY_IMAGES_PER_BUSINESS: z.coerce.number().int().positive().default(40),
+  CREATIVE_DAILY_VIDEO_SECONDS_PER_BUSINESS: z.coerce.number().int().positive().default(90),
   CREATIVE_MONTHLY_IMAGES_PER_BUSINESS: z.coerce.number().int().positive().default(100),
   CREATIVE_MONTHLY_VIDEO_SECONDS_PER_BUSINESS: z.coerce.number().int().positive().default(120),
   CREATIVE_JOB_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
@@ -482,6 +486,12 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
   if (env.MARKETPLACE_DEMO_ENABLED && env.APP_ENV === 'production') {
     throw new EnvValidationError(['MARKETPLACE_DEMO_ENABLED is not allowed when APP_ENV=production']);
   }
+  if (env.APP_ENV === 'production' && (env.IMAGE_PROVIDER === 'mock' || env.VIDEO_PROVIDER === 'mock')) {
+    throw new EnvValidationError(['IMAGE_PROVIDER=mock and VIDEO_PROVIDER=mock are not allowed when APP_ENV=production']);
+  }
+  if (env.VIDEO_PROVIDER === 'openai' && env.VIDEO_MODEL === 'unconfigured') {
+    throw new EnvValidationError(['VIDEO_PROVIDER=openai requires VIDEO_MODEL: no video model is assumed, set one your account can access']);
+  }
   if (env.ANALYTICS_PROVIDER === 'mock' && env.APP_ENV !== 'test') {
     throw new EnvValidationError(['ANALYTICS_PROVIDER=mock is only allowed when APP_ENV=test']);
   }
@@ -533,6 +543,7 @@ export function productionProblems(env: AppEnv): string[] {
   if (env.BILLING_PROVIDER === 'paddle-sandbox' || env.BILLING_PROVIDER === 'lemonsqueezy') p.push(`BILLING_PROVIDER=${env.BILLING_PROVIDER} is not approved for production`);
   if (env.BILLING_ENABLED) p.push('BILLING_ENABLED must stay false until a payment provider adapter is verified against its official documentation (none is yet)');
   if (env.SOCIAL_PROVIDER_MODE === 'fake') p.push('SOCIAL_PROVIDER_MODE=fake is test-only');
+  if (env.IMAGE_PROVIDER === 'mock' || env.VIDEO_PROVIDER === 'mock') p.push('IMAGE_PROVIDER/VIDEO_PROVIDER=mock are simulators');
   if (env.ANALYTICS_PROVIDER === 'mock') p.push('ANALYTICS_PROVIDER=mock is test-only (simulated metrics)');
   const socialConfigured = Boolean(env.META_APP_ID || env.TIKTOK_CLIENT_KEY || env.GOOGLE_CLIENT_ID || env.LINKEDIN_CLIENT_ID);
   if (socialConfigured && !env.PUBLIC_API_URL) p.push('PUBLIC_API_URL is required when a social platform is configured (OAuth redirect URIs, webhooks and media URLs)');

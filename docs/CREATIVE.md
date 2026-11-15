@@ -8,10 +8,10 @@ AI images, videos, storyboards and a brand kit, built on the TOUMA AI orchestrat
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `IMAGE_PROVIDER` | `openai` | `openai`, `none`, or `fake` (tests only). `openai` also needs `OPENAI_API_KEY` |
+| `IMAGE_PROVIDER` | `openai` | `openai`, `none`, `mock` (labelled simulator: images carry a visible "SIMULATED" mark; never in production) or `fake` (tests only). `openai` also needs `OPENAI_API_KEY` |
 | `IMAGE_MODEL` | `gpt-image-1` | Model used for `/images/generations` and `/images/edits` |
-| `VIDEO_PROVIDER` | `none` | `none` (no video, nothing faked), `openai`, or `fake` (tests only) |
-| `VIDEO_MODEL` | `sora-2` | Model used for `/videos` |
+| `VIDEO_PROVIDER` | `none` | `none` (no video, nothing faked), `openai`, `mock` (labelled simulator, never in production) or `fake` (tests only) |
+| `VIDEO_MODEL` | *(none)* | Model used for `/videos`. **No model is assumed**: it must be set explicitly when `VIDEO_PROVIDER=openai` (the retired Sora 2 API is not a default) |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | – | Shared with TOUMA AI. Server-side only, never sent to the browser or logged |
 | `CREATIVE_PROVIDER_TIMEOUT_MS` | `180000` | Per provider HTTP call |
 | `CREATIVE_MONTHLY_IMAGES_PER_BUSINESS` | `100` | Monthly image limit when the plan sets none (plan: `aiImagesPerMonth`) |
@@ -79,3 +79,15 @@ Downloads use the signed media URL with `?download=1` (attachment) and `?variant
 - Video clips are limited to the provider's maximum length; TOUMA does not stitch clips (no ffmpeg). A longer storyboard can be generated scene by scene.
 - Video thumbnails come from the provider's poster only.
 - `HD` may be an upscale of the provider's native size; the output is flagged `upscaled`.
+
+
+## N25 additions (audit, then a small, verified delta)
+**Audit.** The studio requested by step 25 mostly exists already (Phase 4, with proof in `creative-images`, `creative-video` e2e suites): text-to-image, reference-photo edit (EXACT cut-out composite or GUIDED edit), variations, logo/overlay drawn by TOUMA, brand kit, storyboards, image-to-video, async BullMQ jobs with resumable video polling, idempotency, atomic monthly quota reservation, private tenant-prefixed storage, history and download. What was **missing** and is now added:
+- **Responsible content gate** (`@touma/creative/responsible`): a reference photo needs `rightsConfirmed`; a real person needs `personConsent`; obviously prohibited or misleading requests (minors sexual content, graphic violence, deepfakes/impersonation, invented reviews/endorsements, health/income claims, counterfeits) are refused with 422 **before any work, reservation or cost**. What the client declared is stored in `params.responsible`; variations inherit it. `aiDisclosure` stays on by default and the status exposes a disclosure note. Keyword rules are a first filter, not a guarantee; the provider's policies and human review still apply.
+- **Daily caps** (`CREATIVE_DAILY_IMAGES_PER_BUSINESS`, `CREATIVE_DAILY_VIDEO_SECONDS_PER_BUSINESS`) on top of the monthly quota, checked under the same tenant lock before the reservation.
+- **Spend history** `GET /creative/spend?days=` (units per day, estimated cost, simulated and unpriced counts; not an invoice).
+- **Honest provider registry** in `GET /creative/status`: `mock` SIMULATED; OpenAI image/video IMPLEMENTED_UNVERIFIED (only stubbed responses); **Higgsfield and Kling NOT_IMPLEMENTED** (contract, models, parameters and pricing unverified); no Sora default. Model names such as "GPT Image 2.6 Flare/Sunburst" could not be verified: they are never hard-coded, `IMAGE_MODEL` is configuration only.
+- **Labelled simulators** `mock` (images stamped "SIMULATED - NOT A REAL GENERATION").
+- UI: rights/person/consent checkboxes on the image and video pages.
+
+**Not done / still missing from the step-25 spec:** the guided creative workflow (brief → script → storyboard → image QC → video QC → caption → approval → scheduler) with a versioned brief; automatic image/video quality checks; a spend-authorization step and per-generation spend cap beyond the existing limits; temporary signed download links audit (existing media URLs are served through the media pipeline); sending a selected creation to the calendar as a draft under the AUTO/HYBRID policy (the calendar and publishing policy exist, the link from the studio does not); any real provider. Real-API integration must wait for verified contracts, models and prices.

@@ -72,7 +72,7 @@ describe('Creative Studio: videos and storyboards (e2e)', () => {
       // One provider submission, however many polls.
       expect(video.submits).toHaveLength(1);
       expect(video.polls).toHaveLength(4);
-      expect(video.submits[0]).toMatchObject({ model: 'sora-2', seconds: 8, size: { width: 720, height: 1280 } });
+      expect(video.submits[0]).toMatchObject({ model: 'test-video-model', seconds: 8, size: { width: 720, height: 1280 } });
       expect(video.submits[0]!.prompt).toContain('8-second');
       expect(video.submits[0]!.prompt).toContain('Bissap juice');
       expect(video.submits[0]!.prompt).toContain('Do not invent prices');

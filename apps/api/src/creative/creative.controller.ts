@@ -44,6 +44,14 @@ export class CreativeController {
     return this.creative.overview(tenant);
   }
 
+  @Get('spend')
+  @ApiOperation({ summary: 'Daily generations, produced units and estimated cost (estimates, not an invoice)' })
+  @RequireTenantPermission('content.read')
+  spend(@Tenant() tenant: TenantContext, @Query('days') days?: string) {
+    const n = Math.min(Math.max(Number.parseInt(days ?? '30', 10) || 30, 1), 90);
+    return this.creative.spend(tenant, n);
+  }
+
   // ─── Brand kit ──────────────────────────────────────────────────────────────
 
   @Get('brand-kit')

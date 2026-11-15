@@ -987,7 +987,10 @@
       "usageLine": "{n} image(s) · {seconds}s · {model}",
       "moreVariations": "More variations",
       "empty": "No image yet",
-      "emptyHint": "Fill the form and generate your first visual."
+      "emptyHint": "Fill the form and generate your first visual.",
+      "rights": "I own this photo or have the right to use and modify it.",
+      "person": "A real person appears in the photo.",
+      "personConsent": "This person agreed to the use of their image."
     },
     "enums": {
       "types": {
@@ -1225,7 +1228,8 @@
       "CREATIVE_JOB_STALLED": "The generation did not finish and was cancelled. Nothing was charged.",
       "CREATIVE_JOB_FAILED": "The generation stopped unexpectedly. Nothing was charged.",
       "CREATIVE_QUEUE_UNAVAILABLE": "The generation queue is unavailable. Try again shortly."
-    }
+    },
+    "simulatedBadge": "Simulated — not a real generation"
   },
   "calendar": {
     "title": "Content calendar",

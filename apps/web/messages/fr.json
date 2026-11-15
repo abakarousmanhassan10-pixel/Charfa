@@ -987,7 +987,10 @@
       "usageLine": "{n} image(s) · {seconds} s · {model}",
       "moreVariations": "Plus de variantes",
       "empty": "Pas encore d’image",
-      "emptyHint": "Remplissez le formulaire et générez votre premier visuel."
+      "emptyHint": "Remplissez le formulaire et générez votre premier visuel.",
+      "rights": "Je suis propriétaire de cette photo ou j'ai le droit de l'utiliser et de la modifier.",
+      "person": "Une vraie personne apparaît sur la photo.",
+      "personConsent": "Cette personne a accepté l'utilisation de son image."
     },
     "enums": {
       "types": {
@@ -1225,7 +1228,8 @@
       "CREATIVE_JOB_STALLED": "La génération ne s’est pas terminée et a été annulée. Rien n’a été facturé.",
       "CREATIVE_JOB_FAILED": "La génération s’est arrêtée de façon inattendue. Rien n’a été facturé.",
       "CREATIVE_QUEUE_UNAVAILABLE": "La file de génération est indisponible. Réessayez bientôt."
-    }
+    },
+    "simulatedBadge": "Simulé — pas une vraie génération"
   },
   "calendar": {
     "title": "Calendrier de contenu",

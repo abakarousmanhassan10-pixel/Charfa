@@ -1,5 +1,5 @@
 import { Global, Module } from '@nestjs/common';
-import { FakeImageProvider, FakeVideoProvider, OpenAIImageProvider, OpenAIVideoProvider, type ImageProvider, type VideoProvider } from '@touma/creative';
+import { FakeImageProvider, FakeVideoProvider, MockImageProvider, MockVideoProvider, OpenAIImageProvider, OpenAIVideoProvider, type ImageProvider, type VideoProvider } from '@touma/creative';
 import { APP_ENV, AppEnv } from '../config';
 
 export const IMAGE_PROVIDER = Symbol('IMAGE_PROVIDER');
@@ -10,12 +10,15 @@ export function createImageProvider(env: AppEnv): ImageProvider | null {
   if (env.IMAGE_PROVIDER === 'none') return null;
   // The env loader guarantees "fake" is only selectable with APP_ENV=test.
   if (env.IMAGE_PROVIDER === 'fake') return new FakeImageProvider();
+  // The env loader refuses "mock" in production: it is a labelled simulator.
+  if (env.IMAGE_PROVIDER === 'mock') return new MockImageProvider();
   return new OpenAIImageProvider({ apiKey: env.OPENAI_API_KEY, baseUrl: env.OPENAI_BASE_URL, organization: env.OPENAI_ORGANIZATION });
 }
 
 export function createVideoProvider(env: AppEnv): VideoProvider | null {
   if (env.VIDEO_PROVIDER === 'none') return null;
   if (env.VIDEO_PROVIDER === 'fake') return new FakeVideoProvider();
+  if (env.VIDEO_PROVIDER === 'mock') return new MockVideoProvider();
   return new OpenAIVideoProvider({ apiKey: env.OPENAI_API_KEY, baseUrl: env.OPENAI_BASE_URL, organization: env.OPENAI_ORGANIZATION });
 }
 

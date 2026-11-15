@@ -58,6 +58,8 @@ export interface Meter {
 }
 
 export interface CreativeOverview {
+  simulated?: { image: boolean; video: boolean };
+  disclosure?: string;
   image: { configured: boolean; provider: string; model: string; capabilities: { nativeSizes: Array<{ width: number; height: number }>; maxImagesPerRequest: number; edit: boolean; inputFidelity: boolean } | null };
   video: { configured: boolean; provider: string; model: string; capabilities: { seconds: number[]; aspectRatios: string[]; imageToVideo: boolean; thumbnail: boolean } | null };
   storyboard: { configured: boolean };

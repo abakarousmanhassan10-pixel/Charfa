@@ -69,6 +69,18 @@ export class CreateImageDto {
 
   @ApiPropertyOptional({ maxLength: CREATIVE_LIMITS.maxInstructionChars }) @IsOptional() @Transform(trim) @IsString() @MaxLength(CREATIVE_LIMITS.maxInstructionChars)
   instructions?: string;
+
+  @ApiPropertyOptional({ description: 'You own the reference photo or may use and modify it (required when a photo is sent)' }) @IsOptional() @IsBoolean()
+  rightsConfirmed?: boolean;
+
+  @ApiPropertyOptional({ description: 'A real person appears in the photo' }) @IsOptional() @IsBoolean()
+  containsPerson?: boolean;
+
+  @ApiPropertyOptional({ description: 'That person agreed to the use of their image (required when a person appears)' }) @IsOptional() @IsBoolean()
+  personConsent?: boolean;
+
+  @ApiPropertyOptional({ default: true, description: 'Keep the AI-generated mention on the result' }) @IsOptional() @IsBoolean()
+  aiDisclosure: boolean = true;
 }
 
 export class CreateVideoDto {
@@ -102,6 +114,18 @@ export class CreateVideoDto {
 
   @ApiPropertyOptional({ maxLength: CREATIVE_LIMITS.maxInstructionChars }) @IsOptional() @Transform(trim) @IsString() @MaxLength(CREATIVE_LIMITS.maxInstructionChars)
   instructions?: string;
+
+  @ApiPropertyOptional({ description: 'You own the reference photo or may use and modify it (required when a photo is sent)' }) @IsOptional() @IsBoolean()
+  rightsConfirmed?: boolean;
+
+  @ApiPropertyOptional({ description: 'A real person appears in the photo' }) @IsOptional() @IsBoolean()
+  containsPerson?: boolean;
+
+  @ApiPropertyOptional({ description: 'That person agreed to the use of their image (required when a person appears)' }) @IsOptional() @IsBoolean()
+  personConsent?: boolean;
+
+  @ApiPropertyOptional({ default: true, description: 'Keep the AI-generated mention on the result' }) @IsOptional() @IsBoolean()
+  aiDisclosure: boolean = true;
 }
 
 export class CreateStoryboardDto {

@@ -41,6 +41,9 @@ export default function ImagesPage() {
   const [photo, setPhoto] = useState<MediaItem | null>(null);
   const [picker, setPicker] = useState(false);
   const [preservation, setPreservation] = useState<'EXACT' | 'GUIDED'>('EXACT');
+  const [rights, setRights] = useState(false);
+  const [hasPerson, setHasPerson] = useState(false);
+  const [personOk, setPersonOk] = useState(false);
   const [type, setType] = useState('PRODUCT_AD');
   const [style, setStyle] = useState('');
   const [background, setBackground] = useState('WHITE_STUDIO');
@@ -66,11 +69,11 @@ export default function ImagesPage() {
   const current = job.result as CreativeGeneration | null;
   const body = () => ({
     type, ...(style ? { style } : {}), aspectRatio: aspect, resolution, background, ...(background === 'CUSTOM' && backgroundNote ? { backgroundNote } : {}),
-    theme, ...(theme === 'CUSTOM' && themeNote ? { themeNote } : {}), platform, ...parseItem(item), ...(photo ? { sourceMediaId: photo.id, preservation } : {}),
+    theme, ...(theme === 'CUSTOM' && themeNote ? { themeNote } : {}), platform, ...parseItem(item), ...(photo ? { sourceMediaId: photo.id, preservation, rightsConfirmed: rights, containsPerson: hasPerson, personConsent: personOk } : {}),
     count, useBrandKit, overlayPosition, logoPlacement, ...(overlayText.trim() ? { overlayText: overlayText.trim() } : {}), ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
   });
   const maxCount = Math.min(o?.limits.maxImagesPerRequest ?? 4, status.data?.image.capabilities?.maxImagesPerRequest ?? 4);
-  const canGenerate = can('ai.use') && configured && !job.pending;
+  const canGenerate = can('ai.use') && configured && !job.pending && (!photo || (rights && (!hasPerson || personOk)));
   const sel = (label: string, id: string, value: string, set: (v: string) => void, options: string[], text: (v: string) => string) => (
     <Field id={id} label={label}>
       <Select id={id} value={value} onChange={(e) => set(e.target.value)}>
@@ -104,6 +107,13 @@ export default function ImagesPage() {
                 )}
                 <p className="text-xs text-muted-foreground">{photo ? t('creative.images.photoHint') : t('creative.images.illustration')}</p>
               </div>
+              {photo && (
+                <div className="grid gap-2 rounded-lg border p-3 text-sm" data-testid="rights-block">
+                  <label className="flex items-start gap-2"><input type="checkbox" checked={rights} onChange={(e) => setRights(e.target.checked)} data-testid="rights-check" /><span>{t('creative.images.rights')}</span></label>
+                  <label className="flex items-start gap-2"><input type="checkbox" checked={hasPerson} onChange={(e) => setHasPerson(e.target.checked)} data-testid="person-check" /><span>{t('creative.images.person')}</span></label>
+                  {hasPerson && <label className="flex items-start gap-2"><input type="checkbox" checked={personOk} onChange={(e) => setPersonOk(e.target.checked)} data-testid="person-consent-check" /><span>{t('creative.images.personConsent')}</span></label>}
+                </div>
+              )}
               {photo && (
                 <div role="radiogroup" aria-label={t('creative.images.preservation')} className="grid gap-2">
                   {(['EXACT', 'GUIDED'] as const).map((m) => (

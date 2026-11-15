@@ -20,7 +20,7 @@ function colorFor(seed: string): [string, string] {
 }
 
 export class FakeImageProvider implements ImageProvider {
-  readonly name = 'fake';
+  readonly name: string = 'fake';
   readonly capabilities: ImageCapabilities = {
     nativeSizes: [
       { width: 1024, height: 1024 },
@@ -75,7 +75,7 @@ export function fakeMp4(): Buffer {
 }
 
 export class FakeVideoProvider implements VideoProvider {
-  readonly name = 'fake';
+  readonly name: string = 'fake';
   readonly capabilities: VideoCapabilities = {
     seconds: [4, 8, 12],
     sizes: { '9:16': { width: 720, height: 1280 }, '16:9': { width: 1280, height: 720 }, '1:1': { width: 720, height: 720 } },
@@ -123,4 +123,25 @@ export class FakeVideoProvider implements VideoProvider {
   async thumbnail(): Promise<Buffer | null> {
     return sharp({ create: { width: 480, height: 270, channels: 3, background: '#335577' } }).png().toBuffer();
   }
+}
+
+/**
+ * Simulators selectable outside tests (never in production): same files as the fakes, but named "mock" and the images carry a visible "SIMULATED" mark so a
+ * placeholder can never be mistaken for a real generation.
+ */
+export class MockImageProvider extends FakeImageProvider {
+  override readonly name = 'mock';
+  override async generate(req: ImageGenerateRequest): Promise<ImageGenerateResult> {
+    const r = await super.generate(req);
+    const marked = await Promise.all(r.images.map(async (img) => {
+      const meta = await sharp(img.data).metadata();
+      const w = meta.width ?? 1024, h = meta.height ?? 1024;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect x="0" y="${Math.round(h * 0.45)}" width="${w}" height="${Math.round(h * 0.1)}" fill="#000000" fill-opacity="0.55"/><text x="50%" y="${Math.round(h * 0.52)}" font-size="${Math.round(h * 0.06)}" font-family="sans-serif" fill="#ffffff" text-anchor="middle">SIMULATED - NOT A REAL GENERATION</text></svg>`;
+      return { ...img, data: await sharp(img.data).composite([{ input: Buffer.from(svg) }]).png().toBuffer() };
+    }));
+    return { ...r, images: marked, model: `mock:${req.model}` };
+  }
+}
+export class MockVideoProvider extends FakeVideoProvider {
+  override readonly name = 'mock';
 }

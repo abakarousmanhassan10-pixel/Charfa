@@ -4,8 +4,7 @@ import { Prisma, type CreativeGeneration, type CreativeOutput, type MediaAsset }
 import { checkGrounding, type BusinessContext, type TextModelProvider } from '@touma/ai-engine';
 import {
   buildImagePrompt, buildVideoPrompt, extractProduct, snapSeconds,
-  type ImageProvider, type PromptBrand, type PromptItem, type VideoProvider,
-} from '@touma/creative';
+  type ImageProvider, type PromptBrand, type PromptItem, type VideoProvider, checkResponsibleRequest, CREATIVE_PROVIDER_REGISTRY, AI_DISCLOSURE_NOTE, type ResponsibleRecord } from '@touma/creative';
 import {
   ASPECT_RATIOS, BRAND_FONT_NAMES, CREATIVE_LIMITS, CREATIVE_PLATFORMS, dimensionsFor, IMAGE_BACKGROUNDS, IMAGE_STYLES, IMAGE_THEMES, IMAGE_TYPES, LOGO_PLACEMENTS,
   OVERLAY_POSITIONS, PLATFORM_ASPECTS, PRESERVATION_MODES, RESOLUTIONS, VIDEO_FORMATS, VIDEO_STYLES,
@@ -36,11 +35,11 @@ export interface ImageParams {
   type: string; style: ImageStyle; aspectRatio: AspectRatio; resolution: Resolution; width: number; height: number;
   background: string; backgroundNote: string | null; theme: string; themeNote: string | null;
   overlayText: string | null; overlayPosition: string; logoPlacement: string; platform: CreativePlatform;
-  preservation: 'EXACT' | 'GUIDED' | 'NONE'; mode: 'TEXT_TO_IMAGE' | 'SCENE_ONLY' | 'EDIT'; count: number; useBrandKit: boolean; instructions: string | null;
+  preservation: 'EXACT' | 'GUIDED' | 'NONE'; mode: 'TEXT_TO_IMAGE' | 'SCENE_ONLY' | 'EDIT'; count: number; useBrandKit: boolean; instructions: string | null; responsible?: ResponsibleRecord;
 }
 export interface VideoParams {
   format: VideoFormat; aspectRatio: AspectRatio; requestedSeconds: number; seconds: number; style: VideoStyle;
-  storyboardId: string | null; sceneOrder: number | null; useBrandKit: boolean; instructions: string | null;
+  storyboardId: string | null; sceneOrder: number | null; useBrandKit: boolean; instructions: string | null; responsible?: ResponsibleRecord;
 }
 
 @Injectable()
@@ -64,6 +63,27 @@ export class CreativeService {
     @InjectEnv() private readonly env: AppEnv,
   ) {}
 
+  // ─── Spend history ─────────────────────────────────────────────────────────
+
+  /** What was requested and produced per day, with ESTIMATED cost (null when no price is configured: unknown, not zero). Not an invoice. */
+  async spend(tenant: TenantContext, days: number) {
+    const since = new Date(); since.setUTCHours(0, 0, 0, 0); since.setUTCDate(since.getUTCDate() - (days - 1));
+    const rows = await this.prisma.creativeGeneration.findMany({ where: { businessId: tenant.businessId, createdAt: { gte: since } }, select: { createdAt: true, unitKind: true, producedUnits: true, requestedUnits: true, status: true, costUsd: true, provider: true } });
+    const byDay = new Map<string, { date: string; images: number; videoSeconds: number; generations: number; failed: number; estimatedCostUsd: number; unpriced: number; simulated: number }>();
+    for (const r of rows) {
+      const d = r.createdAt.toISOString().slice(0, 10);
+      const g = byDay.get(d) ?? { date: d, images: 0, videoSeconds: 0, generations: 0, failed: 0, estimatedCostUsd: 0, unpriced: 0, simulated: 0 };
+      g.generations++;
+      if (r.status === 'FAILED') g.failed++;
+      if (r.unitKind === 'IMAGE') g.images += r.producedUnits; else g.videoSeconds += r.producedUnits;
+      if (['mock', 'fake'].includes(r.provider)) g.simulated++;
+      else if (r.producedUnits > 0 && Number(r.costUsd) === 0) g.unpriced++;
+      else g.estimatedCostUsd += Number(r.costUsd);
+      byDay.set(d, g);
+    }
+    return { days, currency: 'USD', costTracking: this.usage.costConfigured, items: [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date)), note: 'Estimates from configured prices; simulated generations cost nothing; unpriced ones have an unknown cost. This is not an invoice.' };
+  }
+
   // ─── Overview ───────────────────────────────────────────────────────────────
 
   /** What the studio can do right now: providers, capabilities, options, limits and storage. Never contains credentials. */
@@ -79,6 +99,9 @@ export class CreativeService {
         model: this.env.VIDEO_MODEL,
         capabilities: vid ? { seconds: vid.capabilities.seconds, aspectRatios: Object.keys(vid.capabilities.sizes), imageToVideo: vid.capabilities.imageToVideo, thumbnail: vid.capabilities.thumbnail } : null,
       },
+      simulated: { image: this.image?.name === 'mock' || this.image?.name === 'fake', video: this.video?.name === 'mock' || this.video?.name === 'fake' },
+      providers: CREATIVE_PROVIDER_REGISTRY,
+      disclosure: AI_DISCLOSURE_NOTE,
       storyboard: { configured: this.text.isConfigured() },
       storage: { configured: this.storage.configured, ...storage },
       usage,
@@ -132,6 +155,13 @@ export class CreativeService {
     return { name: ctx.business.name, type: (b.type as string) ?? null, industry: (b.industry as string) ?? null, description: (b.description as string) ?? null, city: (b.city as string) ?? null };
   }
 
+  /** Responsible-content gate: rights on the reference photo, consent of a real person, prohibited content. Records what the client declared. */
+  private responsible(dto: { sourceMediaId?: string; rightsConfirmed?: boolean; containsPerson?: boolean; personConsent?: boolean; aiDisclosure?: boolean }, text: string): ResponsibleRecord {
+    const issues = checkResponsibleRequest({ hasReferencePhoto: Boolean(dto.sourceMediaId), rightsConfirmed: dto.rightsConfirmed, containsPerson: dto.containsPerson, personConsent: dto.personConsent, text });
+    if (issues.length) throw new HttpException({ code: issues[0]!.code, message: issues[0]!.message, issues }, 422);
+    return { rightsConfirmed: dto.rightsConfirmed === true, containsPerson: dto.containsPerson === true, personConsent: dto.personConsent === true, aiDisclosure: dto.aiDisclosure !== false };
+  }
+
   private requireStorage() {
     if (!this.storage.configured) throw new ServiceUnavailableException({ code: 'STORAGE_NOT_CONFIGURED', message: 'Media storage is not configured on this server' });
   }
@@ -144,6 +174,11 @@ export class CreativeService {
         await lockTenantQuota(tx, 'creative', tenant.businessId);
         const inFlight = await tx.creativeGeneration.count({ where: { businessId: tenant.businessId, status: { in: ['QUEUED', 'RUNNING'] } } });
         if (inFlight >= this.env.CREATIVE_MAX_INFLIGHT_PER_BUSINESS) throw quotaExceeded('CREATIVE_QUEUE_LIMIT', `At most ${this.env.CREATIVE_MAX_INFLIGHT_PER_BUSINESS} image or video generations can be waiting or running at once.`);
+        // Daily cap on top of the monthly quota: units requested today by generations that were not refused.
+        const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
+        const today = await tx.creativeGeneration.aggregate({ where: { businessId: tenant.businessId, unitKind: data.unitKind, createdAt: { gte: dayStart }, NOT: { status: 'FAILED', producedUnits: 0 } }, _sum: { requestedUnits: true } });
+        const dailyCap = data.unitKind === 'IMAGE' ? this.env.CREATIVE_DAILY_IMAGES_PER_BUSINESS : this.env.CREATIVE_DAILY_VIDEO_SECONDS_PER_BUSINESS;
+        if ((today._sum.requestedUnits ?? 0) + data.requestedUnits > dailyCap) throw quotaExceeded('CREATIVE_DAILY_LIMIT', `The daily limit of ${dailyCap} ${data.unitKind === 'IMAGE' ? 'images' : 'video seconds'} was reached. It resets at midnight UTC.`);
         const periodStart = await this.usage.reserve(tx, { businessId: tenant.businessId, kind: data.unitKind as 'IMAGE' | 'VIDEO_SECOND', units: data.requestedUnits });
         return tx.creativeGeneration.create({ data: { ...data, businessId: tenant.businessId, userId: tenant.userId, status: 'QUEUED', periodStart, queuedAt: new Date(), reservedUnits: data.requestedUnits, idempotencyKey: key ?? null } });
       });
@@ -195,6 +230,7 @@ export class CreativeService {
       if (issues.length) throw new HttpException({ code: 'OVERLAY_UNVERIFIED', message: 'The text on the image contains information that is not in your verified business data', issues }, 422);
     }
 
+    const responsible = this.responsible(dto, [dto.instructions, dto.overlayText, dto.backgroundNote, dto.themeNote].filter(Boolean).join('\n'));
     // Preserving the original product.
     let preservation: ImageParams['preservation'] = 'NONE';
     let mode: ImageParams['mode'] = 'TEXT_TO_IMAGE';
@@ -229,7 +265,7 @@ export class CreativeService {
       type: dto.type, style, aspectRatio: dto.aspectRatio as AspectRatio, resolution: dto.resolution as Resolution, width, height,
       background: dto.background, backgroundNote: dto.backgroundNote ?? null, theme: dto.theme, themeNote: dto.themeNote ?? null,
       overlayText: dto.overlayText ?? null, overlayPosition: dto.overlayPosition, logoPlacement: dto.logoPlacement, platform,
-      preservation, mode, count: dto.count, useBrandKit: dto.useBrandKit, instructions: dto.instructions ?? null,
+      preservation, mode, count: dto.count, useBrandKit: dto.useBrandKit, instructions: dto.instructions ?? null, responsible,
     };
     const prompt = buildImagePrompt({
       mode, business: this.bizPrompt(ctx), item: loaded?.prompt ?? null, type: dto.type as never, style, background: dto.background as never, backgroundNote: dto.backgroundNote,
@@ -261,6 +297,7 @@ export class CreativeService {
         type: p.type, style: p.style, aspectRatio: p.aspectRatio, resolution: p.resolution, background: p.background, backgroundNote: p.backgroundNote ?? undefined, theme: p.theme, themeNote: p.themeNote ?? undefined,
         overlayText: p.overlayText ?? undefined, overlayPosition: p.overlayPosition, logoPlacement: p.logoPlacement, platform: p.platform, itemType: (parent.itemType as Item['type'] | null) ?? undefined, itemId: parent.itemId ?? undefined,
         sourceMediaId: parent.sourceMediaId ?? undefined, preservation: p.preservation === 'GUIDED' ? 'GUIDED' : 'EXACT', count: dto.count, useBrandKit: p.useBrandKit, instructions: dto.instructions ?? p.instructions ?? undefined,
+        rightsConfirmed: p.responsible?.rightsConfirmed, containsPerson: p.responsible?.containsPerson, personConsent: p.responsible?.personConsent, aiDisclosure: p.responsible?.aiDisclosure ?? true,
       },
       key,
       parent.id,
@@ -301,12 +338,13 @@ export class CreativeService {
       if (dto.sceneOrder && !out.scenes.some((s) => s.order === dto.sceneOrder)) throw new BadRequestException({ code: 'SCENE_NOT_FOUND', message: 'That scene does not exist in the storyboard' });
       storyboard = out;
     } else if (dto.sceneOrder) throw new BadRequestException({ code: 'STORYBOARD_REQUIRED', message: 'sceneOrder needs a storyboard' });
+    const responsible = this.responsible(dto, dto.instructions ?? '');
     if (dto.sourceMediaId) {
       if (!caps.imageToVideo) throw new BadRequestException({ code: 'IMAGE_TO_VIDEO_UNSUPPORTED', message: 'The configured video provider cannot animate a photo' });
       await this.media.assertUsable(tenant.businessId, [dto.sourceMediaId], 'IMAGE');
     }
     const kit = dto.useBrandKit ? await this.brandKit.forPrompt(tenant.businessId) : null;
-    const params: VideoParams = { format, aspectRatio: rule.aspect, requestedSeconds: dto.seconds, seconds, style: dto.style as VideoStyle, storyboardId: dto.storyboardId ?? null, sceneOrder: dto.sceneOrder ?? null, useBrandKit: dto.useBrandKit, instructions: dto.instructions ?? null };
+    const params: VideoParams = { format, aspectRatio: rule.aspect, requestedSeconds: dto.seconds, seconds, style: dto.style as VideoStyle, storyboardId: dto.storyboardId ?? null, sceneOrder: dto.sceneOrder ?? null, useBrandKit: dto.useBrandKit, instructions: dto.instructions ?? null, responsible };
     const prompt = buildVideoPrompt({ business: this.bizPrompt(ctx), item: loaded?.prompt ?? null, style: params.style, aspect: rule.aspect, seconds, brand: this.promptBrand(kit), instructions: dto.instructions, storyboard, sceneOrder: dto.sceneOrder ?? null });
     const result = await this.create(
       tenant,
