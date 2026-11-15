@@ -99,7 +99,7 @@ export default function ContentGeneratorPage() {
       {current?.output ? (
         <div className="grid gap-3">
           <Steps steps={current.steps} />
-          <UsageLine usage={current.usage} model={current.model} />
+          <UsageLine usage={current.usage} model={current.model} provider={current.provider} />
           <QualityLine quality={draftQuality ?? current.quality} />
           <ContentEditor
             initial={current.output}

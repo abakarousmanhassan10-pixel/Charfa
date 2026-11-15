@@ -595,7 +595,8 @@
       "NO_DRAFT": "Enregistrez d’abord le brouillon.",
       "GENERATION_IN_PROGRESS": "Cette génération est encore en cours.",
       "SERVER_UNAVAILABLE": "Le serveur démarre ou est momentanément indisponible. Rien n’est perdu : attendez environ une minute puis réessayez.",
-      "AI_PROVIDER_QUOTA": "Le compte du fournisseur d’IA n’a plus de crédit. Contactez l’administrateur."
+      "AI_PROVIDER_QUOTA": "Le compte du fournisseur d’IA n’a plus de crédit. Contactez l’administrateur.",
+      "SUBSCRIPTION_REQUIRED": "Un essai ou un abonnement actif est requis pour cette action."
     },
     "notConfiguredTitle": "TOUMA AI n'est pas configuré",
     "notConfiguredText": "Un administrateur doit ajouter les identifiants du fournisseur d'IA (OPENAI_API_KEY) sur le serveur. Rien n'est généré ni simulé d'ici là.",

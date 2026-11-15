@@ -37,3 +37,11 @@ describe('Payoneer personal account guard (N25)', () => {
     expect(() => loadEnv({ ...valid, BILLING_MAX_FAILED_PAYMENTS: '0' })).toThrow();
   });
 });
+
+describe('billing enforcement flag (N23.2)', () => {
+  it('is off by default and cannot be on without billing', () => {
+    expect(loadEnv(valid).BILLING_ENFORCEMENT_ENABLED).toBe(false);
+    expect(() => loadEnv({ ...valid, BILLING_ENFORCEMENT_ENABLED: 'true' })).toThrow(/requires BILLING_ENABLED=true/);
+    expect(loadEnv({ ...valid, BILLING_ENFORCEMENT_ENABLED: 'true', BILLING_ENABLED: 'true' }).BILLING_ENFORCEMENT_ENABLED).toBe(true);
+  });
+});

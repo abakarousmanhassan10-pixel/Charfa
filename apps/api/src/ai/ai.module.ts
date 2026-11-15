@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BillingCoreModule } from '../billing/billing.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { AiController } from './ai.controller';
 import { AiApprovalService } from './ai-approval.service';
@@ -16,7 +17,7 @@ import { AiOrchestratorService } from './orchestrator.service';
  * worker process (node dist/ai-worker.js) starts it explicitly.
  */
 @Module({
-  imports: [AiProviderModule, KnowledgeModule],
+  imports: [AiProviderModule, KnowledgeModule, BillingCoreModule],
   providers: [AiOrchestratorService, AiUsageService, AiHistoryService, AiApprovalService, AiQueueService, AiWorkerService],
   exports: [AiOrchestratorService, AiUsageService, AiHistoryService, AiApprovalService, AiQueueService, AiWorkerService],
 })

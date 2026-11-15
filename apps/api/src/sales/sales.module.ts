@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BillingCoreModule } from '../billing/billing.module';
 import { AiCoreModule } from '../ai/ai.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { NotificationsCoreModule } from '../notifications/notifications.module';
@@ -23,7 +24,7 @@ export class SalesAssistCoreModule {}
 
 /** AI sales and customer service agent (Phase 7). The agent has no tools: it cannot send anything outside its conversation, place orders or take payments. */
 @Module({
-  imports: [AiCoreModule, KnowledgeModule, NotificationsCoreModule, SalesAssistCoreModule],
+  imports: [AiCoreModule, KnowledgeModule, NotificationsCoreModule, SalesAssistCoreModule, BillingCoreModule],
   controllers: [SalesController, SalesPublicController, SalesAssistController],
   providers: [SalesAssistEnabledGuard, SalesAgentService, SalesConversationsService, SalesCustomersService, SalesInsightsService, SalesPublicService, SalesCaptchaService, SalesRetentionService, SalesMonitoringService],
   exports: [SalesAgentService, SalesRetentionService, SalesMonitoringService],

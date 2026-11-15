@@ -100,7 +100,8 @@ function failureFor(err: ProviderError): Response {
  * Answers are the deterministic ones of the fake provider unless a test scripts something else (text, a function, or an error).
  */
 export class MockOpenAIProvider implements TextModelProvider {
-  readonly name = 'openai';
+  /** Recorded on every generation row, so a stored result can never be mistaken for a real OpenAI answer. */
+  readonly name = 'mock-openai';
   readonly requests: GenerateRequest[] = [];
   readonly mock: ReturnType<typeof createMockOpenAIFetch>;
   private queue: Scripted[] = [];

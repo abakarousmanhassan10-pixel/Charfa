@@ -12,6 +12,7 @@ import { AiUsageService } from '../ai/ai-usage.service';
 import { errorKind } from './sales-monitoring.service';
 import { SalesAssistService } from './sales-assist.service';
 import { AuditService } from '../audit/audit.service';
+import { BillingService } from '../billing/billing.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -63,6 +64,7 @@ export class SalesAgentService {
     private readonly knowledge: KnowledgeService,
     private readonly usage: AiUsageService,
     private readonly audit: AuditService,
+    private readonly billing: BillingService,
     private readonly notifications: NotificationsService,
     private readonly assist: SalesAssistService,
     @Inject(TEXT_PROVIDER) private readonly provider: TextModelProvider,
@@ -185,6 +187,8 @@ export class SalesAgentService {
     { ok: true; reply: SalesReply; cards: Array<Record<string, unknown>>; model: string } | { ok: false; error: string }
   > {
     const businessId = conv.businessId;
+    // Server-side subscription authorization (off unless BILLING_ENFORCEMENT_ENABLED): no paid model call without access; the conversation falls back to a human.
+    try { await this.billing.assertAccess(businessId); } catch { return { ok: false, error: 'SUBSCRIPTION_REQUIRED' }; }
     const ctx = (await this.knowledge.buildAgentContext(systemTenant(businessId))) as unknown as BusinessContext;
     const recent = await this.prisma.message.findMany({
       where: { conversationId: conv.id, OR: [{ authorType: 'CUSTOMER' }, { authorType: 'AI_REPLY' }, { authorType: 'HUMAN_AGENT', sentAt: { not: null } }, { authorType: 'AI_SUGGESTION', approvalStatus: 'APPROVED' }] },

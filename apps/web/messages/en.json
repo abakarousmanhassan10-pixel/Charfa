@@ -595,7 +595,8 @@
       "NO_DRAFT": "Save the draft first.",
       "GENERATION_IN_PROGRESS": "This generation is still running.",
       "SERVER_UNAVAILABLE": "The server is starting up or temporarily unavailable. Nothing was lost: wait about a minute and try again.",
-      "AI_PROVIDER_QUOTA": "The AI provider account has no remaining credit. Contact the administrator."
+      "AI_PROVIDER_QUOTA": "The AI provider account has no remaining credit. Contact the administrator.",
+      "SUBSCRIPTION_REQUIRED": "An active trial or subscription is required for this action."
     },
     "notConfiguredTitle": "TOUMA AI is not configured",
     "notConfiguredText": "An administrator must add the AI provider credentials (OPENAI_API_KEY) on the server. Nothing is generated or simulated until then.",

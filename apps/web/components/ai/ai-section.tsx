@@ -80,10 +80,12 @@ export function Steps({ steps, testId = 'ai-steps' }: { steps?: Array<{ step: st
   );
 }
 
-export function UsageLine({ usage, model }: { usage: { inputTokens: number; outputTokens: number; costUsd: number; latencyMs: number; attempts: number }; model: string }) {
+export function UsageLine({ usage, model, provider }: { usage: { inputTokens: number; outputTokens: number; costUsd: number; latencyMs: number; attempts: number }; model: string; provider?: string }) {
   const { t } = useI18n();
+  const simulated = provider === 'fake' || provider === 'mock-openai';
   return (
     <p className="text-xs text-muted-foreground" data-testid="ai-usage">
+      {simulated && <span className="me-2 rounded bg-amber-500/10 px-1.5 py-0.5 font-medium text-foreground" data-testid="ai-result-simulated">{t('ai.simulatedBadge')}</span>}
       {t('ai.usageLine', { input: usage.inputTokens, output: usage.outputTokens, attempts: usage.attempts, seconds: (usage.latencyMs / 1000).toFixed(1), model })}
       {usage.costUsd > 0 && ` · ≈ $${usage.costUsd.toFixed(4)}`}
     </p>

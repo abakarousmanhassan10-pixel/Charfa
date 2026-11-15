@@ -6,10 +6,9 @@ import { BillingController } from './billing.controller';
 import { BillingEnabledGuard } from './billing.guard';
 import { BillingService } from './billing.service';
 
-@Module({
-  imports: [BillingProviderModule, NotificationsCoreModule],
-  controllers: [BillingController, BillingWebhooksController],
-  providers: [BillingService, BillingEnabledGuard],
-  exports: [BillingService],
-})
+/** Service only (no HTTP): imported by modules that must authorize paid actions (AI, Creative Studio). */
+@Module({ imports: [BillingProviderModule, NotificationsCoreModule], providers: [BillingService], exports: [BillingService] })
+export class BillingCoreModule {}
+
+@Module({ imports: [BillingCoreModule], controllers: [BillingController, BillingWebhooksController], providers: [BillingEnabledGuard] })
 export class BillingModule {}

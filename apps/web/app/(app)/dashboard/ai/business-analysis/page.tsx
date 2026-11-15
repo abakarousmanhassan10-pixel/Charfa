@@ -42,7 +42,7 @@ export default function BusinessAnalysisPage() {
       ) : current?.output ? (
         <div className="grid gap-3">
           <Steps steps={current.steps} />
-          <UsageLine usage={current.usage} model={current.model} />
+          <UsageLine usage={current.usage} model={current.model} provider={current.provider} />
           <BusinessAnalysisView data={current.output} />
         </div>
       ) : (

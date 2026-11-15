@@ -13,6 +13,7 @@ import { modelFor } from '@touma/config';
 import { Inject } from '@nestjs/common';
 import { AppEnv, InjectEnv } from '../config';
 import { AuditService } from '../audit/audit.service';
+import { BillingService } from '../billing/billing.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { lockTenantQuota, quotaExceeded } from '../common/tenant-quota';
 import { PrismaService } from '../prisma/prisma.service';
@@ -97,6 +98,7 @@ export class AiOrchestratorService {
     private readonly knowledge: KnowledgeService,
     private readonly usage: AiUsageService,
     private readonly audit: AuditService,
+    private readonly billing: BillingService,
     private readonly queue: AiQueueService,
     @Inject(TEXT_PROVIDER) private readonly provider: TextModelProvider,
     @InjectEnv() private readonly env: AppEnv,
@@ -245,6 +247,7 @@ export class AiOrchestratorService {
    */
   async submit(tenant: TenantContext, req: JobRequest, parentId?: string | null): Promise<AIGeneration> {
     this.requireConfigured();
+    await this.billing.assertAccess(tenant.businessId); // server-side subscription authorization (off unless BILLING_ENFORCEMENT_ENABLED)
     const ctx = await this.loadContext(tenant);
     if (req.task === 'PRODUCT_ANALYSIS' || ((req.task === 'CONTENT' || req.task === 'STORYBOARD') && req.item)) await this.assertItem(tenant.businessId, ctx, (req as { item: Item }).item);
     if (req.task === 'MARKETING_STRATEGY') this.assertFocus(ctx, req.focusItemIds ?? []);
@@ -287,6 +290,7 @@ export class AiOrchestratorService {
       await this.usage.settle(gen.id, 'released');
       throw err;
     }
+    await this.audit.record({ action: 'ai.generation_submitted', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'AIGeneration', entityId: gen.id, metadata: { task: req.task, model: modelFor(this.env, req.task as AITask), provider: this.env.AI_PROVIDER } });
     if (flags.length) await this.audit.record({ action: 'ai.injection_flagged', actorId: tenant.userId, businessId: tenant.businessId, entityType: 'AIGeneration', entityId: gen.id, metadata: { flags } });
     return gen;
   }

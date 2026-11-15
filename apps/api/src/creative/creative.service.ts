@@ -15,6 +15,7 @@ import { OBJECT_STORAGE, type ObjectStorage } from '@touma/storage';
 import { TEXT_PROVIDER } from '../ai/ai-provider';
 import { AppEnv, InjectEnv } from '../config';
 import { AuditService } from '../audit/audit.service';
+import { BillingService } from '../billing/billing.service';
 import { pageArgs, toPage } from '../common/pagination';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { MediaService } from '../media/media.service';
@@ -48,6 +49,7 @@ export class CreativeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly billing: BillingService,
     private readonly media: MediaService,
     private readonly knowledge: KnowledgeService,
     private readonly brandKit: BrandKitService,
@@ -164,6 +166,7 @@ export class CreativeService {
   // ─── Images ─────────────────────────────────────────────────────────────────
 
   async submitImage(tenant: TenantContext, dto: CreateImageDto, key?: string, parentId?: string | null) {
+    await this.billing.assertAccess(tenant.businessId); // server-side subscription authorization (off unless BILLING_ENFORCEMENT_ENABLED)
     const provider = this.image;
     if (!provider || !provider.isConfigured()) throw new ServiceUnavailableException({ code: 'IMAGE_NOT_CONFIGURED', message: 'Image generation is not configured on this server (no image provider credentials)' });
     const caps = provider.capabilities;
@@ -264,6 +267,7 @@ export class CreativeService {
   // ─── Videos ─────────────────────────────────────────────────────────────────
 
   async submitVideo(tenant: TenantContext, dto: CreateVideoDto, key?: string) {
+    await this.billing.assertAccess(tenant.businessId);
     const provider = this.video;
     if (!provider || !provider.isConfigured()) {
       throw new ServiceUnavailableException({ code: 'VIDEO_NOT_CONFIGURED', message: 'Video generation is not configured on this server. Storyboards and scripts are still available. See the provider configuration guide to enable video.' });

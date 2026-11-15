@@ -1,7 +1,8 @@
-import { ConflictException, Inject, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, HttpException, HttpStatus, Inject, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@touma/database';
 import { resolveEntitlement, trialEndsAt } from '@touma/shared';
 import { AppEnv, InjectEnv } from '../config';
+import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TenantContext } from '../tenancy/tenant-context';
@@ -20,6 +21,7 @@ export class BillingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider | null,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
@@ -43,6 +45,18 @@ export class BillingService {
       if (e instanceof ProviderUnavailableError) throw err(ServiceUnavailableException, e.code, e.message);
       throw e;
     }
+  }
+
+  /**
+   * Server-side subscription authorization for paid actions. A no-op unless BILLING_ENFORCEMENT_ENABLED=true; then the business needs
+   * access (trial, active subscription, grace period, paid period of a canceled one) or must belong to the founder. The decision is
+   * made from the database, never from anything the browser sends.
+   */
+  async assertAccess(businessId: string): Promise<void> {
+    if (!this.env.BILLING_ENFORCEMENT_ENABLED) return;
+    const [sub, founder] = await Promise.all([this.prisma.subscription.findUnique({ where: { businessId } }), this.isFounder(businessId)]);
+    const ent = resolveEntitlement({ now: new Date(), isFounder: founder, subscription: sub });
+    if (!ent.hasAccess) throw new HttpException({ code: 'SUBSCRIPTION_REQUIRED', message: 'An active trial or subscription is required for this action', state: ent.state }, HttpStatus.PAYMENT_REQUIRED);
   }
 
   async status(t: TenantContext) {
@@ -70,6 +84,7 @@ export class BillingService {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw err(ConflictException, 'TRIAL_ALREADY_USED', 'This business already has a subscription or has used its trial');
       throw e;
     }
+    await this.audit.record({ action: 'billing.trial_started', actorId: t.userId, businessId: t.businessId, entityType: 'Subscription', metadata: { plan: planCode } });
     return this.status(t);
   }
 
@@ -120,6 +135,7 @@ export class BillingService {
       await this.guarded(() => provider.cancelSubscription({ subscriptionRef: sub.providerSubscriptionId!, atPeriodEnd: true }));
     }
     await this.prisma.subscription.update({ where: { id: sub.id }, data: { cancelAtPeriodEnd: true } });
+    await this.audit.record({ action: 'billing.cancel_requested', actorId: t.userId, businessId: t.businessId, entityType: 'Subscription', entityId: sub.id });
     return this.status(t);
   }
 
@@ -133,6 +149,7 @@ export class BillingService {
       await this.guarded(() => provider.resumeSubscription({ subscriptionRef: sub.providerSubscriptionId! }));
     }
     await this.prisma.subscription.update({ where: { id: sub.id }, data: { cancelAtPeriodEnd: false } });
+    await this.audit.record({ action: 'billing.resume_requested', actorId: t.userId, businessId: t.businessId, entityType: 'Subscription', entityId: sub.id });
     return this.status(t);
   }
 
@@ -158,6 +175,7 @@ export class BillingService {
     // Only subscriptions of the provider that sent the event: a reference from another provider can never match.
     const sub = await this.prisma.subscription.findFirst({ where: { provider: this.provider?.id ?? 'none', OR: [...(e.subscriptionRef ? [{ providerSubscriptionId: e.subscriptionRef }] : []), ...(e.customerRef ? [{ providerCustomerId: e.customerRef }] : [])] } });
     if (!sub) return false;
+    await this.audit.record({ action: 'billing.event_applied', businessId: sub.businessId, entityType: 'Subscription', entityId: sub.id, metadata: { provider: sub.provider, eventType: e.type, eventId: e.id } });
     switch (e.type) {
       case 'payment_method.attached':
         if (e.paymentMethodRef) await this.prisma.subscription.update({ where: { id: sub.id }, data: { paymentMethodRef: e.paymentMethodRef } });

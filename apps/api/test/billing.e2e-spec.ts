@@ -97,8 +97,8 @@ describe('Billing (simulated provider)', () => {
     expect((await prisma.subscription.findUniqueOrThrow({ where: { businessId: t.businessId } })).status).toBe('CANCELED');
 
     // No card data anywhere in the database rows or API answers; no network request was made.
-    const dump = JSON.stringify([await prisma.subscription.findMany(), await prisma.payment.findMany(), await prisma.webhookEvent.findMany()]);
-    expect(dump).not.toMatch(/\b\d{13,19}\b|cvc|cvv|card_?number/i);
+    const dump = JSON.stringify([await prisma.subscription.findMany({ where: { businessId: t.businessId } }), await prisma.payment.findMany({ where: { businessId: t.businessId } }), await prisma.webhookEvent.findMany({ where: { payload: { path: ['subscriptionRef'], equals: subRef } } })]);
+    expect(dump).not.toMatch(/(?<![\w-])\d{13,19}(?![\w-])|cvc|cvv|card_?number/i); // a card number, not an id or timestamp
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

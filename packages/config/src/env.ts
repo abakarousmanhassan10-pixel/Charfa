@@ -256,6 +256,8 @@ export const appEnvSchema = z.object({
   // ─── Billing (Phase N24): provider-independent architecture, simulation only. Off by default; no real charge exists.
   BILLING_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   /** none = no provider; simulated = test-only in-process provider (APP_ENV=test); payoneer = adapter that refuses everything until its capabilities are verified against Payoneer's official documentation. */
+  /** Server-side subscription authorization for paid AI actions (text, image, video generation). Off by default: nothing is blocked. Requires BILLING_ENABLED. The founder is always exempt. */
+  BILLING_ENFORCEMENT_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   BILLING_PROVIDER: z.enum(['none', 'simulated', 'payoneer']).default('none'),
   BILLING_WEBHOOK_SECRET: z.string().min(16).optional(),
   /** Which kind of Payoneer account would be connected. A PERSONAL account must never be used for automatic customer payments: BILLING_PROVIDER=payoneer is refused unless this is "business". */
@@ -390,6 +392,9 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
     if ([25, 587, 2525, 2587].includes(env.SMTP_PORT) && env.SMTP_SECURE) {
       throw new EnvValidationError([`SMTP_PORT=${env.SMTP_PORT} uses STARTTLS: set SMTP_SECURE=false`]);
     }
+  }
+  if (env.BILLING_ENFORCEMENT_ENABLED && !env.BILLING_ENABLED) {
+    throw new EnvValidationError(['BILLING_ENFORCEMENT_ENABLED requires BILLING_ENABLED=true']);
   }
   if (env.BILLING_PROVIDER === 'payoneer' && env.PAYONEER_ACCOUNT_TYPE !== 'business') {
     throw new EnvValidationError(['BILLING_PROVIDER=payoneer requires PAYONEER_ACCOUNT_TYPE=business: a personal Payoneer account must not be used for automatic customer payments']);

@@ -27,6 +27,8 @@ export interface Generation<T = any> {
   errorCode: string | null;
   errorMessage: string | null;
   model: string;
+  /** Who produced it: stored with the result, so a test-provider answer stays labelled forever. */
+  provider?: string;
   promptVersion: string;
   injectionFlags: string[];
   usage: { inputTokens: number; outputTokens: number; costUsd: number; latencyMs: number; attempts: number };

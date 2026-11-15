@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BillingCoreModule } from '../billing/billing.module';
 import { AiCoreModule } from '../ai/ai.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { MediaModule } from '../media/media.module';
@@ -12,7 +13,7 @@ import { CreativeWorkerService } from './creative-worker.service';
 
 /** Everything the Creative Studio needs without HTTP (a singleton module, like AiCoreModule). */
 @Module({
-  imports: [CreativeProviderModule, MediaModule, KnowledgeModule, AiCoreModule],
+  imports: [CreativeProviderModule, MediaModule, KnowledgeModule, AiCoreModule, BillingCoreModule],
   providers: [CreativeService, CreativeUsageService, CreativeQueueService, CreativeWorkerService, BrandKitService],
   exports: [CreativeService, CreativeUsageService, CreativeQueueService, CreativeWorkerService, BrandKitService],
 })

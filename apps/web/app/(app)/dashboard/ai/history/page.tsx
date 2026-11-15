@@ -80,7 +80,7 @@ export default function HistoryPage() {
       <Dialog open={Boolean(open)} onClose={() => setOpen(null)} title={open ? (open.format ? t(`ai.formats.${open.format}`) : t(`ai.tasks.${open.task}`)) : ''} className="max-w-4xl" closeLabel={t('common.close')}>
         {open && (
           <div className="grid max-h-[70vh] gap-3 overflow-y-auto">
-            <UsageLine usage={open.usage} model={open.model} />
+            <UsageLine usage={open.usage} model={open.model} provider={open.provider} />
             {(open.status === 'QUEUED' || open.status === 'RUNNING') && <p role="status" className="rounded-md bg-muted px-3 py-2 text-sm">{t('ai.job.leaveHint')}</p>}
             {(open.status === 'FAILED' || open.status === 'BLOCKED') && <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{open.errorCode}: {open.errorMessage}</p>}
             {open.output && open.task === 'BUSINESS_ANALYSIS' && <BusinessAnalysisView data={open.output} />}
