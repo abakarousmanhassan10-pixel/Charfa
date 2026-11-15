@@ -12,7 +12,7 @@ export default function Page() {
   return (
     <>
       <PageHeader title={t('ops.title')} description={t('ops.subtitle')} />
-      {allowed && <p className="mb-4 text-sm"><Link href="/dashboard/operations/billing" className="text-primary underline-offset-4 hover:underline" data-testid="ops-billing-link">{t('billing.admin.link')}</Link></p>}
+      {allowed && <p className="mb-4 text-sm"><Link href="/dashboard/operations/billing" className="text-primary underline-offset-4 hover:underline" data-testid="ops-billing-link">{t('billing.admin.link')}</Link> · <Link href="/dashboard/operations/agents" className="text-primary underline-offset-4 hover:underline" data-testid="ops-agents-link">{t('agents.admin.title')}</Link></p>}
       {allowed ? <OpsView canManage={user?.platformRole === 'SUPER_ADMIN'} /> : <p className="text-sm text-muted-foreground" data-testid="ops-forbidden">{t('ops.forbidden')}</p>}
     </>
   );

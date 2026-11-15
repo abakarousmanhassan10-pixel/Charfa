@@ -15,6 +15,13 @@ describe('Cross-module scenario (e2e)', () => {
 
   beforeAll(async () => {
     await resetDb();
+    // Queue-health assertions need a clean slate: failed jobs and alerts left by suites that fail on purpose (order of suites varies) must not leak in.
+    const Redis = (await import('ioredis')).default;
+    const redis = new Redis(process.env.REDIS_URL as string);
+    const stale = await redis.keys('bull:touma.*');
+    if (stale.length) await redis.del(...stale);
+    await redis.quit();
+    await prisma.$executeRawUnsafe('TRUNCATE "OpsAlert" CASCADE');
     app = await startApp();
     http = app.getHttpServer();
     const u = await register(app);

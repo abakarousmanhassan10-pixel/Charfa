@@ -4,7 +4,7 @@
  * (custom or legacy plans keep working); the founder gets the highest plan's entitlements.
  */
 
-export const PLAN_FEATURES = ['ai', 'calendar', 'sales', 'creative', 'market', 'campaigns', 'workflows', 'intelligence', 'autopilot'] as const;
+export const PLAN_FEATURES = ['ai', 'calendar', 'sales', 'creative', 'market', 'campaigns', 'workflows', 'intelligence', 'autopilot', 'agents'] as const;
 export type PlanFeature = (typeof PLAN_FEATURES)[number];
 /** The agents a customer can use (the AIAgent values minus the internal orchestrator). */
 export const PLAN_AGENTS = ['BUSINESS_ANALYST', 'PRODUCT_ANALYST', 'MARKETING_STRATEGIST', 'CONTENT_CREATOR', 'VISUAL_CREATOR', 'VIDEO_CREATOR', 'SCHEDULER', 'CUSTOMER_SUPPORT', 'PERFORMANCE_ANALYST'] as const;
@@ -20,6 +20,10 @@ export interface PlanEntitlements {
   salesInteractionsPerMonth: number | null;
   aiImagesPerMonth: number | null;
   aiVideoSecondsPerMonth: number | null;
+  /** N28: how many configured agents a business may have, model calls per billing period, and the agents' spending per period (micro-units of USD). */
+  maxAgentInstances: number | null;
+  agentCallsPerMonth: number | null;
+  agentBudgetMicrosPerMonth: number | null;
 }
 
 const int = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null);
@@ -37,6 +41,9 @@ export function parseEntitlements(limits: unknown): PlanEntitlements {
     salesInteractionsPerMonth: int(l.salesInteractionsPerMonth),
     aiImagesPerMonth: int(l.aiImagesPerMonth),
     aiVideoSecondsPerMonth: int(l.aiVideoSecondsPerMonth),
+    maxAgentInstances: int(l.maxAgentInstances),
+    agentCallsPerMonth: int(l.agentCallsPerMonth),
+    agentBudgetMicrosPerMonth: int(l.agentBudgetMicrosPerMonth),
   };
 }
 

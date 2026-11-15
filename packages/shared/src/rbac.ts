@@ -31,6 +31,10 @@ export const PERMISSIONS = [
   'knowledge.read',
   'knowledge.write',
   'knowledge.verify',
+  'agents.read',
+  'agents.run',
+  'agents.manage',
+  'agents.approve',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -44,6 +48,7 @@ const VIEWER: Permission[] = [
   'analytics.read',
   'media.read',
   'knowledge.read',
+  'agents.read',
 ];
 
 const EDITOR: Permission[] = [
@@ -54,6 +59,7 @@ const EDITOR: Permission[] = [
   'ai.use',
   'media.write',
   'knowledge.write',
+  'agents.run',
 ];
 
 const ADMIN: Permission[] = [
@@ -67,6 +73,9 @@ const ADMIN: Permission[] = [
   'audit.read',
   // Verifying knowledge = approving facts the AI may state to customers: a management decision.
   'knowledge.verify',
+  // Configuring agents and approving what they prepare for publication are management decisions.
+  'agents.manage',
+  'agents.approve',
 ];
 
 const OWNER: Permission[] = [...ADMIN, 'business.delete', 'billing.manage'];

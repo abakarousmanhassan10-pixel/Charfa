@@ -1,5 +1,6 @@
 import { FORMAT_RULES, type AiFormat, type AiLanguage, type AiPlatform } from '@touma/shared';
 import { ProviderError } from '../errors';
+import { agentFakeAnswer } from './agents-fake';
 import type { GenerateRequest, GenerateResult, TextModelProvider } from '../provider';
 
 /**
@@ -10,6 +11,7 @@ import type { GenerateRequest, GenerateResult, TextModelProvider } from '../prov
  */
 type Scripted = string | Error | ((req: GenerateRequest) => string | Promise<string>);
 
+/** The mock AI provider for tests and demos (the same deterministic provider, named for the orchestration layer). */
 export class FakeTextProvider implements TextModelProvider {
   readonly name = 'fake';
   readonly requests: GenerateRequest[] = [];
@@ -93,6 +95,8 @@ const T: Record<AiLanguage, (biz: string, item: string) => { s: string; long: st
 const tag = (v: string) => `#${v.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^\p{L}\p{N}]/gu, '').slice(0, 40) || 'touma'}`;
 
 function defaultAnswer(req: GenerateRequest): unknown {
+  const agent = agentFakeAnswer(req);
+  if (agent) return agent;
   const data = block(req.user, 'business_data') ?? {};
   const task = block(req.user, 'task') ?? {};
   const lang: AiLanguage = task.language ?? 'en';

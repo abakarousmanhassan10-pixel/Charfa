@@ -16,7 +16,7 @@ import { Select } from '@/components/ui/select';
 import { api } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
-type NavItem = { key: string; icon: typeof LayoutDashboard; href?: string; platformOnly?: boolean; feature?: 'workflows' | 'market' | 'campaigns' | 'intelligence' | 'autopilot' | 'billing' };
+type NavItem = { key: string; icon: typeof LayoutDashboard; href?: string; platformOnly?: boolean; feature?: 'workflows' | 'market' | 'campaigns' | 'intelligence' | 'autopilot' | 'billing' | 'agents' };
 
 // Only implemented routes are links; upcoming modules are visibly disabled so nothing pretends to work.
 const NAV: NavItem[] = [
@@ -37,6 +37,7 @@ const NAV: NavItem[] = [
   { key: 'campaigns', href: '/dashboard/campaigns', icon: Megaphone, feature: 'campaigns' },
   { key: 'intelligence', href: '/dashboard/intelligence', icon: Gauge, feature: 'intelligence' },
   { key: 'autopilot', href: '/dashboard/autopilot', icon: Rocket, feature: 'autopilot' },
+  { key: 'agents', href: '/dashboard/agents', icon: Bot, feature: 'agents' },
   { key: 'billing', href: '/dashboard/billing', icon: CreditCard, feature: 'billing' },
   { key: 'operations', href: '/dashboard/operations', icon: Activity, platformOnly: true },
   { key: 'analytics', icon: BarChart3 },
@@ -57,9 +58,9 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth();
   const isPlatform = user?.platformRole === 'SUPER_ADMIN' || user?.platformRole === 'SUPPORT';
   // Modules switched off on this deployment are hidden (the API keeps enforcing the flags). Until the answer arrives, nothing optional shows.
-  const [features, setFeatures] = useState<Partial<Record<'workflows' | 'market' | 'campaigns' | 'intelligence' | 'autopilot' | 'billing', boolean>>>({});
+  const [features, setFeatures] = useState<Partial<Record<'workflows' | 'market' | 'campaigns' | 'intelligence' | 'autopilot' | 'billing' | 'agents', boolean>>>({});
   useEffect(() => {
-    if (user) void api<Record<string, boolean>>('/features').then((f) => setFeatures({ workflows: f.workflows, market: f.market, campaigns: f.campaigns, intelligence: f.intelligence, autopilot: f.autopilot, billing: f.billing })).catch(() => undefined);
+    if (user) void api<Record<string, boolean>>('/features').then((f) => setFeatures({ workflows: f.workflows, market: f.market, campaigns: f.campaigns, intelligence: f.intelligence, autopilot: f.autopilot, billing: f.billing, agents: f.agents })).catch(() => undefined);
   }, [user]);
   return (
     <nav className="flex flex-1 flex-col gap-1" aria-label={t('common.menu')}>

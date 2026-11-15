@@ -21,3 +21,4 @@ export * from './providers/openai';
 export * from './testing/fake-provider';
 export * from './testing/mock-openai';
 export * from './agents/campaign-analyst';
+export { FakeTextProvider as MockAIProvider } from './testing/fake-provider';

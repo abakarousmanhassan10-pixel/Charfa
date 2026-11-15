@@ -9,7 +9,8 @@ describe('plan entitlements', () => {
     expect(hasFeature(e, 'sales')).toBe(true);
     expect(hasFeature(e, 'autopilot')).toBe(false);
     const open = parseEntitlements({});
-    expect(open).toMatchObject({ agents: null, features: null, maxAgents: null });
+    expect(open).toMatchObject({ agents: null, features: null, maxAgents: null, maxAgentInstances: null, agentCallsPerMonth: null });
+    expect(parseEntitlements({ maxAgentInstances: 5, agentCallsPerMonth: 1000, agentBudgetMicrosPerMonth: 25_000_000 })).toMatchObject({ maxAgentInstances: 5, agentCallsPerMonth: 1000, agentBudgetMicrosPerMonth: 25_000_000 });
     expect(hasAgent(open, 'VIDEO_CREATOR')).toBe(true);
     expect(hasFeature(open, 'autopilot')).toBe(true);
     expect(parseEntitlements(null).agents).toBeNull();

@@ -575,6 +575,11 @@ model Business {
   comments            Comment[]
   subscription        Subscription?
   invoices            Invoice[]
+  agents              Agent[]
+  agentConversations  AgentConversation[]
+  agentApprovals      AgentApproval[]
+  budgetPolicy        BudgetPolicy?
+  tenantEntitlements  TenantEntitlement[]
   payments            Payment[]
   analyticsSnapshots  AnalyticsSnapshot[]
   notifications       Notification[]
@@ -1958,6 +1963,9 @@ model CreativeOutput {
 // no real model call and no external action. Steps that act outside TOUMA must wait for a human approval.
 
 enum AgentRunStatus {
+  /// N28: accepted by the API, waiting for the billing guardian's admission (then PENDING = queued, or BLOCKED).
+  CREATED
+  /// Queued (the "QUEUED" of the task state machine).
   PENDING
   RUNNING
   WAITING_APPROVAL
@@ -1967,6 +1975,8 @@ enum AgentRunStatus {
   PAUSED
   /// Phase N3: stopped by a person; final.
   CANCELLED
+  /// N28: refused by the billing guardian or the kill switch (expired subscription, quota, budget, agent not allowed, stopped). Nothing ran; a person retries it once the cause is fixed.
+  BLOCKED
 }
 
 enum AgentRunStepStatus {
@@ -2003,6 +2013,8 @@ model AgentRun {
   triggerType     String?
   /// Validated, size-limited scalars of the triggering event (conditions can read them as `trigger.*`).
   triggerData     Json?
+  /// N28: 1 (most urgent) to 9; the queue serves lower numbers first. 1-2 are reserved for the platform.
+  priority        Int            @default(5)
   /// Set when the run failed and waits for a person (the dead-letter list); cleared by a retry.
   deadLetteredAt  DateTime?      @db.Timestamptz(3)
   createdAt       DateTime       @default(now()) @db.Timestamptz(3)
@@ -2671,4 +2683,243 @@ model ExecutiveSettings {
   updatedAt     DateTime @updatedAt @db.Timestamptz(3)
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+
+// ─────────────────────────── Agents, guardian and cost engine (N28) ───────────────────────────
+// The run engine above (AgentRun / AgentRunStep: queue, retries, dead letters, idempotency, approvals, recovery) stays THE job engine. These tables add
+// configured agents, their conversations, single-use publication approvals, versioned prices, usage and budgets, period quotas and the stop switches.
+
+enum AgentType {
+  RESEARCH
+  CONTENT
+  SUPPORT
+  ANALYTICS
+  SUPERVISOR
+}
+
+enum UsageOperationStatus {
+  SUCCEEDED
+  FAILED
+  REFUSED
+}
+
+enum QuotaReservationStatus {
+  RESERVED
+  SETTLED
+  RELEASED
+}
+
+enum AgentApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  /// Used once by the publication it authorized.
+  CONSUMED
+  /// The content changed after the approval was requested: a new approval is needed.
+  SUPERSEDED
+  EXPIRED
+}
+
+enum ControlScope {
+  GLOBAL
+  TENANT
+  AGENT
+}
+
+/// A configured agent of one business. `config` is validated in code (role, permissions, allowed tools, model tier, budget and limits).
+model Agent {
+  id            String    @id @default(cuid())
+  businessId    String
+  type          AgentType
+  name          String
+  enabled       Boolean   @default(true)
+  config        Json
+  createdById   String?
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, name])
+  @@index([businessId, type, enabled])
+}
+
+/// Conversation history of an agent task (tenant-scoped, size-limited, secrets redacted, purged after AGENTS_CONVERSATION_RETENTION_DAYS).
+model AgentConversation {
+  id         String   @id @default(cuid())
+  businessId String
+  agentId    String
+  runId      String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt  DateTime @db.Timestamptz(3)
+
+  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  messages AgentMessage[]
+
+  @@index([businessId, agentId, createdAt])
+  @@index([expiresAt])
+}
+
+model AgentMessage {
+  id             String   @id @default(cuid())
+  businessId     String
+  conversationId String
+  /// system | user | assistant | tool
+  role           String
+  content        String
+  tokens         Int?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  conversation AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([businessId, createdAt])
+}
+
+/// Single-use authorization to publish ONE exact version of a content on ONE channel. Changing the content supersedes it.
+model AgentApproval {
+  id           String              @id @default(cuid())
+  businessId   String
+  runId        String
+  stepKey      String
+  agentId      String
+  contentId    String
+  channel      String
+  /// SHA-256 of the exact content version (title, body, hashtags) that was reviewed.
+  contentHash  String
+  status       AgentApprovalStatus @default(PENDING)
+  decidedById  String?
+  decidedAt    DateTime?           @db.Timestamptz(3)
+  consumedAt   DateTime?           @db.Timestamptz(3)
+  expiresAt    DateTime            @db.Timestamptz(3)
+  createdAt    DateTime            @default(now()) @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  /// One row per exact content version: editing the content creates a new approval (and supersedes the old one).
+  @@unique([runId, stepKey, contentHash])
+  @@index([businessId, status, createdAt])
+  @@index([runId, stepKey, status])
+}
+
+/// Versioned price per model, in micro-units of the currency per million tokens (integer arithmetic only). A new price is a new version.
+model ModelPrice {
+  id                        String   @id @default(cuid())
+  modelId                   String
+  version                   Int
+  currency                  String   @default("USD")
+  inputPerMillionMicros     Int
+  cachedInputPerMillionMicros Int?
+  outputPerMillionMicros    Int
+  effectiveFrom             DateTime @db.Timestamptz(3)
+  /// configured (from the environment) | admin
+  source                    String
+  createdById               String?
+  createdAt                 DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([modelId, version])
+  @@index([modelId, effectiveFrom])
+}
+
+/// One model call of an agent step. Costs are ESTIMATES from the price table (micro-units); `actualCostMicros` stays null until a real bill is known.
+model UsageEvent {
+  id                  String               @id @default(cuid())
+  businessId          String
+  agentId             String?
+  runId               String
+  stepKey             String
+  attempt             Int                  @default(1)
+  modelId             String
+  inputTokens         Int                  @default(0)
+  outputTokens        Int                  @default(0)
+  cachedTokens        Int?
+  estimatedCostMicros BigInt               @default(0)
+  actualCostMicros    BigInt?
+  currency            String               @default("USD")
+  priceVersion        Int?
+  /// false = the model had no price: the cost is unknown, not zero.
+  priced              Boolean              @default(true)
+  status              UsageOperationStatus
+  errorCode           String?
+  createdAt           DateTime             @default(now()) @db.Timestamptz(3)
+
+  @@unique([runId, stepKey, attempt])
+  @@index([businessId, createdAt])
+  @@index([agentId, createdAt])
+}
+
+/// Spending limits of one business for agents. Null = no limit at that level.
+model BudgetPolicy {
+  id               String   @id @default(cuid())
+  businessId       String   @unique
+  dailyCapMicros   BigInt?
+  monthlyCapMicros BigInt?
+  perRunCapMicros  BigInt?
+  /// Percentage of a cap that raises an alert (once per period).
+  alertPercent     Int      @default(80)
+  /// true = a call that would pass a cap is refused before it is made.
+  enforce          Boolean  @default(true)
+  updatedById      String?
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+/// Quota counters of one business for one billing period (the subscription period, or a calendar month without one). A renewal starts a new row.
+model TenantEntitlement {
+  id                   String   @id @default(cuid())
+  businessId           String
+  periodStart          DateTime @db.Timestamptz(3)
+  periodEnd            DateTime @db.Timestamptz(3)
+  /// billing | calendar
+  source               String
+  planCode             String?
+  callsLimit           Int?
+  callsReserved        Int      @default(0)
+  callsUsed            Int      @default(0)
+  budgetLimitMicros    BigInt?
+  budgetReservedMicros BigInt   @default(0)
+  budgetUsedMicros     BigInt   @default(0)
+  createdAt            DateTime @default(now()) @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, periodStart])
+  @@index([businessId, periodEnd])
+}
+
+/// Quota and budget held for one model call between admission and settlement. Settled with what was really used, released when nothing was consumed.
+model UsageReservation {
+  id            String                 @id @default(cuid())
+  businessId    String
+  agentId       String?
+  entitlementId String
+  runId         String
+  stepKey       String
+  attempt       Int                    @default(1)
+  calls         Int                    @default(1)
+  costMicros    BigInt
+  /// UTC day (YYYY-MM-DD) the cost counts against for the daily cap.
+  dayKey        String
+  status        QuotaReservationStatus @default(RESERVED)
+  createdAt     DateTime               @default(now()) @db.Timestamptz(3)
+  settledAt     DateTime?              @db.Timestamptz(3)
+
+  @@unique([runId, stepKey, attempt])
+  @@index([businessId, status, dayKey])
+  @@index([status, createdAt])
+}
+
+/// Emergency stop switches. scopeId is '' for GLOBAL, the business id for TENANT, the agent id for AGENT. While stopped, nothing new starts and nothing acts outside TOUMA.
+model AgentControl {
+  id          String       @id @default(cuid())
+  scope       ControlScope
+  scopeId     String
+  stopped     Boolean      @default(true)
+  reason      String?
+  changedById String?
+  changedAt   DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@unique([scope, scopeId])
 }

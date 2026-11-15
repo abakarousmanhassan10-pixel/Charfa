@@ -20,7 +20,7 @@ const plans: Array<{
     description: 'For solo founders and small shops getting started.',
     defaultPrice: '19.00',
     sortOrder: 1,
-    limits: { businesses: 1, seats: 2, socialAccounts: 3, aiCreditsPerMonth: 200, scheduledPostsPerMonth: 60, storageMb: 2048, agents: ['BUSINESS_ANALYST', 'PRODUCT_ANALYST', 'CONTENT_CREATOR', 'CUSTOMER_SUPPORT', 'SCHEDULER'], features: ['ai', 'calendar', 'sales'], salesInteractionsPerMonth: 100 },
+    limits: { businesses: 1, seats: 2, socialAccounts: 3, aiCreditsPerMonth: 200, scheduledPostsPerMonth: 60, storageMb: 2048, agents: ['BUSINESS_ANALYST', 'PRODUCT_ANALYST', 'CONTENT_CREATOR', 'CUSTOMER_SUPPORT', 'SCHEDULER'], features: ['ai', 'calendar', 'sales'], salesInteractionsPerMonth: 100, maxAgentInstances: 2, agentCallsPerMonth: 100, agentBudgetMicrosPerMonth: 5_000_000 },
   },
   {
     code: 'PRO',
@@ -28,7 +28,7 @@ const plans: Array<{
     description: 'For growing businesses publishing across several platforms.',
     defaultPrice: '49.00',
     sortOrder: 2,
-    limits: { businesses: 3, seats: 5, socialAccounts: 10, aiCreditsPerMonth: 1000, scheduledPostsPerMonth: 300, storageMb: 10240, agents: ['BUSINESS_ANALYST', 'PRODUCT_ANALYST', 'MARKETING_STRATEGIST', 'CONTENT_CREATOR', 'VISUAL_CREATOR', 'SCHEDULER', 'CUSTOMER_SUPPORT', 'PERFORMANCE_ANALYST'], features: ['ai', 'calendar', 'sales', 'creative', 'market', 'campaigns', 'workflows'], salesInteractionsPerMonth: 500 },
+    limits: { businesses: 3, seats: 5, socialAccounts: 10, aiCreditsPerMonth: 1000, scheduledPostsPerMonth: 300, storageMb: 10240, agents: ['BUSINESS_ANALYST', 'PRODUCT_ANALYST', 'MARKETING_STRATEGIST', 'CONTENT_CREATOR', 'VISUAL_CREATOR', 'SCHEDULER', 'CUSTOMER_SUPPORT', 'PERFORMANCE_ANALYST'], features: ['ai', 'calendar', 'sales', 'creative', 'market', 'campaigns', 'workflows', 'agents'], salesInteractionsPerMonth: 500, maxAgentInstances: 5, agentCallsPerMonth: 1000, agentBudgetMicrosPerMonth: 25_000_000 },
   },
   {
     code: 'BUSINESS',
@@ -36,7 +36,7 @@ const plans: Array<{
     description: 'For agencies and multi-brand teams.',
     defaultPrice: '99.00',
     sortOrder: 3,
-    limits: { businesses: 10, seats: 20, socialAccounts: 40, aiCreditsPerMonth: 4000, scheduledPostsPerMonth: 1500, storageMb: 51200, agents: ['BUSINESS_ANALYST', 'PRODUCT_ANALYST', 'MARKETING_STRATEGIST', 'CONTENT_CREATOR', 'VISUAL_CREATOR', 'VIDEO_CREATOR', 'SCHEDULER', 'CUSTOMER_SUPPORT', 'PERFORMANCE_ANALYST'], features: ['ai', 'calendar', 'sales', 'creative', 'market', 'campaigns', 'workflows', 'intelligence', 'autopilot'], salesInteractionsPerMonth: 2000 },
+    limits: { businesses: 10, seats: 20, socialAccounts: 40, aiCreditsPerMonth: 4000, scheduledPostsPerMonth: 1500, storageMb: 51200, agents: ['BUSINESS_ANALYST', 'PRODUCT_ANALYST', 'MARKETING_STRATEGIST', 'CONTENT_CREATOR', 'VISUAL_CREATOR', 'VIDEO_CREATOR', 'SCHEDULER', 'CUSTOMER_SUPPORT', 'PERFORMANCE_ANALYST'], features: ['ai', 'calendar', 'sales', 'creative', 'market', 'campaigns', 'workflows', 'intelligence', 'autopilot', 'agents'], salesInteractionsPerMonth: 2000, maxAgentInstances: 20, agentCallsPerMonth: 10_000, agentBudgetMicrosPerMonth: 100_000_000 },
   },
 ];
 

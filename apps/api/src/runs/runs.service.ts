@@ -7,14 +7,16 @@ import { PageQueryDto, pageArgs, toPage } from '../common/pagination';
 import { lockTenantQuota, quotaExceeded } from '../common/tenant-quota';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TenantContext } from '../tenancy/tenant-context';
-import { RUN_ADAPTER_REGISTRY, RunStepError, type RunAdapterRegistry } from './run-adapters';
+import { RUN_ADAPTER_REGISTRY, RunStepBlocked, RunStepError, type RunAdapterRegistry } from './run-adapters';
 import { RUN_TEMPLATES, assertPlan, hashRequest } from './run-templates';
 import { RunsQueueService } from './runs-queue';
 import { evaluateCondition, type Condition, type ConditionContext } from '../workflows/workflow-conditions';
 
 const ACTIVE: AgentRunStatus[] = ['PENDING', 'RUNNING', 'WAITING_APPROVAL'];
 /** Runs that hold a slot of the tenant's concurrency limit: paused runs still count. */
-const COUNTED: AgentRunStatus[] = [...ACTIVE, 'PAUSED'];
+const COUNTED: AgentRunStatus[] = [...ACTIVE, 'PAUSED', 'CREATED'];
+/** A run the engine does not advance by itself: not yet admitted, or refused by a policy until a person retries it. */
+const HELD: AgentRunStatus[] = ['CREATED', 'BLOCKED'];
 const TERMINAL: AgentRunStatus[] = ['COMPLETED', 'FAILED', 'CANCELLED'];
 const DONE_STEP = ['COMPLETED', 'SKIPPED'];
 
@@ -40,6 +42,15 @@ export interface RunSpec {
   workflowVersion?: number;
   triggerType?: 'manual' | 'schedule' | 'event';
   triggerData?: Record<string, unknown> | null;
+  /** N28: CREATED = wait for an admission decision before queueing (the billing guardian); default PENDING (queued at once). */
+  initialStatus?: 'CREATED';
+  /** 1 (most urgent) to 9, default 5. */
+  priority?: number;
+}
+
+/** A policy that can refuse a step before it starts (kill switch, subscription, quota...). null = go on. Registered by the agents module; runs of other templates see only the kill switch for outward steps. */
+export interface RunGuard {
+  check(run: AgentRun, step: AgentRunStep, external: boolean): Promise<{ code: string; message: string } | null>;
 }
 
 export type RunFinished = (run: { id: string; businessId: string; workflowId: string; createdById: string | null; status: 'COMPLETED' | 'FAILED'; errorCode: string | null }) => Promise<void> | void;
@@ -162,6 +173,8 @@ export class RunsService {
           createdById: actor.userId,
           template: spec.template,
           templateVersion: spec.templateVersion,
+          status: spec.initialStatus,
+          priority: Math.min(9, Math.max(1, Math.trunc(spec.priority ?? 5))),
           idempotencyKey,
           requestHash,
           input: spec.input as Prisma.InputJsonObject,
@@ -195,7 +208,7 @@ export class RunsService {
       throw err;
     }
     await this.audit.record({ action: 'run.created', actorId: actor.userId, businessId: actor.businessId, entityType: 'AgentRun', entityId: created.id, metadata: { template: spec.template, ...(spec.workflowId ? { workflowId: spec.workflowId, trigger: spec.triggerType } : {}) } });
-    await this.queue.wake(created.id);
+    if (!spec.initialStatus) await this.queue.wake(created.id);
     return { run: runView(created), replayed: false };
   }
 
@@ -305,7 +318,7 @@ export class RunsService {
       throw this.conflict('STEP_IN_FLIGHT', 'A step that acts outside TOUMA is running: wait for its result before cancelling');
     }
     const now = new Date();
-    const res = await this.prisma.agentRun.updateMany({ where: { id: run.id, status: { in: COUNTED } }, data: { status: 'CANCELLED', completedAt: now, errorCode: 'CANCELLED', errorMessage: 'Cancelled by a person' } });
+    const res = await this.prisma.agentRun.updateMany({ where: { id: run.id, status: { in: [...COUNTED, 'BLOCKED'] } }, data: { status: 'CANCELLED', completedAt: now, errorCode: 'CANCELLED', errorMessage: 'Cancelled by a person' } });
     if (!res.count) throw this.conflict('RUN_FINISHED', 'This run is already finished');
     await this.prisma.agentRunStep.updateMany({ where: { runId: run.id, status: { in: ['PENDING', 'WAITING_APPROVAL'] } }, data: { status: 'CANCELLED', completedAt: now } });
     await this.event(run.id, run.businessId, 'run.cancelled', { actorId: tenant.userId });
@@ -319,14 +332,14 @@ export class RunsService {
    */
   async retry(tenant: TenantContext, runId: string) {
     const run = await this.load(tenant, runId);
-    if (run.status !== 'FAILED') throw this.conflict('NOT_FAILED', 'Only a failed run can be retried');
+    if (run.status !== 'FAILED' && run.status !== 'BLOCKED') throw this.conflict('NOT_FAILED', 'Only a failed or blocked run can be retried');
     const failed = run.steps.filter((x) => x.status === 'FAILED');
     if (failed.some((x) => x.errorCode === 'OUTCOME_UNKNOWN')) throw this.conflict('OUTCOME_UNKNOWN_UNRESOLVED', 'Resolve the step whose outcome is unknown before retrying');
     const res = await this.prisma.$transaction(async (tx) => {
       await lockTenantQuota(tx, 'runs', tenant.businessId);
       const active = await tx.agentRun.count({ where: { businessId: tenant.businessId, status: { in: COUNTED } } });
       if (active >= this.env.ORCHESTRATOR_MAX_ACTIVE_RUNS_PER_BUSINESS) throw quotaExceeded('RUN_LIMIT_REACHED', 'Too many runs are in progress');
-      return tx.agentRun.updateMany({ where: { id: run.id, status: 'FAILED' }, data: { status: 'PENDING', errorCode: null, errorMessage: null, completedAt: null, deadLetteredAt: null } });
+      return tx.agentRun.updateMany({ where: { id: run.id, status: { in: ['FAILED', 'BLOCKED'] } }, data: { status: 'PENDING', errorCode: null, errorMessage: null, completedAt: null, deadLetteredAt: null } });
     });
     if (!res.count) throw this.conflict('NOT_FAILED', 'Only a failed run can be retried');
     for (const st of failed) {
@@ -366,7 +379,7 @@ export class RunsService {
   async advance(runId: string): Promise<void> {
     for (let round = 0; round < MAX_ADVANCE_ROUNDS; round++) {
       const run = await this.prisma.agentRun.findUnique({ where: { id: runId }, include: { steps: true } });
-      if (!run || TERMINAL.includes(run.status) || run.status === 'PAUSED') return;
+      if (!run || TERMINAL.includes(run.status) || run.status === 'PAUSED' || HELD.includes(run.status)) return;
 
       const failed = run.steps.find((s) => s.status === 'FAILED');
       if (failed) {
@@ -404,6 +417,12 @@ export class RunsService {
           }
           continue;
         }
+        // Policies (kill switch, subscription, quota...) are decided right before the step starts, so an expired subscription or a stop switch blocks even a run queued earlier.
+        const verdict = this.guard ? await this.guard.check(run, step, this.registry.get(step.adapter)?.external ?? true) : null;
+        if (verdict) {
+          await this.blockRun(run, step.key, verdict.code, verdict.message);
+          return;
+        }
         const claim = await this.prisma.agentRunStep.updateMany({
           // The run must still be active at claim time: a cancel or a pause that just committed wins.
           where: { id: step.id, status: 'PENDING', run: { status: { in: ACTIVE } } },
@@ -431,7 +450,7 @@ export class RunsService {
       const outputs: Record<string, Record<string, unknown>> = {};
       for (const d of step.dependsOn) outputs[d] = (byKey.get(d)?.output as Record<string, unknown> | null) ?? {};
       const out = await withTimeout(
-        adapter.execute({ runId: run.id, stepKey: step.key, businessId: run.businessId, idempotencyKey: `${run.id}:${step.key}`, input: run.input as Record<string, unknown>, outputs }),
+        adapter.execute({ runId: run.id, stepKey: step.key, businessId: run.businessId, idempotencyKey: `${run.id}:${step.key}`, attempt, input: run.input as Record<string, unknown>, outputs }),
         this.env.ORCHESTRATOR_STEP_TIMEOUT_MS,
       );
       const done = await this.prisma.agentRunStep.updateMany({
@@ -441,11 +460,32 @@ export class RunsService {
       if (done.count) await this.event(run.id, run.businessId, 'step.completed', { stepKey: step.key, detail: { attempt } });
       else this.logger.warn(`Run ${run.id} step ${step.key}: result discarded, the step was reclaimed meanwhile`);
     } catch (err) {
+      if (err instanceof RunStepBlocked) {
+        // Refused by a policy inside the step: nothing ran, so the try is not counted and the step waits as it was.
+        await this.prisma.agentRunStep.updateMany({ where: { id: step.id, status: 'RUNNING' }, data: { status: 'PENDING', attempts: { decrement: 1 }, startedAt: null } });
+        await this.blockRun(run, step.key, err.code, err.message);
+        return;
+      }
       const e = err instanceof RunStepError ? err : new RunStepError('STEP_ERROR', 'The step failed unexpectedly', false);
       // Server-side log: codes only, never the error message of an adapter and never the input.
       this.logger.warn(`Run ${run.id} step ${step.key} attempt ${attempt} failed: ${e.code}`);
       await this.failStep(run, step, attempt, e, adapter.external);
     }
+  }
+
+  /** Marks a run BLOCKED (a policy refused it; nothing ran). Codes only. */
+  async blockRun(run: Pick<AgentRun, 'id' | 'businessId'>, stepKey: string | null, code: string, message: string) {
+    const res = await this.prisma.agentRun.updateMany({ where: { id: run.id, status: { in: [...ACTIVE, 'CREATED'] } }, data: { status: 'BLOCKED', errorCode: code, errorMessage: message.slice(0, 300) } });
+    if (!res.count) return;
+    await this.event(run.id, run.businessId, 'run.blocked', { stepKey: stepKey ?? undefined, detail: { code } });
+    await this.audit.record({ action: 'run.blocked', businessId: run.businessId, entityType: 'AgentRun', entityId: run.id, metadata: { code, stepKey } });
+  }
+
+  private guard?: RunGuard;
+
+  /** The agents module registers its policy here (a hook, so the two modules do not depend on each other). */
+  setGuard(g: RunGuard) {
+    this.guard = g;
   }
 
   private async failStep(run: AgentRun, step: AgentRunStep, attempt: number, e: RunStepError, external: boolean) {

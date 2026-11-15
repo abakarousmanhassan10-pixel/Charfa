@@ -3,6 +3,7 @@ import { Queue } from 'bullmq';
 import type IORedis from 'ioredis';
 import { bullConnection } from '../ai/ai-queue';
 import { AppEnv, InjectEnv } from '../config';
+import { PrismaService } from '../prisma/prisma.service';
 
 export const RUNS_QUEUE = 'touma.runs';
 export const RUNS_WORKER_HEARTBEAT_KEY = 'touma:runs-worker:heartbeat';
@@ -18,7 +19,7 @@ export class RunsQueueService implements OnModuleDestroy {
   private connection?: IORedis;
   private queue?: Queue<RunJobData>;
 
-  constructor(@InjectEnv() private readonly env: AppEnv) {}
+  constructor(@InjectEnv() private readonly env: AppEnv, private readonly prisma: PrismaService) {}
 
   private get q() {
     if (!this.queue) {
@@ -34,7 +35,9 @@ export class RunsQueueService implements OnModuleDestroy {
    */
   async wake(runId: string, delayMs = 0): Promise<boolean> {
     try {
-      const add = this.q.add('advance', { runId }, { delay: delayMs, attempts: 1, removeOnComplete: { age: 3600, count: 1000 }, removeOnFail: { age: 7 * 24 * 3600 } });
+      // The run's priority (1 = most urgent): BullMQ serves lower numbers first.
+      const priority = (await this.prisma.agentRun.findUnique({ where: { id: runId }, select: { priority: true } }))?.priority ?? 5;
+      const add = this.q.add('advance', { runId }, { delay: delayMs, priority, attempts: 1, removeOnComplete: { age: 3600, count: 1000 }, removeOnFail: { age: 7 * 24 * 3600 } });
       await Promise.race([add, new Promise<never>((_, rej) => setTimeout(() => rej(new Error('queue timeout')), 5000).unref())]);
       return true;
     } catch {

@@ -8,9 +8,22 @@ export class RunStepError extends Error {
   }
 }
 
+/**
+ * Thrown by an adapter when it must not run NOW for a policy reason (expired subscription, quota or budget, agent not allowed, stopped by an administrator).
+ * The step goes back to waiting and the run becomes BLOCKED; nothing was executed and nothing is consumed. A person retries once the cause is fixed.
+ */
+export class RunStepBlocked extends RunStepError {
+  constructor(code: string, message: string) {
+    super(code, message, false);
+    this.name = 'RunStepBlocked';
+  }
+}
+
 export interface RunAdapterContext {
   runId: string;
   stepKey: string;
+  /** Which try of this step this is (1 for the first, the default): usage and reservations are keyed by it so a retry never double-counts. */
+  attempt?: number;
   businessId: string;
   /** Stable per step (`<run>:<step>`): an adapter that talks to the outside world must use it to deduplicate. */
   idempotencyKey: string;

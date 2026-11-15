@@ -281,6 +281,24 @@ export const appEnvSchema = z.object({
   BILLING_MAX_FAILED_PAYMENTS: z.coerce.number().int().min(1).max(10).default(3),
   /** Comma-separated e-mails of the founder(s): owners with a VERIFIED e-mail on this list keep free lifetime access. */
   FOUNDER_EMAILS: z.string().default('').transform((v) => v.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)),
+  // ─── AI agents, guardian and cost engine (Phase N28): off by default; agents use the configured text provider (the mock in demos), never act outside TOUMA ───
+  AGENTS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  AGENTS_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
+  /** Conversation history of agent tasks is deleted after this many days. */
+  AGENTS_CONVERSATION_RETENTION_DAYS: z.coerce.number().int().min(1).max(730).default(90),
+  /** JSON {"economy":"<model id>","standard":"<model id>","advanced":"<model id>"}: the models the router may choose per tier. Unset tiers use AI_MODEL. Model ids are never assumed: check them against the provider's model list when configuring the real API. */
+  AGENT_MODEL_TIERS: z.string().optional().transform((v, ctx) => {
+    try { return parseModelTiers(v); } catch (e) { ctx.addIssue({ code: z.ZodIssueCode.custom, message: (e as Error).message }); return z.NEVER; }
+  }),
+  /** Comma-separated model ids an agent may be configured with explicitly (default: the tier models and AI_MODEL). */
+  AGENT_ALLOWED_MODELS: z.string().default('').transform((v) => v.split(',').map((x) => x.trim()).filter(Boolean)),
+  /** Cost reserved for a call whose model has no price (micro-units of USD): unknown is treated as costly, never as free. */
+  AGENT_UNPRICED_MICROS_PER_CALL: z.coerce.number().int().min(0).max(10_000_000).default(10_000),
+  /** A reservation not settled within this many seconds is considered abandoned (worker crash) and released. */
+  AGENT_RESERVATION_TTL_SECONDS: z.coerce.number().int().min(30).default(900),
+  /** Limits for a business with no plan limits (no subscription): conservative, so agents can never run unbounded. */
+  AGENT_DEFAULT_CALLS_PER_MONTH: z.coerce.number().int().min(0).default(100),
+  AGENT_DEFAULT_BUDGET_MICROS_PER_MONTH: z.coerce.number().int().min(0).default(5_000_000),
   // ─── Business autopilot (Phase N22): decision support from merchant-entered costs. It proposes only (no price change, refund, payment, ad spend or publication). Off by default.
   AUTOPILOT_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   // ─── Business intelligence (Phase N21): memory, evaluations, experiments, recommendations, alerts. Local and deterministic; off by default.
@@ -507,6 +525,20 @@ export const AI_TASK_NAMES = ['BUSINESS_ANALYSIS', 'PRODUCT_ANALYSIS', 'MARKETIN
 export type AiTaskName = (typeof AI_TASK_NAMES)[number];
 
 /** Parses AI_TASK_MODELS. Unknown task names and empty or oversized model names are refused so a typo cannot silently fall back. */
+export function parseModelTiers(raw: string | undefined): Partial<Record<'economy' | 'standard' | 'advanced', string>> {
+  if (!raw || raw.trim() === '') return {};
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { throw new Error('AGENT_MODEL_TIERS must be a JSON object'); }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('AGENT_MODEL_TIERS must be a JSON object');
+  const out: Partial<Record<'economy' | 'standard' | 'advanced', string>> = {};
+  for (const [tier, model] of Object.entries(parsed as Record<string, unknown>)) {
+    if (!['economy', 'standard', 'advanced'].includes(tier)) throw new Error(`AGENT_MODEL_TIERS: unknown tier "${tier}" (allowed: economy, standard, advanced)`);
+    if (typeof model !== 'string' || !/^[A-Za-z0-9._:/-]{1,100}$/.test(model)) throw new Error(`AGENT_MODEL_TIERS: invalid model id for ${tier}`);
+    out[tier as 'economy' | 'standard' | 'advanced'] = model;
+  }
+  return out;
+}
+
 export function parsePriceMap(raw: string | undefined): Record<string, string> {
   if (!raw || raw.trim() === '') return {};
   let parsed: unknown;
