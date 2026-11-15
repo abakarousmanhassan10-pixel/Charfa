@@ -14,6 +14,7 @@ import { Inject } from '@nestjs/common';
 import { AppEnv, InjectEnv } from '../config';
 import { AuditService } from '../audit/audit.service';
 import { BillingService } from '../billing/billing.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { lockTenantQuota, quotaExceeded } from '../common/tenant-quota';
 import { PrismaService } from '../prisma/prisma.service';
@@ -99,6 +100,7 @@ export class AiOrchestratorService {
     private readonly usage: AiUsageService,
     private readonly audit: AuditService,
     private readonly billing: BillingService,
+    private readonly entitlements: EntitlementsService,
     private readonly queue: AiQueueService,
     @Inject(TEXT_PROVIDER) private readonly provider: TextModelProvider,
     @InjectEnv() private readonly env: AppEnv,
@@ -256,6 +258,7 @@ export class AiOrchestratorService {
     const units = await this.estimateUnits(tenant.businessId, req, hash);
     const flags = this.injectionFlags(ctx, req.instructions);
     const agent = AGENT_FOR[req.task];
+    await this.entitlements.assertAgent(tenant.businessId, agent.agent); // the plan must include this agent (off unless BILLING_ENFORCEMENT_ENABLED)
 
     const gen = await this.prisma.$transaction(async (tx) => {
       // Tenant limit on queued + running generations, decided under a tenant lock (nothing is charged when it refuses).

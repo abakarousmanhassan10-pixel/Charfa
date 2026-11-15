@@ -16,10 +16,12 @@ interface Plan { code: string; name: string; description: string | null; currenc
 interface Status {
   enabled: boolean;
   simulation: boolean;
+  sandbox: boolean;
   graceDays: number;
   reminderDays: number;
   plans: Plan[];
-  provider: { id: string; live: boolean; recurringSubscriptions: string; hostedPaymentSession: string; methods: string[]; verifiedAgainstOfficialDocs: boolean } | null;
+  provider: { id: string; live: boolean; recurringSubscriptions: string; hostedPaymentSession: string; subscriptionModel: 'saved-card' | 'checkout'; sandboxOnly: boolean; methods: string[]; verifiedAgainstOfficialDocs: boolean } | null;
+  entitlements: { enforced: boolean; source: string; plan: string | null; agents: { allowed: string[] | null; max: number | null }; features: string[] | null; usage: { aiGenerations: { used: number; limit: number }; aiTokens: { used: number; limit: number }; salesInteractions: { used: number; limit: number | null } } };
   entitlement: { state: string; hasAccess: boolean; chargeable: boolean; accessUntil: string | null };
   subscription: {
     status: string; plan: string; billingMode: Mode; billingInterval: Interval; amountMinor: number; currency: string; trial: boolean; trialEndsAt: string | null; currentPeriodEnd: string | null;
@@ -87,13 +89,14 @@ export function BillingView() {
   const founder = state === 'FOUNDER_LIFETIME';
   const busy = pending !== null;
   const errText = error ? (t(`billing.errors.${error.code}`).startsWith('billing.errors.') ? error.message : t(`billing.errors.${error.code}`)) : null;
-  const providerNote = !s.provider ? t('billing.providerNone') : s.provider.id === 'simulated' ? t('billing.providerSimulated') : !s.provider.verifiedAgainstOfficialDocs ? t('billing.providerUnverified') : null;
+  const providerNote = !s.provider ? t('billing.providerNone') : s.provider.id === 'simulated' ? t('billing.providerSimulated') : s.sandbox ? null : !s.provider.verifiedAgainstOfficialDocs ? t('billing.providerUnverified') : null;
   const priceOf = (p: Plan, i: Interval) => (i === 'YEARLY' ? p.yearlyPriceAmountMinor : p.priceAmountMinor);
   const planChoice = s.plans.find((p) => p.code === plan);
 
   async function renew() {
     const res = await act<Session>('renewals', { returnUrl: returnUrl() });
     if (res) { setSession(res); if (!s.simulation) setNote(res.hostedUrl); }
+    if (res?.hostedUrl && !s.simulation) window.open(res.hostedUrl, '_blank', 'noopener,noreferrer');
   }
   async function simulate(path: 'confirm' | 'due', outcome: 'success' | 'declined') {
     const res = await act(`simulator/${path}`, path === 'confirm' ? { paymentId: session?.paymentId, outcome } : { outcome });
@@ -103,6 +106,7 @@ export function BillingView() {
   return (
     <div className="grid gap-4" data-testid="billing-view">
       {s.simulation && <p className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm font-medium" role="status" data-testid="billing-simulation-banner">{t('billing.simulationBanner')}</p>}
+      {s.sandbox && <p className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm font-medium" role="status" data-testid="billing-sandbox-banner">{t('billing.sandboxBanner')}</p>}
       {providerNote && <p className="rounded-md bg-amber-500/10 px-3 py-2 text-sm" role="status" data-testid="billing-provider-note">{providerNote}</p>}
       {s.providerMigration.required && <p className="rounded-md bg-amber-500/10 px-3 py-2 text-sm" role="status">{t('billing.migrationNeeded')}</p>}
       {errText && <p className="rounded-md border border-destructive/40 px-3 py-2 text-sm" role="alert" data-testid="billing-error">{errText}</p>}
@@ -154,8 +158,9 @@ export function BillingView() {
           {manage && !founder && sub && (
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {s.renewalOpen && <Button onClick={() => void renew()} disabled={busy} data-testid="billing-renew">{pending === 'renewals' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{t('billing.renew')}</Button>}
-              {sub.billingMode === 'AUTO' && !sub.cardSaved && <Button variant="outline" onClick={async () => { const r = await act<{ hostedUrl: string }>('card-setup', { returnUrl: returnUrl() }); if (r) setNote(s.simulation ? t('billing.simulatedCardPage') : r.hostedUrl); }} disabled={busy} data-testid="billing-card-setup">{t('billing.saveCard')}</Button>}
-              {sub.billingMode === 'AUTO' && sub.cardSaved && !sub.subscribed && <Button variant="outline" onClick={() => void act('subscribe')} disabled={busy} data-testid="billing-subscribe">{t('billing.subscribe')}</Button>}
+              {sub.billingMode === 'AUTO' && s.provider?.subscriptionModel !== 'checkout' && !sub.cardSaved && <Button variant="outline" onClick={async () => { const r = await act<{ hostedUrl: string }>('card-setup', { returnUrl: returnUrl() }); if (r) setNote(s.simulation ? t('billing.simulatedCardPage') : r.hostedUrl); }} disabled={busy} data-testid="billing-card-setup">{t('billing.saveCard')}</Button>}
+              {sub.billingMode === 'AUTO' && s.provider?.subscriptionModel !== 'checkout' && sub.cardSaved && !sub.subscribed && <Button variant="outline" onClick={() => void act('subscribe')} disabled={busy} data-testid="billing-subscribe">{t('billing.subscribe')}</Button>}
+              {sub.billingMode === 'AUTO' && s.provider?.subscriptionModel === 'checkout' && !sub.subscribed && <Button variant="outline" onClick={async () => { const r = await act<{ checkoutUrl?: string }>('subscribe'); if (r?.checkoutUrl) { setNote(r.checkoutUrl); window.open(r.checkoutUrl, '_blank', 'noopener,noreferrer'); } }} disabled={busy} data-testid="billing-subscribe-checkout">{t('billing.subscribeCheckout')}</Button>}
               {sub.billingMode === 'AUTO' && <Button variant="outline" onClick={() => void act('mode', { billingMode: 'MANUAL' })} disabled={busy} data-testid="billing-disable-auto">{t('billing.disableAuto')}</Button>}
               {sub.billingMode === 'MANUAL' && <Button variant="outline" onClick={() => setConsent((c) => !c)} data-testid="billing-enable-auto-toggle">{t('billing.enableAuto')}</Button>}
               {sub.status !== 'EXPIRED' && sub.status !== 'CANCELED' && !sub.cancelAtPeriodEnd && <Button variant="ghost" onClick={() => void act('cancel')} disabled={busy} data-testid="billing-cancel">{t('billing.cancel')}</Button>}
@@ -213,10 +218,20 @@ export function BillingView() {
         </Card>
       )}
 
+      <Card data-testid="billing-plan-usage">
+        <CardHeader><CardTitle>{t('billing.usageTitle')}</CardTitle><CardDescription>{s.entitlements.enforced ? t('billing.usageEnforced') : t('billing.usageNotEnforced')}</CardDescription></CardHeader>
+        <CardContent className="grid gap-1 text-sm">
+          <p data-testid="usage-generations">{t('billing.usageGenerations', { used: s.entitlements.usage.aiGenerations.used, limit: s.entitlements.usage.aiGenerations.limit })}</p>
+          <p data-testid="usage-sales">{s.entitlements.usage.salesInteractions.limit === null ? t('billing.usageSalesUnlimited', { used: s.entitlements.usage.salesInteractions.used }) : t('billing.usageSales', { used: s.entitlements.usage.salesInteractions.used, limit: s.entitlements.usage.salesInteractions.limit })}</p>
+          <p data-testid="usage-agents">{s.entitlements.agents.max === null ? t('billing.usageAgentsAll') : t('billing.usageAgents', { count: s.entitlements.agents.max })}</p>
+          {s.entitlements.features && <p className="text-muted-foreground" data-testid="usage-features">{t('billing.usageFeatures')}: {s.entitlements.features.join(', ')}</p>}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle>{t('billing.methodsTitle')}</CardTitle></CardHeader>
         <CardContent className="text-sm text-muted-foreground" data-testid="billing-methods">
-          {s.provider && s.provider.methods.length > 0 ? t('billing.methodsSimulated') : t('billing.methodsUnverified')}
+          {s.provider && s.provider.methods.length > 0 ? t('billing.methodsSimulated') : s.sandbox ? t('billing.methodsSandbox') : t('billing.methodsUnverified')}
         </CardContent>
       </Card>
 

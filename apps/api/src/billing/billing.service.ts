@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { TenantContext } from '../tenancy/tenant-context';
 import { PAYMENT_PROVIDER } from './billing-provider';
 import { BillingEngine } from './billing-engine.service';
+import { EntitlementsService } from './entitlements.service';
 import { FounderService } from './founder.service';
 import { ProviderUnavailableError, type PaymentProvider } from './payment-provider';
 import { auditSubscription, lockSubscription } from './subscription-state';
@@ -28,6 +29,7 @@ export class BillingService {
     private readonly audit: AuditService,
     private readonly engine: BillingEngine,
     private readonly founders: FounderService,
+    private readonly plan: EntitlementsService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider | null,
     @InjectEnv() private readonly env: AppEnv,
   ) {}
@@ -41,7 +43,7 @@ export class BillingService {
   private async guarded<T>(fn: () => Promise<T>): Promise<T> {
     try { return await fn(); } catch (e) {
       if (e instanceof ProviderUnavailableError) throw err(ServiceUnavailableException, e.code, e.message);
-      throw e;
+      throw err(ServiceUnavailableException, 'PROVIDER_UNAVAILABLE', 'The payment provider is unavailable. Nothing was charged; try again later.');
     }
   }
   private async noFounder(businessId: string, what: string) {
@@ -80,6 +82,9 @@ export class BillingService {
       enabled: this.env.BILLING_ENABLED,
       /** True on the mock provider: nothing real is charged and revenue figures are not real money. */
       simulation: this.provider?.id === 'simulated',
+      /** True on a provider's SANDBOX adapter (test credentials, test cards): no real payment either. */
+      sandbox: Boolean(caps?.sandboxOnly),
+      environment: this.env.PAYMENT_ENVIRONMENT,
       graceDays: this.env.BILLING_GRACE_DAYS,
       reminderDays: this.env.BILLING_REMINDER_DAYS,
       plans,
@@ -93,6 +98,7 @@ export class BillingService {
       } : null,
       nextPayment,
       renewalOpen,
+      entitlements: await this.plan.summary(t.businessId),
       /** True when the saved customer/card belongs to another provider than the one now configured: a new card must be captured (see docs/BILLING.md). */
       providerMigration: { required: Boolean(sub && this.provider && sub.provider !== 'none' && sub.provider !== this.provider.id), from: sub?.provider ?? null },
     };
@@ -209,6 +215,7 @@ export class BillingService {
     await this.noFounder(t.businessId, 'no card is needed');
     const sub = await this.prisma.subscription.findUnique({ where: { businessId: t.businessId } });
     if (!sub) throw err(NotFoundException, 'NO_SUBSCRIPTION', 'Choose a plan first');
+    if (provider.capabilities().subscriptionModel === 'checkout') throw err(ConflictException, 'CAPABILITY_UNSUPPORTED', 'This payment provider saves the card during its hosted checkout: use Subscribe');
     const migrating = sub.provider !== 'none' && sub.provider !== provider.id;
     if (migrating && sub.providerSubscriptionId) throw err(ConflictException, 'PROVIDER_MIGRATION_BLOCKED', `A subscription is still active at ${sub.provider}: cancel it there first, then capture a new card`);
     return this.guarded(async () => {
@@ -231,6 +238,7 @@ export class BillingService {
     const sub = await this.prisma.subscription.findUnique({ where: { businessId: t.businessId }, include: { plan: true, pendingPlan: true } });
     if (!sub) throw err(NotFoundException, 'NO_SUBSCRIPTION', 'Choose a plan first');
     if (sub.billingMode !== 'AUTO' || !sub.autoRenewConsentAt) throw err(ConflictException, 'CONSENT_REQUIRED', 'Choose automatic renewal and give your consent first');
+    if (provider.capabilities().subscriptionModel === 'checkout') return this.subscribeByCheckout(t, sub, provider);
     if (!sub.providerCustomerId || !sub.paymentMethodRef) throw err(ConflictException, 'CARD_REQUIRED', 'Save a card first');
     if (sub.provider !== provider.id) throw err(ConflictException, 'PROVIDER_MIGRATION_REQUIRED', 'Capture a card with the current payment provider first');
     if (sub.providerSubscriptionId) throw err(ConflictException, 'ALREADY_SUBSCRIBED', 'A subscription already exists');
@@ -242,6 +250,29 @@ export class BillingService {
       await auditSubscription(tx, sub, 'provider_subscription_scheduled', { actorId: t.userId, reason: 'recurring charge scheduled', metadata: { amountMinor: q.amountMinor, currency: q.currency, interval: q.interval, firstChargeAt: q.periodStart } });
     });
     return this.status(t);
+  }
+
+  /**
+   * "checkout" providers (e.g. Paddle): the customer completes a hosted checkout of the recurring price. The subscription exists at the provider only after they do,
+   * and our subscription becomes ACTIVE only when the provider's verified notifications confirm the first payment.
+   */
+  private async subscribeByCheckout(t: TenantContext, sub: { id: string; businessId: string; provider: string; providerSubscriptionId: string | null; providerCustomerId: string | null; currentPeriodEnd: Date | null; plan: { code: string }; pendingPlan: { code: string } | null; billingInterval: BillingIntervalName; pendingBillingInterval: BillingIntervalName | null }, provider: PaymentProvider) {
+    if (sub.providerSubscriptionId) throw err(ConflictException, 'ALREADY_SUBSCRIBED', 'A subscription already exists');
+    if (sub.provider !== 'none' && sub.provider !== provider.id) throw err(ConflictException, 'PROVIDER_MIGRATION_REQUIRED', 'The payment provider changed: start the subscription again with the current provider');
+    const full = await this.prisma.subscription.findUniqueOrThrow({ where: { id: sub.id }, include: { plan: true, pendingPlan: true } });
+    const q = this.engine.quote(full, new Date());
+    let customerRef = sub.providerCustomerId;
+    if (!customerRef) {
+      const user = await this.prisma.user.findUniqueOrThrow({ where: { id: t.userId }, select: { email: true } });
+      customerRef = await this.guarded(async () => (await provider.createCustomer({ businessId: t.businessId, email: user.email })).customerRef);
+      await this.prisma.subscription.update({ where: { id: sub.id }, data: { providerCustomerId: customerRef, provider: provider.id } });
+    }
+    const key = await this.engine.nextRenewalKey(full);
+    const checkout = await this.guarded(() => provider.createRecurringCheckout({ customerRef: customerRef!, planCode: q.planCode, interval: q.interval, amountMinor: q.amountMinor, currency: q.currency, reference: key, returnUrl: `${this.env.WEB_URL}/dashboard/billing` }));
+    await this.prisma.$transaction(async (tx) => {
+      await auditSubscription(tx, sub, 'recurring_checkout_created', { actorId: t.userId, reason: 'hosted checkout opened; nothing is active until the provider confirms', metadata: { amountMinor: q.amountMinor, currency: q.currency, interval: q.interval } });
+    });
+    return { ...(await this.status(t)), checkoutUrl: checkout.hostedUrl };
   }
 
   // ─── Renewal (manual) ────────────────────────────────────────────────────

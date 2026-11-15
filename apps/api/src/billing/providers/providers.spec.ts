@@ -28,7 +28,7 @@ describe('SimulatedPaymentProvider', () => {
 describe('PayoneerPaymentProvider', () => {
   const p = new PayoneerPaymentProvider();
   it('declares every capability unverified', () => {
-    expect(p.capabilities()).toEqual({ id: 'payoneer', recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', hostedPaymentSession: 'unverified', verifiedWebhooks: 'unverified', methods: [], verifiedAgainstOfficialDocs: false, live: false });
+    expect(p.capabilities()).toEqual({ id: 'payoneer', recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', hostedPaymentSession: 'unverified', subscriptionModel: 'saved-card', sandboxOnly: false, credentialsConfigured: false, verifiedWebhooks: 'unverified', methods: [], verifiedAgainstOfficialDocs: false, live: false });
   });
   it('refuses every operation without doing anything', async () => {
     await expect(p.createCustomer()).rejects.toBeInstanceOf(ProviderUnavailableError);
@@ -56,6 +56,18 @@ describe.each([
     await expect(p.createSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
     await expect(p.cancelSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
     await expect(p.resumeSubscription()).rejects.toBeInstanceOf(ProviderUnavailableError);
+    expect(() => p.verifyWebhook()).toThrow(ProviderUnavailableError);
+  });
+});
+
+describe('LemonSqueezyProvider (preparation only)', () => {
+  const { LemonSqueezyProvider } = jest.requireActual('./lemonsqueezy.provider') as typeof import('./lemonsqueezy.provider');
+  const p = new LemonSqueezyProvider();
+  it('is inert: nothing verified, nothing assumed, every call refused', async () => {
+    expect(p.id).toBe('lemonsqueezy');
+    expect(p.capabilities()).toMatchObject({ recurringSubscriptions: 'unverified', methods: [], verifiedAgainstOfficialDocs: false, live: false });
+    await expect(p.createPaymentSession()).rejects.toMatchObject({ code: 'PROVIDER_NOT_VERIFIED' });
+    await expect(p.createRecurringCheckout()).rejects.toMatchObject({ code: 'PROVIDER_NOT_VERIFIED' });
     expect(() => p.verifyWebhook()).toThrow(ProviderUnavailableError);
   });
 });

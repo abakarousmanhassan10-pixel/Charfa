@@ -16,3 +16,4 @@ export * from './social-capabilities';
 export * from './campaign';
 export * from './executive';
 export * from './billing';
+export * from './entitlements';

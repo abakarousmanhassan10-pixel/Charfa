@@ -2849,7 +2849,13 @@
       "INVALID_TRANSITION": "Ce changement n'est pas autorisé dans l'état actuel.",
       "PAYMENT_NOT_PENDING": "Ce paiement est déjà réglé.",
       "NOT_AUTOMATIC": "Le renouvellement automatique n'est pas configuré.",
-      "CAPABILITY_UNSUPPORTED": "Ce prestataire de paiement ne le permet pas."
+      "CAPABILITY_UNSUPPORTED": "Ce prestataire de paiement ne le permet pas.",
+      "FEATURE_NOT_IN_PLAN": "Cette fonctionnalité n'est pas incluse dans votre forfait.",
+      "AGENT_NOT_IN_PLAN": "Cet agent IA n'est pas inclus dans votre forfait.",
+      "PLAN_QUOTA_REACHED": "La limite mensuelle de votre forfait est atteinte.",
+      "PROVIDER_UNAVAILABLE": "Le prestataire de paiement est indisponible. Rien n'a été débité. Réessayez plus tard.",
+      "CREDENTIALS_REJECTED": "Le prestataire de paiement a refusé les identifiants de ce serveur. Rien n'a été débité.",
+      "PROVIDER_NOT_CONFIGURED": "Le prestataire de paiement n'est pas configuré sur ce serveur."
     },
     "simulationBanner": "Simulation — aucun paiement réel",
     "mode": "Renouvellement",
@@ -2923,11 +2929,51 @@
       "cap": {
         "supported": "simulation",
         "unverified": "non vérifié",
-        "unsupported": "non pris en charge"
+        "unsupported": "non pris en charge",
+        "sandbox": "bac à sable (non vérifié)"
       },
       "eventsTitle": "Événements récents",
-      "link": "Vue d'ensemble de la facturation"
+      "link": "Vue d'ensemble de la facturation",
+      "incidentsTitle": "Incidents (30 jours)",
+      "incidentsEmpty": "Aucun incident.",
+      "failedNotifications": "Notifications en échec",
+      "ignoredNotifications": "Notifications ignorées",
+      "subscriptionsTitle": "Abonnements",
+      "filterAll": "Tous les états",
+      "approvalTitle": "Accord du prestataire et verrou de production",
+      "approvalHelp": "Les paiements réels restent bloqués tant que le prestataire n'a pas accepté par écrit les activités réelles de TOUMA, et cette version les bloque dans tous les cas.",
+      "approvalStatus": "Décision du prestataire",
+      "approvalReference": "Référence de la décision écrite du prestataire",
+      "approvalNote": "Note",
+      "approvalSave": "Enregistrer la décision",
+      "blocked": "Paiements réels bloqués",
+      "reason": {
+        "BUILD_BLOCKS_LIVE_PAYMENTS": "cette version bloque les paiements réels",
+        "ENVIRONMENT_NOT_LIVE": "l'environnement est le bac à sable",
+        "PROVIDER_NOT_APPROVED": "le prestataire n'a pas approuvé TOUMA",
+        "ADAPTER_NOT_LIVE_CAPABLE": "l'adaptateur n'a pas de mode réel",
+        "ADAPTER_NOT_VERIFIED": "adaptateur non vérifié sur la documentation officielle"
+      },
+      "status": {
+        "NOT_SUBMITTED": "Non soumis",
+        "PENDING_REVIEW": "En cours d'examen",
+        "APPROVED": "Approuvé",
+        "REJECTED": "Refusé"
+      },
+      "environment": "Environnement"
     },
-    "simCardSaved": "Simuler : la page de carte a enregistré une carte"
+    "simCardSaved": "Simuler : la page de carte a enregistré une carte",
+    "sandboxBanner": "Bac à sable — paiements de test uniquement, aucun paiement réel. Utilisez les cartes de test du prestataire.",
+    "subscribeCheckout": "S'abonner sur la page de paiement sécurisée",
+    "methodsSandbox": "Bac à sable : les moyens de paiement affichés chez le prestataire sont des moyens de test. Les moyens réels (Visa, Mastercard, portefeuilles) dépendent de l'accord du prestataire, qui n'est pas encore donné.",
+    "usageTitle": "Votre forfait et votre consommation",
+    "usageEnforced": "Les limites du forfait sont appliquées côté serveur.",
+    "usageNotEnforced": "Les limites d'agents et de fonctionnalités ne sont pas encore appliquées sur ce serveur (les quotas de génération IA le sont toujours).",
+    "usageGenerations": "Générations IA ce mois-ci : {used} sur {limit}",
+    "usageSales": "Réponses de l'assistant commercial IA ce mois-ci : {used} sur {limit}",
+    "usageSalesUnlimited": "Réponses de l'assistant commercial IA ce mois-ci : {used} (pas de limite de forfait)",
+    "usageAgents": "Agents IA inclus dans votre forfait : {count}",
+    "usageAgentsAll": "Tous les agents IA sont disponibles",
+    "usageFeatures": "Fonctionnalités"
   }
 }

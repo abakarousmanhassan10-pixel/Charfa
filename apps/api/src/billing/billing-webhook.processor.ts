@@ -3,9 +3,9 @@ import { Prisma } from '@touma/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingEngine } from './billing-engine.service';
 import { PAYMENT_PROVIDER } from './billing-provider';
-import { ProviderUnavailableError, WebhookSignatureError, type PaymentProvider } from './payment-provider';
+import { IgnoredEventError, ProviderUnavailableError, WebhookSignatureError, type PaymentProvider } from './payment-provider';
 
-const KIND = { simulated: 'SIMULATED_BILLING', payoneer: 'PAYONEER', iyzico: 'IYZICO' } as const;
+const KIND = { simulated: 'SIMULATED_BILLING', payoneer: 'PAYONEER', iyzico: 'IYZICO', 'paddle-sandbox': 'PADDLE', lemonsqueezy: 'LEMONSQUEEZY' } as const;
 
 /**
  * The single entry point for provider notifications (the HTTP webhook route and the local simulator both use it). A notification is processed only
@@ -30,6 +30,11 @@ export class BillingWebhookProcessor {
     } catch (e) {
       if (e instanceof WebhookSignatureError) throw new UnauthorizedException({ code: 'WEBHOOK_SIGNATURE_INVALID', message: 'Invalid signature' });
       if (e instanceof ProviderUnavailableError) throw new ServiceUnavailableException({ code: e.code, message: e.message });
+      if (e instanceof IgnoredEventError) {
+        // Authentic but not something TOUMA acts on: acknowledge (so the provider stops retrying) and keep a trace.
+        try { await this.prisma.webhookEvent.create({ data: { provider: kind, externalEventId: e.eventId, type: e.eventType, signatureValid: true, status: 'IGNORED', processedAt: new Date(), payload: JSON.parse(rawBody.toString('utf8')) as Prisma.InputJsonValue } }); } catch { /* already stored */ }
+        return { received: true, duplicate: false, ignored: true };
+      }
       throw e;
     }
     let row;

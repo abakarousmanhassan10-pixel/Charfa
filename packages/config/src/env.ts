@@ -258,7 +258,18 @@ export const appEnvSchema = z.object({
   /** none = no provider; simulated = test-only in-process provider (APP_ENV=test); payoneer / iyzico = preparatory adapters that refuse everything until their capabilities are verified against the provider's official documentation. */
   /** Server-side subscription authorization for paid AI actions (text, image, video generation). Off by default: nothing is blocked. Requires BILLING_ENABLED. The founder is always exempt. */
   BILLING_ENFORCEMENT_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
-  BILLING_PROVIDER: z.enum(['none', 'simulated', 'payoneer', 'iyzico']).default('none'),
+  BILLING_PROVIDER: z.enum(['none', 'simulated', 'payoneer', 'iyzico', 'paddle-sandbox', 'lemonsqueezy']).default('none'),
+  /** sandbox is the only environment this build accepts: live payments are blocked (see BUILD_BLOCKS_LIVE_PAYMENTS in @touma/shared). */
+  PAYMENT_ENVIRONMENT: z.enum(['sandbox', 'live']).default('sandbox'),
+  // ─── Paddle SANDBOX (test credentials supplied by the administrator, server side only; never a live key) ───
+  PADDLE_API_KEY: z.string().min(10).optional(),
+  PADDLE_WEBHOOK_SECRET: z.string().min(16).optional(),
+  /** JSON object "PLAN:INTERVAL" (recurring price, automatic renewal) and "PLAN:INTERVAL:ONCE" (one-time price, manual renewal) -> Paddle sandbox price id; the prices must exist in the Paddle sandbox catalog. */
+  PADDLE_PRICE_MAP: z.string().default('').transform((v, ctx) => {
+    try { return parsePriceMap(v); } catch (e) { ctx.addIssue({ code: z.ZodIssueCode.custom, message: (e as Error).message }); return z.NEVER; }
+  }),
+  /** Override of the Paddle sandbox API base URL: only accepted when APP_ENV=test (a local fake server). */
+  PADDLE_API_BASE_URL: z.string().url().optional(),
   /** Days of access after a billing period ends unpaid (policy; 0 = none). */
   BILLING_GRACE_DAYS: z.coerce.number().int().min(0).max(30).default(3),
   /** Days before a manual subscription ends when the renewal reminder is sent. */
@@ -400,6 +411,15 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
   if (env.BILLING_ENFORCEMENT_ENABLED && !env.BILLING_ENABLED) {
     throw new EnvValidationError(['BILLING_ENFORCEMENT_ENABLED requires BILLING_ENABLED=true']);
   }
+  if (env.PAYMENT_ENVIRONMENT === 'live') {
+    throw new EnvValidationError(['PAYMENT_ENVIRONMENT=live is blocked in this build: real payments need the provider\'s written acceptance of TOUMA\'s activities and an explicit, reviewed authorization']);
+  }
+  if (env.PADDLE_API_KEY && !env.PADDLE_API_KEY.startsWith('pdl_sdbx_')) {
+    throw new EnvValidationError(['PADDLE_API_KEY must be a Paddle SANDBOX key (pdl_sdbx_...): live keys are refused']);
+  }
+  if (env.PADDLE_API_BASE_URL && env.APP_ENV !== 'test') {
+    throw new EnvValidationError(['PADDLE_API_BASE_URL is only allowed when APP_ENV=test (a local fake server)']);
+  }
   if (env.BILLING_PROVIDER === 'payoneer' && env.PAYONEER_ACCOUNT_TYPE !== 'business') {
     throw new EnvValidationError(['BILLING_PROVIDER=payoneer requires PAYONEER_ACCOUNT_TYPE=business: a personal Payoneer account must not be used for automatic customer payments']);
   }
@@ -460,6 +480,7 @@ export function productionProblems(env: AppEnv): string[] {
   if (env.MALWARE_SCANNER === 'none' && !env.ALLOW_UNSCANNED_UPLOADS) p.push('MALWARE_SCANNER must be clamav (or set ALLOW_UNSCANNED_UPLOADS=true to accept the risk explicitly)');
   if (env.RATE_LIMIT_STORE !== 'redis') p.push('RATE_LIMIT_STORE must be redis');
   if (env.AI_PROVIDER === 'fake' || env.AI_PROVIDER === 'mock-openai') p.push(`AI_PROVIDER=${env.AI_PROVIDER} is test-only`);
+  if (env.BILLING_PROVIDER === 'paddle-sandbox' || env.BILLING_PROVIDER === 'lemonsqueezy') p.push(`BILLING_PROVIDER=${env.BILLING_PROVIDER} is not approved for production`);
   if (env.BILLING_ENABLED) p.push('BILLING_ENABLED must stay false until a payment provider adapter is verified against its official documentation (none is yet)');
   if (env.SOCIAL_PROVIDER_MODE === 'fake') p.push('SOCIAL_PROVIDER_MODE=fake is test-only');
   const socialConfigured = Boolean(env.META_APP_ID || env.TIKTOK_CLIENT_KEY || env.GOOGLE_CLIENT_ID || env.LINKEDIN_CLIENT_ID);
@@ -486,6 +507,20 @@ export const AI_TASK_NAMES = ['BUSINESS_ANALYSIS', 'PRODUCT_ANALYSIS', 'MARKETIN
 export type AiTaskName = (typeof AI_TASK_NAMES)[number];
 
 /** Parses AI_TASK_MODELS. Unknown task names and empty or oversized model names are refused so a typo cannot silently fall back. */
+export function parsePriceMap(raw: string | undefined): Record<string, string> {
+  if (!raw || raw.trim() === '') return {};
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { throw new Error('PADDLE_PRICE_MAP must be a JSON object'); }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('PADDLE_PRICE_MAP must be a JSON object');
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+    if (!/^(STARTER|PRO|BUSINESS):(MONTHLY|YEARLY)(:ONCE)?$/.test(k)) throw new Error(`PADDLE_PRICE_MAP: invalid key "${k}" (use PLAN:MONTHLY or PLAN:YEARLY for a recurring price, PLAN:MONTHLY:ONCE or PLAN:YEARLY:ONCE for a one-time price)`);
+    if (typeof v !== 'string' || !/^pri_[A-Za-z0-9]{10,40}$/.test(v)) throw new Error(`PADDLE_PRICE_MAP: invalid price id for ${k}`);
+    out[k] = v;
+  }
+  return out;
+}
+
 export function parseTaskModels(raw: string | undefined): Partial<Record<AiTaskName, string>> {
   if (!raw || raw.trim() === '') return {};
   let parsed: unknown;

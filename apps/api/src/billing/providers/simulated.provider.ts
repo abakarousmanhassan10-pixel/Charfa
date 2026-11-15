@@ -21,14 +21,23 @@ export class MockPaymentProvider implements PaymentProvider {
   constructor(private readonly webhookSecret: string | undefined) {}
 
   capabilities(): ProviderCapabilities {
-    return { id: 'simulated', recurringSubscriptions: 'supported', hostedCardCapture: 'supported', hostedPaymentSession: 'supported', verifiedWebhooks: 'supported', methods: ['simulated-visa', 'simulated-mastercard', 'simulated-wallet'], verifiedAgainstOfficialDocs: false, live: false };
+    return { id: 'simulated', recurringSubscriptions: 'supported', hostedCardCapture: 'supported', hostedPaymentSession: 'supported', subscriptionModel: 'saved-card', sandboxOnly: false, credentialsConfigured: true, verifiedWebhooks: 'supported', methods: ['simulated-visa', 'simulated-mastercard', 'simulated-wallet'], verifiedAgainstOfficialDocs: false, live: false };
   }
-  async createCustomer() { return { customerRef: `sim_cus_${randomUUID()}` }; }
-  async createCardSetup() { const id = randomUUID(); return { setupRef: `sim_setup_${id}`, hostedUrl: `https://simulated.invalid/card-setup/${id}` }; }
-  async createPaymentSession() { const id = randomUUID(); return { sessionRef: `sim_sess_${id}`, hostedUrl: `https://simulated.invalid/pay/${id}` }; }
-  async createSubscription() { return { subscriptionRef: `sim_sub_${randomUUID()}` }; }
-  async cancelSubscription() { /* nothing to cancel anywhere */ }
-  async resumeSubscription() { /* nothing to resume anywhere */ }
+  /** Test aid: the next `times` provider calls fail with this error (provider outage, rejected credentials...). Never used outside tests. */
+  private injected: { error: Error; remaining: number } | null = null;
+  injectFailure(error: Error, times = 1) { this.injected = { error, remaining: times }; }
+  clearFailure() { this.injected = null; }
+  private maybeFail() {
+    if (this.injected && this.injected.remaining > 0) { this.injected.remaining -= 1; throw this.injected.error; }
+  }
+
+  async createCustomer() { this.maybeFail(); return { customerRef: `sim_cus_${randomUUID()}` }; }
+  async createCardSetup() { this.maybeFail(); const id = randomUUID(); return { setupRef: `sim_setup_${id}`, hostedUrl: `https://simulated.invalid/card-setup/${id}` }; }
+  async createPaymentSession() { this.maybeFail(); const id = randomUUID(); return { sessionRef: `sim_sess_${id}`, hostedUrl: `https://simulated.invalid/pay/${id}` }; }
+  async createRecurringCheckout() { this.maybeFail(); const id = randomUUID(); return { checkoutRef: `sim_chk_${id}`, hostedUrl: `https://simulated.invalid/checkout/${id}` }; }
+  async createSubscription() { this.maybeFail(); return { subscriptionRef: `sim_sub_${randomUUID()}` }; }
+  async cancelSubscription() { this.maybeFail(); /* nothing to cancel anywhere */ }
+  async resumeSubscription() { this.maybeFail(); /* nothing to resume anywhere */ }
 
   /** Builds a signed delivery exactly as the simulated "provider" would send it (used by tests and the local simulator). */
   sign(event: Omit<NormalizedBillingEvent, 'occurredAt' | 'periodStart' | 'periodEnd'> & { occurredAt?: string; periodStart?: string; periodEnd?: string }, at = new Date()) {

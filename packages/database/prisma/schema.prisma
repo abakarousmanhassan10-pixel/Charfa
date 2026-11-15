@@ -338,6 +338,14 @@ enum PaymentKind {
   RENEWAL_MANUAL
 }
 
+/// What the payment provider itself has said about TOUMA's real activities. LIVE payments stay blocked unless APPROVED (and more: see the production gate).
+enum ProviderApprovalStatus {
+  NOT_SUBMITTED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
 enum ProviderAccountEnvironment {
   SANDBOX
   LIVE
@@ -372,6 +380,8 @@ enum WebhookProvider {
   STRIPE
   PAYONEER
   IYZICO
+  PADDLE
+  LEMONSQUEEZY
   SIMULATED_BILLING
   META
   TIKTOK
@@ -1414,6 +1424,8 @@ model Subscription {
   lastPaymentFailureAt   DateTime?             @db.Timestamptz(3)
   /// Set when the business moved to another payment provider (the previous one, for traceability).
   providerMigratedFrom   String?
+  /// When the last payment was confirmed by the provider: events that happened before it cannot undo it (out-of-order delivery).
+  lastPaymentConfirmedAt DateTime? @db.Timestamptz(3)
   currentPeriodStart     DateTime?             @db.Timestamptz(3)
   currentPeriodEnd       DateTime?             @db.Timestamptz(3)
   cancelAtPeriodEnd      Boolean               @default(false)
@@ -1521,6 +1533,14 @@ model PaymentProviderAccount {
   enabled      Boolean                    @default(false)
   capabilities Json
   verifiedAt   DateTime?                  @db.Timestamptz(3)
+  /// The provider's own decision about TOUMA's real product (automated social-media marketing, AI agents). Never set automatically.
+  approvalStatus    ProviderApprovalStatus @default(NOT_SUBMITTED)
+  /// Reference of the provider's written decision (ticket / e-mail id), required to record APPROVED.
+  approvalReference String?
+  approvalNote      String?
+  approvedAt        DateTime?              @db.Timestamptz(3)
+  approvalUpdatedById String?
+  approvalUpdatedAt DateTime?              @db.Timestamptz(3)
   createdAt    DateTime                   @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime                   @updatedAt @db.Timestamptz(3)
 }

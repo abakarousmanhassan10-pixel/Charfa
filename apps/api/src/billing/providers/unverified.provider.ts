@@ -10,7 +10,7 @@ export abstract class UnverifiedPaymentProvider implements PaymentProvider {
   protected constructor(readonly id: ProviderId, private readonly label: string) {}
 
   capabilities(): ProviderCapabilities {
-    return { id: this.id, recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', hostedPaymentSession: 'unverified', verifiedWebhooks: 'unverified', methods: [], verifiedAgainstOfficialDocs: false, live: false };
+    return { id: this.id, recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', hostedPaymentSession: 'unverified', subscriptionModel: 'saved-card', sandboxOnly: false, credentialsConfigured: false, verifiedWebhooks: 'unverified', methods: [], verifiedAgainstOfficialDocs: false, live: false };
   }
   protected refuse(): never {
     throw new ProviderUnavailableError('PROVIDER_NOT_VERIFIED', `${this.label} adapter is not enabled: its recurring billing, hosted card capture, payment session and webhook signature capabilities have not been verified against its official documentation and sandbox.`);
@@ -18,6 +18,7 @@ export abstract class UnverifiedPaymentProvider implements PaymentProvider {
   async createCustomer(): Promise<never> { return this.refuse(); }
   async createCardSetup(): Promise<never> { return this.refuse(); }
   async createPaymentSession(): Promise<never> { return this.refuse(); }
+  async createRecurringCheckout(): Promise<never> { return this.refuse(); }
   async createSubscription(): Promise<never> { return this.refuse(); }
   async cancelSubscription(): Promise<never> { return this.refuse(); }
   async resumeSubscription(): Promise<never> { return this.refuse(); }

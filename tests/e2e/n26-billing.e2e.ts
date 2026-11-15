@@ -1,4 +1,8 @@
+import { execSync } from 'child_process';
 import { expect, test, type Page } from '@playwright/test';
+
+const DB = (process.env.TEST_DATABASE_URL ?? 'postgresql://touma:touma_dev_password@localhost:5432/touma_test').split('?')[0]!;
+const sql = (q: string) => execSync(`psql -v ON_ERROR_STOP=1 "${DB}" -At`, { input: q }).toString().trim();
 
 /**
  * Billing engine in a real browser (Chromium, phone size). The payment provider is the test-only simulator: "Simulation — no real payment" is shown,
@@ -29,11 +33,15 @@ test('manual renewal: trial, payment page, nothing changes until the provider co
   // Prices come from integer minor units: 19.00 monthly, 190.00 yearly.
   await expect(page.getByTestId('billing-start')).toContainText('$19.00');
   await expect(page.getByTestId('billing-start')).toContainText('$190.00');
+  await expect(page.getByTestId('billing-plan-usage')).toContainText('AI generations this month: 0 of');
+  await expect(page.getByTestId('usage-agents')).toContainText('All AI agents are available'); // no plan restriction before a plan is chosen
   await page.getByTestId('billing-mode-MANUAL').check();
   await page.getByTestId('billing-start-trial').click();
   await expect(page.getByTestId('billing-state')).toHaveText('Free trial');
   await expect(page.getByTestId('billing-mode')).toHaveText('Manual renewal');
   await expect(page.getByTestId('billing-next-payment')).toContainText('$19.00');
+  await expect(page.getByTestId('usage-agents')).toContainText('AI agents included in your plan: 5');
+  await expect(page.getByTestId('usage-features')).toContainText('sales');
   await expect(page.getByTestId('billing-invoices-empty')).toBeVisible();
 
   // Renew: a payment page opens, but the subscription is unchanged until the provider confirms.
@@ -109,4 +117,36 @@ test('billing page is reachable from the phone menu; the platform billing overvi
   await expect(page.getByTestId('billing-view')).toBeVisible();
   await page.goto('/dashboard/operations/billing');
   await expect(page.getByTestId('billing-admin-forbidden')).toBeVisible();
+});
+
+test('platform administrator: provider approval and the production lock (real payments stay blocked even when a decision is recorded)', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 }); // the sign-out button is in the desktop header
+  await setup(page);
+  const email = `n27-admin-${Date.now()}@example.com`;
+  sql(`update "User" set "platformRole" = 'SUPER_ADMIN', email = '${email}' where id = (select "userId" from "Membership" order by "createdAt" desc limit 1)`);
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill('Correct-Horse-9-Battery');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(/\/(dashboard|onboarding)/);
+  await page.goto('/dashboard/operations/billing');
+  await expect(page.getByTestId('billing-admin')).toBeVisible();
+  await expect(page.getByTestId('admin-environment')).toHaveText('sandbox');
+  // Nothing is approved, and every reason real payments are blocked is shown.
+  for (const p of ['paddle-sandbox', 'lemonsqueezy', 'payoneer', 'iyzico']) await expect(page.getByTestId(`admin-approval-${p}`)).toHaveText('Not submitted');
+  await expect(page.getByTestId('admin-gate-paddle-sandbox')).toContainText('this build blocks live payments');
+  await expect(page.getByTestId('admin-gate-paddle-sandbox')).toContainText('provider has not approved TOUMA');
+  // Recording an approval needs the provider's written reference...
+  await page.getByTestId('admin-approval-status').selectOption('APPROVED');
+  await page.getByTestId('admin-approval-save').click();
+  await expect(page.getByTestId('admin-approval-error')).toBeVisible();
+  // ...and even with it, real payments stay blocked.
+  await page.getByTestId('admin-approval-reference').fill('provider-ticket-4242');
+  await page.getByTestId('admin-approval-save').click();
+  await expect(page.getByTestId('admin-approval-paddle-sandbox')).toHaveText('Approved');
+  await expect(page.getByTestId('admin-gate-paddle-sandbox')).toContainText('this build blocks live payments');
+  await expect(page.getByTestId('admin-gate-paddle-sandbox')).toContainText('adapter has no live mode');
+  await expect(page.getByTestId('admin-sub-filter')).toBeVisible();
+  sql(`update "PaymentProviderAccount" set "approvalStatus" = 'NOT_SUBMITTED', "approvalReference" = null, "approvedAt" = null where provider = 'paddle-sandbox'`);
 });

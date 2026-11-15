@@ -7,6 +7,7 @@ import { Tenant, type TenantContext } from '../tenancy/tenant-context';
 import { AnalyzeMarketProductDto, ImportMarketProductDto, ListMarketProductsQueryDto } from './market.dto';
 import { MarketEnabledGuard } from './market.guard';
 import { MarketService } from './market.service';
+import { RequireFeature } from '../billing/plan-feature';
 
 const writeThrottle = () => ({ default: { limit: Number(process.env.MARKET_RATE_LIMIT_PER_MINUTE ?? 30), ttl: 60_000 } });
 
@@ -17,6 +18,7 @@ const writeThrottle = () => ({ default: { limit: Number(process.env.MARKET_RATE_
 @ApiTags('market')
 @ApiBearerAuth()
 @UseGuards(MarketEnabledGuard)
+@RequireFeature('market')
 @Controller('market')
 export class MarketController {
   constructor(private readonly market: MarketService) {}

@@ -9,6 +9,7 @@ import { Tenant, type TenantContext } from '../tenancy/tenant-context';
 import { CreateWorkflowDto, StartExecutionDto, UpdateWorkflowDto } from './workflows.dto';
 import { WorkflowsEnabledGuard } from './workflows.guard';
 import { WorkflowsService } from './workflows.service';
+import { RequireFeature } from '../billing/plan-feature';
 
 const startThrottle = () => ({ default: { limit: Number(process.env.ORCHESTRATOR_RATE_LIMIT_PER_MINUTE ?? 20), ttl: 60_000 } });
 
@@ -20,6 +21,7 @@ const startThrottle = () => ({ default: { limit: Number(process.env.ORCHESTRATOR
 @ApiTags('workflows')
 @ApiBearerAuth()
 @UseGuards(WorkflowsEnabledGuard)
+@RequireFeature('workflows')
 @Controller('workflows')
 export class WorkflowsController {
   constructor(private readonly workflows: WorkflowsService) {}

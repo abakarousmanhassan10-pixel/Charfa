@@ -59,3 +59,31 @@ describe('billing engine configuration (N26)', () => {
     expect(() => loadEnv({ ...valid, BILLING_PROVIDER: 'stripe' })).toThrow();
   });
 });
+
+describe('Paddle sandbox and live payment lock (N27)', () => {
+  const key = 'pdl_sdbx_apikey_0123456789';
+  it('live payments are refused whatever else is set; sandbox is the default', () => {
+    expect(loadEnv(valid).PAYMENT_ENVIRONMENT).toBe('sandbox');
+    expect(() => loadEnv({ ...valid, PAYMENT_ENVIRONMENT: 'live' })).toThrow(/blocked in this build/);
+    expect(() => loadEnv({ ...valid, PAYMENT_ENVIRONMENT: 'live', BILLING_PROVIDER: 'paddle-sandbox', PADDLE_API_KEY: key })).toThrow(/blocked in this build/);
+  });
+  it('only a sandbox key is accepted; the base URL override exists only in the test environment', () => {
+    expect(loadEnv({ ...valid, PADDLE_API_KEY: key }).PADDLE_API_KEY).toBe(key);
+    expect(() => loadEnv({ ...valid, PADDLE_API_KEY: 'pdl_live_apikey_0123456789' })).toThrow(/SANDBOX key/);
+    expect(() => loadEnv({ ...valid, PADDLE_API_BASE_URL: 'http://127.0.0.1:9' })).toThrow(/APP_ENV=test/);
+    expect(loadEnv({ ...valid, APP_ENV: 'test', PADDLE_API_BASE_URL: 'http://127.0.0.1:9' }).PADDLE_API_BASE_URL).toBe('http://127.0.0.1:9');
+  });
+  it('the price map is validated: plan, interval, optional :ONCE, Paddle price ids only', () => {
+    const ok = { 'STARTER:MONTHLY': 'pri_01abcdefghij', 'PRO:YEARLY:ONCE': 'pri_01abcdefghik' };
+    expect(loadEnv({ ...valid, PADDLE_PRICE_MAP: JSON.stringify(ok) }).PADDLE_PRICE_MAP).toEqual(ok);
+    expect(loadEnv(valid).PADDLE_PRICE_MAP).toEqual({});
+    for (const bad of ['not json', '[1]', JSON.stringify({ 'GOLD:MONTHLY': 'pri_01abcdefghij' }), JSON.stringify({ 'STARTER:WEEKLY': 'pri_01abcdefghij' }), JSON.stringify({ 'STARTER:MONTHLY': 'price-1' })]) {
+      expect(() => loadEnv({ ...valid, PADDLE_PRICE_MAP: bad })).toThrow();
+    }
+  });
+  it('the sandbox and Lemon Squeezy providers are selectable but never production-approved', () => {
+    expect(loadEnv({ ...valid, BILLING_PROVIDER: 'paddle-sandbox' }).BILLING_PROVIDER).toBe('paddle-sandbox');
+    expect(loadEnv({ ...valid, BILLING_PROVIDER: 'lemonsqueezy' }).BILLING_PROVIDER).toBe('lemonsqueezy');
+    expect(productionProblems(loadEnv({ ...valid, BILLING_PROVIDER: 'paddle-sandbox' })).join(' ')).toMatch(/not approved for production/);
+  });
+});

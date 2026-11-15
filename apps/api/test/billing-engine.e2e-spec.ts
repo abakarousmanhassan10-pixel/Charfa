@@ -372,7 +372,7 @@ describe('Billing engine (mock provider)', () => {
     expect(o.revenue.simulated[0].amountMinor).toBeGreaterThanOrEqual(3800);
     expect(o.events.length).toBeGreaterThan(0);
     const byId = Object.fromEntries(o.providers.map((p: { provider: string }) => [p.provider, p]));
-    expect(Object.keys(byId).sort()).toEqual(['iyzico', 'payoneer', 'simulated']);
+    expect(Object.keys(byId).sort()).toEqual(['iyzico', 'lemonsqueezy', 'paddle-sandbox', 'payoneer', 'simulated']);
     expect(byId.simulated.enabled).toBe(true);
     expect(byId.payoneer).toMatchObject({ enabled: false, verifiedAt: null, capabilities: { recurringSubscriptions: 'unverified', methods: [] } });
     expect(byId.iyzico).toMatchObject({ enabled: false, capabilities: { recurringSubscriptions: 'unverified', hostedPaymentSession: 'unverified' } });

@@ -1,7 +1,11 @@
 import type { BillingEventType } from '@touma/shared';
 
-/** What a provider can really do. "unverified" = not confirmed against the provider's official documentation: it must be treated as unavailable. */
-export type CapabilityStatus = 'supported' | 'unsupported' | 'unverified';
+/**
+ * What a provider can really do. "supported" = verified (or the in-process mock). "sandbox" = implemented from the provider's documentation and usable ONLY against its
+ * sandbox with administrator-supplied test credentials; NOT verified. "unverified" = treated as unavailable. "unsupported" = the provider's model has no such operation.
+ */
+export type CapabilityStatus = 'supported' | 'sandbox' | 'unsupported' | 'unverified';
+export const usable = (s: CapabilityStatus) => s === 'supported' || s === 'sandbox';
 
 export interface ProviderCapabilities {
   id: ProviderId;
@@ -11,6 +15,12 @@ export interface ProviderCapabilities {
   hostedCardCapture: CapabilityStatus;
   /** One-off payment on a provider-hosted page (manual renewals). */
   hostedPaymentSession: CapabilityStatus;
+  /** How a recurring subscription is created: with a card saved first and a subscription created through the API ("saved-card"), or by the customer completing a hosted checkout of a recurring price ("checkout"). */
+  subscriptionModel: 'saved-card' | 'checkout';
+  /** The adapter can only talk to the provider's sandbox (test credentials). */
+  sandboxOnly: boolean;
+  /** Server-side credentials are present (never their values). */
+  credentialsConfigured: boolean;
   /** Signed webhook notifications TOUMA can verify. */
   verifiedWebhooks: CapabilityStatus;
   /** Payment methods the provider is verified to accept (e.g. visa, mastercard, wallet). Empty until verified: never assumed. */
@@ -22,7 +32,7 @@ export interface ProviderCapabilities {
 }
 
 /** `future` is the template for a provider added later; it can never be selected by configuration. */
-export type ProviderId = 'simulated' | 'payoneer' | 'iyzico' | 'future';
+export type ProviderId = 'simulated' | 'payoneer' | 'iyzico' | 'paddle-sandbox' | 'lemonsqueezy' | 'future';
 
 export interface NormalizedBillingEvent {
   /** Provider event id: the idempotency key. */
@@ -49,8 +59,10 @@ export interface PaymentProvider {
   /** Starts a card capture on a provider-hosted page. The result holds a URL only: card data never reaches TOUMA. */
   createCardSetup(input: { customerRef: string; returnUrl: string }): Promise<{ setupRef: string; hostedUrl: string }>;
   /** One-off payment on a provider-hosted page (manual renewal). The result holds a URL only. */
-  createPaymentSession(input: { customerRef: string; amountMinor: number; currency: string; reference: string; returnUrl: string }): Promise<{ sessionRef: string; hostedUrl: string }>;
-  /** Automatic renewals: amounts are integer minor units. */
+  createPaymentSession(input: { customerRef: string; planCode: string; interval: 'MONTHLY' | 'YEARLY'; amountMinor: number; currency: string; reference: string; returnUrl: string }): Promise<{ sessionRef: string; hostedUrl: string }>;
+  /** "checkout"-model providers: a hosted checkout of the recurring price; the subscription exists only after the customer completes it and the provider notifies us. */
+  createRecurringCheckout(input: { customerRef: string; planCode: string; interval: 'MONTHLY' | 'YEARLY'; amountMinor: number; currency: string; reference: string; returnUrl: string }): Promise<{ checkoutRef: string; hostedUrl: string }>;
+  /** Automatic renewals ("saved-card" model): amounts are integer minor units. */
   createSubscription(input: { customerRef: string; paymentMethodRef: string; amountMinor: number; currency: string; interval: 'MONTHLY' | 'YEARLY'; firstChargeAt: Date | null }): Promise<{ subscriptionRef: string }>;
   cancelSubscription(input: { subscriptionRef: string; atPeriodEnd: boolean }): Promise<void>;
   /** Undoes a cancellation scheduled for the end of the period. */
@@ -69,10 +81,18 @@ export class WebhookSignatureError extends Error {
 /** Raised when an operation is not available (provider not verified, not configured, or the capability is unsupported). Nothing was sent. */
 export class ProviderUnavailableError extends Error {
   constructor(
-    readonly code: 'PROVIDER_NOT_VERIFIED' | 'PROVIDER_NOT_CONFIGURED' | 'CAPABILITY_UNSUPPORTED',
+    readonly code: 'PROVIDER_NOT_VERIFIED' | 'PROVIDER_NOT_CONFIGURED' | 'CAPABILITY_UNSUPPORTED' | 'PROVIDER_UNAVAILABLE' | 'CREDENTIALS_REJECTED',
     message: string,
   ) {
     super(message);
     this.name = 'ProviderUnavailableError';
+  }
+}
+
+/** A signed, valid notification of a type TOUMA does not act on: stored as ignored and acknowledged so the provider does not retry it. */
+export class IgnoredEventError extends Error {
+  constructor(readonly eventId: string, readonly eventType: string) {
+    super(`Ignored event type ${eventType}`);
+    this.name = 'IgnoredEventError';
   }
 }

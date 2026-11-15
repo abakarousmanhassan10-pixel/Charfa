@@ -13,6 +13,7 @@ import { UpdateBrandKitDto } from './brand-kit.dto';
 import { BrandKitService } from './brand-kit.service';
 import { CreateImageDto, CreateStoryboardDto, CreateVideoDto, CreativeQueryDto, SelectOutputDto, VariationDto } from './creative.dto';
 import { CreativeService } from './creative.service';
+import { RequireFeature } from '../billing/plan-feature';
 
 /** Per-client limit on generation endpoints: every call may cost real money. */
 const creativeThrottle = () => ({ default: { limit: Number(process.env.CREATIVE_RATE_LIMIT_PER_MINUTE ?? 10), ttl: 60_000 } });
@@ -26,6 +27,7 @@ function idempotencyKey(raw?: string) {
 
 @ApiTags('creative')
 @ApiBearerAuth()
+@RequireFeature('creative')
 @Controller('creative')
 export class CreativeController {
   constructor(

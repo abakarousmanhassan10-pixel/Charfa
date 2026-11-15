@@ -8,6 +8,7 @@ import { IntelligenceEnabledGuard } from './intelligence.guard';
 import { IntelligenceService } from './intelligence.service';
 import { MemoryService } from './memory.service';
 import { RecommendationsService } from './recommendations.service';
+import { RequireFeature } from '../billing/plan-feature';
 
 const limit = () => ({ default: { limit: Number(process.env.INTELLIGENCE_RATE_LIMIT_PER_MINUTE ?? 30), ttl: 60_000 } });
 
@@ -15,6 +16,7 @@ const limit = () => ({ default: { limit: Number(process.env.INTELLIGENCE_RATE_LI
 @ApiTags('intelligence')
 @ApiBearerAuth()
 @UseGuards(IntelligenceEnabledGuard)
+@RequireFeature('intelligence')
 @Controller('intelligence')
 export class IntelligenceController {
   constructor(private readonly svc: IntelligenceService, private readonly memory: MemoryService, private readonly recs: RecommendationsService) {}

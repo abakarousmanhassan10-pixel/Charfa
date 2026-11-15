@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, type AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { RequireTenantPermission } from '../tenancy/business-access.guard';
@@ -6,11 +6,13 @@ import { Tenant, type TenantContext } from '../tenancy/tenant-context';
 import { CardSetupDto, ChangePlanDto, CreateSubscriptionDto, SetModeDto, StartTrialDto } from './billing.dto';
 import { BillingEnabledGuard } from './billing.guard';
 import { BillingService } from './billing.service';
+import { ProviderIncidentInterceptor } from './provider-incident.interceptor';
 
 /** Billing (N24/N26). Off by default (404). Reading needs `billing.read`; every change needs `billing.manage` (the owner). */
 @ApiTags('billing')
 @ApiBearerAuth()
 @UseGuards(BillingEnabledGuard)
+@UseInterceptors(ProviderIncidentInterceptor)
 @Controller('billing')
 export class BillingController {
   constructor(private readonly svc: BillingService) {}

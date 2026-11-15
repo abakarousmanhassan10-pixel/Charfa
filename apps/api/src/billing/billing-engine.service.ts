@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { TenantContext } from '../tenancy/tenant-context';
 import { PAYMENT_PROVIDER } from './billing-provider';
 import { FounderService } from './founder.service';
-import { ProviderUnavailableError, type NormalizedBillingEvent, type PaymentProvider } from './payment-provider';
+import { ProviderUnavailableError, usable, type NormalizedBillingEvent, type PaymentProvider } from './payment-provider';
 import { auditSubscription, lockSubscription, setStatus, type Tx } from './subscription-state';
 
 const DAY = 86_400_000;
@@ -37,6 +37,8 @@ export class BillingEngine {
   ) {}
 
   get graceDays() { return this.env.BILLING_GRACE_DAYS; }
+  /** True when no real money can be involved (the mock provider, or a provider's sandbox): the records are flagged so they are never counted as revenue. */
+  private get testMoney() { return !this.provider || this.provider.id === 'simulated' || this.provider.capabilities().sandboxOnly; }
   private get graceMs() { return this.env.BILLING_GRACE_DAYS * DAY; }
 
   // ─── Quotes ──────────────────────────────────────────────────────────────
@@ -64,7 +66,7 @@ export class BillingEngine {
     const found = await this.prisma.subscription.findUnique({ where: { businessId: t.businessId }, include: { plan: true, pendingPlan: true } });
     if (!found) throw fail(NotFoundException, 'NO_SUBSCRIPTION', 'Choose a plan first');
     if (found.provider !== 'none' && found.provider !== provider.id) throw fail(ConflictException, 'PROVIDER_MIGRATION_REQUIRED', 'The payment provider changed: save a card or start a payment with the current provider first');
-    if (!provider.capabilities().hostedPaymentSession || provider.capabilities().hostedPaymentSession !== 'supported') throw fail(ServiceUnavailableException, 'CAPABILITY_UNSUPPORTED', 'This payment provider does not offer hosted payment sessions');
+    if (!usable(provider.capabilities().hostedPaymentSession)) throw fail(ServiceUnavailableException, 'CAPABILITY_UNSUPPORTED', 'This payment provider does not offer hosted payment sessions');
     const now = new Date();
     this.assertRenewable(found, now);
 
@@ -87,10 +89,10 @@ export class BillingEngine {
         return this.sessionView(existing);
       }
       if (await tx.invoice.findUnique({ where: { subscriptionId_periodStart: { subscriptionId: sub.id, periodStart: q.periodStart } } })) throw fail(ConflictException, 'ALREADY_PAID', 'This period is already paid');
-      const session = await this.guarded(() => provider.createPaymentSession({ customerRef: customerRef!, amountMinor: q.amountMinor, currency: q.currency, reference: key, returnUrl }));
+      const session = await this.guarded(() => provider.createPaymentSession({ customerRef: customerRef!, planCode: q.planCode, interval: q.interval, amountMinor: q.amountMinor, currency: q.currency, reference: key, returnUrl }));
       const payment = await tx.payment.create({
         data: {
-          businessId: sub.businessId, subscriptionId: sub.id, provider: provider.id, providerPaymentId: session.sessionRef, idempotencyKey: key, kind, status: 'PENDING', simulated: provider.id === 'simulated',
+          businessId: sub.businessId, subscriptionId: sub.id, provider: provider.id, providerPaymentId: session.sessionRef, idempotencyKey: key, kind, status: 'PENDING', simulated: this.testMoney,
           amountMinor: q.amountMinor, amount: minorToMajorString(q.amountMinor, q.currency), currency: q.currency, periodStart: q.periodStart, periodEnd: q.periodEnd, sessionUrl: session.hostedUrl, description: `${q.planCode} ${q.interval}`,
         },
       });
@@ -143,7 +145,8 @@ export class BillingEngine {
           if (e.paymentMethodRef) await tx.subscription.update({ where: { id: sub.id }, data: { paymentMethodRef: e.paymentMethodRef } });
           break;
         case 'subscription.activated':
-          // The provider confirms its recurring schedule. Access never starts from this: only a confirmed payment does.
+          // The provider confirms its recurring schedule (and, with a hosted checkout, gives us its subscription id). Access never starts from this: only a confirmed payment does.
+          await this.adoptSubscriptionRef(tx, sub, e);
           await auditSubscription(tx, sub, 'provider_subscription_confirmed', { reason: 'subscription.activated' });
           break;
         case 'payment.succeeded':
@@ -160,22 +163,30 @@ export class BillingEngine {
     });
   }
 
+  /** The provider's subscription id arrives with the notifications (checkout model); events may come in any order, so any of them can carry it. */
+  private async adoptSubscriptionRef(tx: Tx, sub: SubWithPlans, e: NormalizedBillingEvent) {
+    if (e.subscriptionRef && !sub.providerSubscriptionId) await tx.subscription.update({ where: { id: sub.id }, data: { providerSubscriptionId: e.subscriptionRef } });
+  }
+
   private async findOrCreatePayment(tx: Tx, sub: SubWithPlans, e: NormalizedBillingEvent, status: 'SUCCEEDED' | 'FAILED') {
     const existing = (e.paymentRef ? await tx.payment.findUnique({ where: { providerPaymentId: e.paymentRef } }) : null) ?? (e.reference ? await tx.payment.findUnique({ where: { idempotencyKey: e.reference } }) : null);
     if (existing) return { payment: existing, created: false };
     // A charge made by the provider on its own schedule (automatic renewal): the period and amount are what the plan says for the next period.
     const q = this.quote(sub, e.occurredAt);
+    // A charge made by the provider on its own schedule may report the billing period it pays for; trust it when it is a sane forward period (at most 13 months).
+    const reported = e.periodStart && e.periodEnd && e.periodEnd > e.periodStart && e.periodEnd.getTime() - e.periodStart.getTime() <= 400 * DAY ? { periodStart: e.periodStart, periodEnd: e.periodEnd } : null;
     const paid = e.amount && e.currency ? { amountMinor: majorToMinor(e.amount, e.currency), currency: e.currency.toUpperCase() } : { amountMinor: q.amountMinor, currency: q.currency };
     const payment = await tx.payment.create({
       data: {
-        businessId: sub.businessId, subscriptionId: sub.id, provider: sub.provider, providerPaymentId: e.paymentRef ?? `evt:${e.id}`, idempotencyKey: e.reference ?? null, kind: 'RENEWAL_AUTO', status, simulated: sub.provider === 'simulated',
-        amountMinor: paid.amountMinor, amount: minorToMajorString(paid.amountMinor, paid.currency), currency: paid.currency, periodStart: q.periodStart, periodEnd: q.periodEnd, description: `${q.planCode} ${q.interval}`,
+        businessId: sub.businessId, subscriptionId: sub.id, provider: sub.provider, providerPaymentId: e.paymentRef ?? `evt:${e.id}`, idempotencyKey: e.reference ?? null, kind: 'RENEWAL_AUTO', status, simulated: this.testMoney || sub.provider === 'simulated',
+        amountMinor: paid.amountMinor, amount: minorToMajorString(paid.amountMinor, paid.currency), currency: paid.currency, periodStart: reported?.periodStart ?? q.periodStart, periodEnd: reported?.periodEnd ?? q.periodEnd, description: `${q.planCode} ${q.interval}`,
       },
     });
     return { payment, created: true };
   }
 
   private async onPaymentSucceeded(tx: Tx, sub: SubWithPlans, e: NormalizedBillingEvent) {
+    await this.adoptSubscriptionRef(tx, sub, e);
     const { payment } = await this.findOrCreatePayment(tx, sub, e, 'SUCCEEDED');
     if (payment.status === 'SUCCEEDED' && payment.paidAt) {
       await auditSubscription(tx, sub, 'duplicate_confirmation_ignored', { reason: 'payment already confirmed', metadata: { paymentId: payment.id } });
@@ -204,6 +215,7 @@ export class BillingEngine {
     await tx.invoice.create({ data: { businessId: sub.businessId, subscriptionId: sub.id, number, status: 'PAID', amountMinor: payment.amountMinor, currency: payment.currency, planCode: plan.code, description: `${plan.name} (${interval === 'YEARLY' ? 'yearly' : 'monthly'})`, periodStart, periodEnd, paidAt: e.occurredAt, paymentId: payment.id, simulated: payment.simulated } });
     await setStatus(tx, sub, 'ACTIVE', { reason: 'payment confirmed by the provider', metadata: { paymentId: payment.id } }, {
       currentPeriodStart: periodStart, currentPeriodEnd: periodEnd, failedPaymentCount: 0, lastPaymentFailureAt: null, cancelAtPeriodEnd: false, canceledAt: null,
+      lastPaymentConfirmedAt: sub.lastPaymentConfirmedAt && sub.lastPaymentConfirmedAt > e.occurredAt ? sub.lastPaymentConfirmedAt : e.occurredAt,
       planId: plan.id, billingInterval: interval, amountMinor: interval === 'YEARLY' ? plan.yearlyPriceAmountMinor : plan.priceAmountMinor, currency: plan.currency, pendingPlanId: null, pendingBillingInterval: null,
     });
   }
@@ -215,6 +227,11 @@ export class BillingEngine {
       return;
     }
     await tx.payment.update({ where: { id: payment.id }, data: { status: 'FAILED', failureCode: e.failureCode ?? 'declined' } });
+    // Out of order: a failure that happened BEFORE the last confirmed payment must not undo it (the retry already succeeded).
+    if (sub.lastPaymentConfirmedAt && e.occurredAt.getTime() < sub.lastPaymentConfirmedAt.getTime()) {
+      await auditSubscription(tx, sub, 'stale_event_ignored', { reason: 'failure older than the last confirmed payment: recorded, state unchanged', metadata: { paymentId: payment.id, eventId: e.id } });
+      return;
+    }
     const count = sub.failedPaymentCount + 1;
     const patch = { failedPaymentCount: count, lastPaymentFailureAt: e.occurredAt };
     const from = sub.status as SubscriptionState;
@@ -233,6 +250,10 @@ export class BillingEngine {
   private async onProviderCanceled(tx: Tx, sub: SubWithPlans, e: NormalizedBillingEvent) {
     const from = sub.status as SubscriptionState;
     if (from === 'CANCELED' || from === 'EXPIRED') return;
+    if (sub.lastPaymentConfirmedAt && e.occurredAt.getTime() < sub.lastPaymentConfirmedAt.getTime()) {
+      await auditSubscription(tx, sub, 'stale_event_ignored', { reason: 'cancellation older than the last confirmed payment: flagged for review', metadata: { eventId: e.id } });
+      return;
+    }
     const stillPaid = !!sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() > e.occurredAt.getTime();
     await setStatus(tx, sub, stillPaid && from !== 'PENDING' ? 'CANCELED' : 'EXPIRED', { reason: 'subscription canceled at the provider' }, { canceledAt: e.occurredAt, cancelAtPeriodEnd: true });
     await this.notifications.notify({ businessId: sub.businessId, permission: 'billing.manage', type: 'billing.canceled', title: 'Your subscription has been canceled', dedupeKey: `billing:canceled:${e.id}` });
@@ -308,7 +329,8 @@ export class BillingEngine {
   private async guarded<T>(fn: () => Promise<T>): Promise<T> {
     try { return await fn(); } catch (err) {
       if (err instanceof ProviderUnavailableError) throw fail(ServiceUnavailableException, err.code, err.message);
-      throw err;
+      // Anything else thrown by a provider call (network, parsing, a bug in an adapter) is an outage as far as the customer is concerned; no detail is leaked.
+      throw fail(ServiceUnavailableException, 'PROVIDER_UNAVAILABLE', 'The payment provider is unavailable. Nothing was charged; try again later.');
     }
   }
 }

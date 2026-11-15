@@ -206,7 +206,7 @@ describe('Billing off by default and Payoneer unverified', () => {
       const h = aiHelpers(app);
       const t = await h.tenant('Payoneer Shop');
       const s = (await request(h.http).get('/api/v1/billing/status').set(as(t)).expect(200)).body;
-      expect(s.provider).toEqual({ id: 'payoneer', recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', hostedPaymentSession: 'unverified', verifiedWebhooks: 'unverified', methods: [], verifiedAgainstOfficialDocs: false, live: false });
+      expect(s.provider).toEqual({ id: 'payoneer', recurringSubscriptions: 'unverified', hostedCardCapture: 'unverified', hostedPaymentSession: 'unverified', subscriptionModel: 'saved-card', sandboxOnly: false, credentialsConfigured: false, verifiedWebhooks: 'unverified', methods: [], verifiedAgainstOfficialDocs: false, live: false });
       await request(h.http).post('/api/v1/billing/trial').set(as(t)).send({ plan: 'STARTER' }).expect(201); // the free trial needs no provider
       await request(h.http).post('/api/v1/billing/card-setup').set(as(t)).send({ returnUrl: 'https://app.example.com/b' }).expect(503).expect((r) => expect(r.body.code ?? r.body.error?.code).toBe('PROVIDER_NOT_VERIFIED'));
       await request(h.http).post('/api/v1/billing/webhooks/payoneer').set('Content-Type', 'application/json').send({ id: 'x' }).expect(503);

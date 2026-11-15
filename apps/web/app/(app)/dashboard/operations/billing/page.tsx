@@ -11,7 +11,7 @@ export default function Page() {
   return (
     <>
       <PageHeader title={t('billing.admin.title')} description={t('billing.admin.subtitle')} />
-      {allowed ? <BillingAdminView /> : <p className="text-sm text-muted-foreground" data-testid="billing-admin-forbidden">{t('ops.forbidden')}</p>}
+      {allowed ? <BillingAdminView canApprove={user?.platformRole === 'SUPER_ADMIN'} /> : <p className="text-sm text-muted-foreground" data-testid="billing-admin-forbidden">{t('ops.forbidden')}</p>}
     </>
   );
 }

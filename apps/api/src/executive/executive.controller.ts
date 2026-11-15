@@ -6,6 +6,7 @@ import { Tenant, type TenantContext } from '../tenancy/tenant-context';
 import { EconomicsDto, ExpenseDto, ScenariosDto, SettingsDto } from './executive.dto';
 import { AutopilotEnabledGuard } from './executive.guard';
 import { ExecutiveService } from './executive.service';
+import { RequireFeature } from '../billing/plan-feature';
 
 const limit = () => ({ default: { limit: Number(process.env.EXECUTIVE_RATE_LIMIT_PER_MINUTE ?? 30), ttl: 60_000 } });
 
@@ -17,6 +18,7 @@ const limit = () => ({ default: { limit: Number(process.env.EXECUTIVE_RATE_LIMIT
 @ApiTags('executive')
 @ApiBearerAuth()
 @UseGuards(AutopilotEnabledGuard)
+@RequireFeature('autopilot')
 @Controller('executive')
 export class ExecutiveController {
   constructor(private readonly svc: ExecutiveService) {}

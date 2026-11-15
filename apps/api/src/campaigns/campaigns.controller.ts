@@ -7,6 +7,7 @@ import { Tenant, type TenantContext } from '../tenancy/tenant-context';
 import { CampaignsEnabledGuard } from './campaigns.guard';
 import { CampaignsQueryDto, CreateCampaignDto, EvaluateCampaignDto, PlanCampaignDto } from './campaigns.dto';
 import { CampaignsService } from './campaigns.service';
+import { RequireFeature } from '../billing/plan-feature';
 
 const limit = () => ({ default: { limit: Number(process.env.CAMPAIGN_RATE_LIMIT_PER_MINUTE ?? 30), ttl: 60_000 } });
 
@@ -17,6 +18,7 @@ const limit = () => ({ default: { limit: Number(process.env.CAMPAIGN_RATE_LIMIT_
 @ApiTags('campaigns')
 @ApiBearerAuth()
 @UseGuards(CampaignsEnabledGuard)
+@RequireFeature('campaigns')
 @Controller('campaigns')
 export class CampaignsController {
   constructor(private readonly campaigns: CampaignsService) {}

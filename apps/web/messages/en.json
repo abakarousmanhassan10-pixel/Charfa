@@ -2849,7 +2849,13 @@
       "INVALID_TRANSITION": "This change is not allowed in the current state.",
       "PAYMENT_NOT_PENDING": "This payment is already settled.",
       "NOT_AUTOMATIC": "Automatic renewal is not set up.",
-      "CAPABILITY_UNSUPPORTED": "This payment provider does not support that."
+      "CAPABILITY_UNSUPPORTED": "This payment provider does not support that.",
+      "FEATURE_NOT_IN_PLAN": "This feature is not included in your plan.",
+      "AGENT_NOT_IN_PLAN": "This AI agent is not included in your plan.",
+      "PLAN_QUOTA_REACHED": "The monthly limit of your plan is reached.",
+      "PROVIDER_UNAVAILABLE": "The payment provider is unavailable. Nothing was charged. Try again later.",
+      "CREDENTIALS_REJECTED": "The payment provider rejected this server's credentials. Nothing was charged.",
+      "PROVIDER_NOT_CONFIGURED": "The payment provider is not configured on this server."
     },
     "simulationBanner": "Simulation — no real payment",
     "mode": "Renewal",
@@ -2923,11 +2929,51 @@
       "cap": {
         "supported": "simulation",
         "unverified": "not verified",
-        "unsupported": "unsupported"
+        "unsupported": "unsupported",
+        "sandbox": "sandbox (unverified)"
       },
       "eventsTitle": "Recent events",
-      "link": "Billing overview"
+      "link": "Billing overview",
+      "incidentsTitle": "Incidents (30 days)",
+      "incidentsEmpty": "No incident.",
+      "failedNotifications": "Failed notifications",
+      "ignoredNotifications": "Ignored notifications",
+      "subscriptionsTitle": "Subscriptions",
+      "filterAll": "All states",
+      "approvalTitle": "Provider approval and production gate",
+      "approvalHelp": "Real payments stay blocked until the provider has accepted TOUMA's real activities in writing, and this build blocks them in any case.",
+      "approvalStatus": "Provider decision",
+      "approvalReference": "Reference of the provider's written decision",
+      "approvalNote": "Note",
+      "approvalSave": "Record decision",
+      "blocked": "Real payments blocked",
+      "reason": {
+        "BUILD_BLOCKS_LIVE_PAYMENTS": "this build blocks live payments",
+        "ENVIRONMENT_NOT_LIVE": "environment is sandbox",
+        "PROVIDER_NOT_APPROVED": "provider has not approved TOUMA",
+        "ADAPTER_NOT_LIVE_CAPABLE": "adapter has no live mode",
+        "ADAPTER_NOT_VERIFIED": "adapter not verified against official documentation"
+      },
+      "status": {
+        "NOT_SUBMITTED": "Not submitted",
+        "PENDING_REVIEW": "Pending review",
+        "APPROVED": "Approved",
+        "REJECTED": "Rejected"
+      },
+      "environment": "Environment"
     },
-    "simCardSaved": "Simulate: the card page saved a card"
+    "simCardSaved": "Simulate: the card page saved a card",
+    "sandboxBanner": "Sandbox — test payments only, no real payment. Use the provider's test cards.",
+    "subscribeCheckout": "Subscribe on the secure checkout",
+    "methodsSandbox": "Sandbox: the payment methods shown at the provider's checkout are test methods. Which real methods (Visa, Mastercard, wallets) apply depends on the provider's approval, which is not granted yet.",
+    "usageTitle": "Your plan and usage",
+    "usageEnforced": "Plan limits are enforced on the server.",
+    "usageNotEnforced": "Plan limits on agents and features are not enforced yet on this server (AI generation quotas always apply).",
+    "usageGenerations": "AI generations this month: {used} of {limit}",
+    "usageSales": "AI sales-assistant replies this month: {used} of {limit}",
+    "usageSalesUnlimited": "AI sales-assistant replies this month: {used} (no plan limit)",
+    "usageAgents": "AI agents included in your plan: {count}",
+    "usageAgentsAll": "All AI agents are available",
+    "usageFeatures": "Features"
   }
 }
