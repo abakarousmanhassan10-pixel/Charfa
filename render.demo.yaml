@@ -45,6 +45,8 @@ services:
       - { key: VIDEO_PROVIDER, value: fake }
       # Free creative test mode (N28/N29): labelled demo media, automated campaigns in simulation, no external call. Forces the mock providers.
       - { key: CREATIVE_STUDIO_MODE, value: mock }
+      # Demo hosting only: the API calls its own health URL (08-22 UTC) so the free plan does not put it to sleep. Not allowed in production.
+      - { key: KEEP_ALIVE_URL, value: "https://touma-api.onrender.com/api/v1/health" }
       - { key: SOCIAL_PROVIDER_MODE, value: fake }
       - { key: SOCIAL_PUBLISHING_ENABLED, value: "true" }
       - { key: SOCIAL_COMMENTS_ENABLED, value: "true" }

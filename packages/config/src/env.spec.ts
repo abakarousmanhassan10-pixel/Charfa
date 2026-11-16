@@ -185,4 +185,14 @@ describe('Creative Studio settings', () => {
       expect(() => loadEnv({ ...valid, VIDEO_PROVIDER: 'higgsfield' })).toThrow(/disabled in this build/);
     });
   });
+
+  describe('keep-alive (demo hosting)', () => {
+    it('is off by default, accepts a window, and is refused in production', () => {
+      expect(loadEnv({ ...valid }).KEEP_ALIVE_URL).toBeUndefined();
+      const e = loadEnv({ ...valid, KEEP_ALIVE_URL: 'https://api.example.test/api/v1/health' });
+      expect(e).toMatchObject({ KEEP_ALIVE_HOURS_UTC: '8-22', KEEP_ALIVE_INTERVAL_MINUTES: 10 });
+      expect(() => loadEnv({ ...valid, KEEP_ALIVE_URL: 'https://api.example.test/x', KEEP_ALIVE_HOURS_UTC: 'soon' })).toThrow();
+      expect(() => loadEnv({ ...valid, KEEP_ALIVE_URL: 'https://api.example.test/x', APP_ENV: 'production' })).toThrow(/KEEP_ALIVE_URL/);
+    });
+  });
 });

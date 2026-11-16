@@ -1,6 +1,7 @@
 name: Keep the demo API awake
 
 # DEMO HOSTING ONLY (Render free plan). The free API sleeps after ~15 minutes without a request and then needs about a minute to wake up.
+# NOTE: GitHub delays or skips scheduled runs, so this is only a helper that wakes the API at the start of the window; the API keeps itself awake afterwards (KEEP_ALIVE_URL).
 # This pings the health endpoint every 5 minutes during the day (08:00-22:00 UTC) so people signing in do not hit a cold start.
 # Why only the API and only 14 h/day: Render gives 750 free instance hours per workspace per month, shared by ALL free services.
 # One service awake 14 h/day is ~430 h. Keeping two services awake around the clock would exceed the limit and get services suspended.

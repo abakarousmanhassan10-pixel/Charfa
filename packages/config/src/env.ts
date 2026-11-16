@@ -124,6 +124,11 @@ export const appEnvSchema = z.object({
   /** openai = OpenAI Images (uses OPENAI_API_KEY); none = disabled. fake = deterministic test-only provider (APP_ENV=test only). */
   /** mock = FREE TEST MODE: local demo files and templates, no API, no cost, everything labelled simulated (forces IMAGE_PROVIDER=mock and VIDEO_PROVIDER=mock). Refused in production. */
   CREATIVE_STUDIO_MODE: z.enum(['live', 'mock']).default('live'),
+  // DEMO HOSTING ONLY (free plan that sleeps): the API calls its own public health URL so the host sees traffic and does not put it to sleep.
+  // Active only inside the UTC hour window (default 8-22): the free plan has a monthly instance-hour budget shared by every service. Refused in production.
+  KEEP_ALIVE_URL: z.string().url().optional(),
+  KEEP_ALIVE_HOURS_UTC: z.string().regex(/^([0-9]|1[0-9]|2[0-3])-([0-9]|1[0-9]|2[0-4])$/, 'use "from-to", for example 8-22').default('8-22'),
+  KEEP_ALIVE_INTERVAL_MINUTES: z.coerce.number().int().min(1).max(14).default(10),
   IMAGE_PROVIDER: z.enum(['openai', 'none', 'fake', 'mock']).default('openai'),
   IMAGE_MODEL: z.string().min(1).default('gpt-image-1'),
   /** Video is opt-in because it is costly: none (default), openai (Sora API, uses OPENAI_API_KEY) or the test-only fake. */
@@ -446,6 +451,7 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
     );
   }
   const env = parsed.data;
+  if (env.KEEP_ALIVE_URL && env.APP_ENV === 'production') throw new EnvValidationError(['KEEP_ALIVE_URL is for demo hosting only and is not allowed when APP_ENV=production (use an always-on instance)']);
   if (env.CREATIVE_STUDIO_MODE === 'mock') {
     if (env.APP_ENV === 'production') throw new EnvValidationError(['CREATIVE_STUDIO_MODE=mock is not allowed when APP_ENV=production']);
     // Free test mode: one switch, no paid API can be selected by accident.
