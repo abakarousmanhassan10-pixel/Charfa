@@ -1,0 +1,28 @@
+name: Keep the demo API awake
+
+# DEMO HOSTING ONLY (Render free plan). The free API sleeps after ~15 minutes without a request and then needs about a minute to wake up.
+# This pings the health endpoint every 5 minutes during the day (08:00-22:00 UTC) so people signing in do not hit a cold start.
+# Why only the API and only 14 h/day: Render gives 750 free instance hours per workspace per month, shared by ALL free services.
+# One service awake 14 h/day is ~430 h. Keeping two services awake around the clock would exceed the limit and get services suspended.
+# Public repository: GitHub Actions minutes are free. Remove this file (or disable the workflow) to stop it.
+on:
+  schedule:
+    - cron: '*/5 8-21 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping the API health endpoint
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -m 90 -o /dev/null -w '%{http_code}' https://touma-api.onrender.com/api/v1/health || echo 000)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 20
+          done
+          echo "The API did not answer 200 (it may be redeploying). Not failing the workflow."
