@@ -20,3 +20,7 @@ dump.rdb
 *.aof
 appendonlydir/
 .release-gate/
+
+# Database backups (contain user data): never commit
+*.dump
+backups/
