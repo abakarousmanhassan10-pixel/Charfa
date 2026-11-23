@@ -189,6 +189,7 @@ export class CreativeUsageService {
   async assertBudget(tx: Db, args: { businessId: string; model: string; kind: UnitKind; units: number; now?: Date }): Promise<number | null> {
     const limits = await this.dailyLimits(args.businessId, tx);
     const estimate = this.estimateMicros(args.model, args.kind, args.units);
+    await this.assertPlatformCap(tx, estimate, args.now);
     if (!limits.budgetMicros) return estimate;
     if (estimate === null) throw new HttpException({ code: 'CREATIVE_COST_UNKNOWN', message: 'A monthly creative budget applies but the cost of this generation cannot be estimated, so it cannot be authorized.' }, HttpStatus.PAYMENT_REQUIRED);
     const start = monthStart(args.now);
@@ -199,6 +200,24 @@ export class CreativeUsageService {
     const spent = Math.round(Number(settled._sum.costUsd ?? 0) * 1_000_000) + Number(held._sum.estimatedCostMicros ?? 0n);
     if (spent + estimate > limits.budgetMicros) throw new HttpException({ code: 'CREATIVE_BUDGET_EXCEEDED', message: 'The monthly creative budget does not cover this generation, even though quota remains.', usage: { budgetMicros: limits.budgetMicros, spentMicros: spent, estimateMicros: estimate } }, HttpStatus.PAYMENT_REQUIRED);
     return estimate;
+  }
+
+  /**
+   * Platform-wide monthly cap (CREATIVE_PLATFORM_MONTHLY_CAP_MICROS): spent cost plus estimates held by unsettled generations, ALL businesses together, plus this one, must fit.
+   * The per-business budget alone does not bound the platform. A global advisory lock makes the check atomic across businesses. The answer never reveals platform totals to a client.
+   */
+  private async assertPlatformCap(tx: Db, estimate: number | null, now?: Date) {
+    const cap = this.env.CREATIVE_PLATFORM_MONTHLY_CAP_MICROS;
+    if (!cap) return;
+    if (estimate === null) throw new HttpException({ code: 'CREATIVE_COST_UNKNOWN', message: 'A platform spending cap applies but the cost of this generation cannot be estimated, so it cannot be authorized.' }, HttpStatus.PAYMENT_REQUIRED);
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(727401)`;
+    const start = monthStart(now);
+    const [settled, held] = await Promise.all([
+      tx.creativeGeneration.aggregate({ where: { createdAt: { gte: start }, settledAt: { not: null } }, _sum: { costUsd: true } }),
+      tx.creativeGeneration.aggregate({ where: { createdAt: { gte: start }, settledAt: null }, _sum: { estimatedCostMicros: true } }),
+    ]);
+    const spent = Math.round(Number(settled._sum.costUsd ?? 0) * 1_000_000) + Number(held._sum.estimatedCostMicros ?? 0n);
+    if (spent + estimate > cap) throw new HttpException({ code: 'CREATIVE_PLATFORM_CAP_REACHED', message: 'Creative generation is temporarily unavailable on this platform this month. Please try again later or contact support.' }, HttpStatus.PAYMENT_REQUIRED);
   }
 
   priceFor(model: string) {

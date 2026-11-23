@@ -50,6 +50,7 @@ const lenBucket = (c: string | null) => { const n = (c ?? '').length; return n <
 const isQuestion = (p: PerfPost) => /\?/.test(p.title ?? (p.caption ?? '').slice(0, 80));
 const topicOf = (p: PerfPost) => (p.hashtags.find((h) => h !== '#bissap') ?? p.hashtags[0] ?? '').toLowerCase();
 
+const SIMULATED_NOTE = 'The numbers come from the simulator: they exercise the workflow and say nothing about real audiences.';
 const LIMITS = ['This is an association observed in your own posts, not proof that the factor caused the difference: posts differ in many other ways (audience mood, timing, platform ranking, content).', 'The sample is small and uncontrolled; the interval shown is approximate.'];
 
 export function analyze(posts: PerfPost[], o: EngineOptions): EngineResult {
@@ -111,7 +112,7 @@ export function analyze(posts: PerfPost[], o: EngineOptions): EngineResult {
     // A difference that is statistically visible but practically tiny is not worth a change.
     if (rel < 0.1) { dropped(key, 'Effect smaller than 10%: not worth a change'); continue; }
     const pct = `${(Math.abs(rel) * 100).toFixed(0)}%`;
-    const common = { dataUsed, confidence: conf, limitations: LIMITS.concat(origin === 'REAL' ? [] : ['The numbers come from the simulator: they exercise the workflow and say nothing about real audiences.']), key };
+    const common = { dataUsed, confidence: conf, limitations: LIMITS.concat(origin === 'REAL' ? [] : [SIMULATED_NOTE]), key };
     const fx = (statement: string) => [{ statement, metric: 'engagementRate', toVerify: true as const }];
     if (d.dimension === 'slot') {
       const b = BUCKETS.find(([n]) => n === best!.label)!;
@@ -160,7 +161,7 @@ export function analyze(posts: PerfPost[], o: EngineOptions): EngineResult {
       const target = r > 0 ? Math.min(Math.ceil(current) + 1, ceiling) : Math.max(Math.floor(current) - 1, 1);
       if (target !== Math.round(current)) {
         const conf = minConf(wk.length >= 10 ? 'MEDIUM' : 'LOW', cap);
-        res.recommendations.push({ kind: 'FREQUENCY', key, title: r > 0 ? `Try ${target} posts per week` : `Avoid raising the posting rate`, justification: `Across ${wk.length} weeks, weeks with more posts had ${r > 0 ? 'higher' : 'lower'} mean engagement (correlation ${r.toFixed(2)}). The current pace is about ${current.toFixed(1)} posts per week.`, dataUsed: { metric: 'engagementRate', n: usable.length, compared: [{ label: 'weekly posts vs weekly mean engagement', n: wk.length, mean: r }], period, origin: origin === 'REAL' ? 'REAL' : 'SIMULATED', difference: r, ci95: [r, r] }, confidence: conf, limitations: LIMITS.concat(['Weekly counts and engagement both move with seasons, promotions and platform changes; the pace stays within your daily limit and never above 7 posts per week.']), expectedEffects: [{ statement: 'Engagement per post may stay at a similar level at the new pace; check after 3 weeks.', metric: 'engagementRate', toVerify: true }], proposedAction: { type: 'SET_FREQUENCY', postsPerWeek: target, ceiling } });
+        res.recommendations.push({ kind: 'FREQUENCY', key, title: r > 0 ? `Try ${target} posts per week` : `Avoid raising the posting rate`, justification: `Across ${wk.length} weeks, weeks with more posts had ${r > 0 ? 'higher' : 'lower'} mean engagement (correlation ${r.toFixed(2)}). The current pace is about ${current.toFixed(1)} posts per week.`, dataUsed: { metric: 'engagementRate', n: usable.length, compared: [{ label: 'weekly posts vs weekly mean engagement', n: wk.length, mean: r }], period, origin: origin === 'REAL' ? 'REAL' : 'SIMULATED', difference: r, ci95: [r, r] }, confidence: conf, limitations: LIMITS.concat(origin === 'REAL' ? [] : [SIMULATED_NOTE], ['Weekly counts and engagement both move with seasons, promotions and platform changes; the pace stays within your daily limit and never above 7 posts per week.']), expectedEffects: [{ statement: 'Engagement per post may stay at a similar level at the new pace; check after 3 weeks.', metric: 'engagementRate', toVerify: true }], proposedAction: { type: 'SET_FREQUENCY', postsPerWeek: target, ceiling } });
         res.inferences.push({ key: 'inferred.frequency', value: { postsPerWeek: target }, n: wk.length, confidence: conf });
       }
     }

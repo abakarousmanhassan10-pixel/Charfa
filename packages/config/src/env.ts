@@ -147,6 +147,13 @@ export const appEnvSchema = z.object({
   CREATIVE_QUOTA_TZ_CHANGE_DAYS: z.coerce.number().int().min(0).max(365).default(30),
   /** Monthly creative budget in micro-USD when the plan sets none. 0 = no monetary budget enforced. */
   CREATIVE_MONTHLY_BUDGET_MICROS: z.coerce.number().int().min(0).default(0),
+  /**
+   * MASTER SWITCH for generation that costs money (a real image/video provider with a key). Off by default: a real provider refuses to start unless this is on AND a platform-wide
+   * monthly cap is set AND each selected model has a price. Free test mode and the test simulators are not affected.
+   */
+  PAID_GENERATION_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  /** Platform-wide monthly cap in micro-USD, ALL businesses together (the per-business budget alone does not bound the platform). 0 = no cap, which a paid provider forbids. */
+  CREATIVE_PLATFORM_MONTHLY_CAP_MICROS: z.coerce.number().int().min(0).default(0),
   CREATIVE_MONTHLY_IMAGES_PER_BUSINESS: z.coerce.number().int().positive().default(100),
   CREATIVE_MONTHLY_VIDEO_SECONDS_PER_BUSINESS: z.coerce.number().int().positive().default(120),
   CREATIVE_JOB_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
@@ -510,6 +517,22 @@ export function loadEnv(rawSource: Record<string, string | undefined> = process.
   }
   if (env.APP_ENV === 'production' && (env.IMAGE_PROVIDER === 'mock' || env.VIDEO_PROVIDER === 'mock')) {
     throw new EnvValidationError(['IMAGE_PROVIDER=mock and VIDEO_PROVIDER=mock are not allowed when APP_ENV=production']);
+  }
+  // Real generation costs money: it needs an explicit switch, a platform-wide cap and a known price for every model it can use.
+  // Fail closed, without breaking text-only deployments: a provider that is only the DEFAULT (never chosen in the environment) is simply switched off until authorized;
+  // one that was chosen explicitly refuses to start with the list of what is missing.
+  const priced = (model: string) => { const name = model.includes(':') ? model.slice(model.lastIndexOf(':') + 1) : model; return Object.keys(env.CREATIVE_MODEL_PRICING).some((k) => name === k || name.startsWith(k)); };
+  for (const kind of ['IMAGE', 'VIDEO'] as const) {
+    const key = `${kind}_PROVIDER` as const;
+    if (env[key] !== 'openai' || !env.OPENAI_API_KEY) continue;
+    const model = kind === 'IMAGE' ? env.IMAGE_MODEL : env.VIDEO_MODEL;
+    const problems: string[] = [];
+    if (!env.PAID_GENERATION_ENABLED) problems.push('PAID_GENERATION_ENABLED=true (explicit authorization to spend)');
+    if (!env.CREATIVE_PLATFORM_MONTHLY_CAP_MICROS) problems.push('CREATIVE_PLATFORM_MONTHLY_CAP_MICROS > 0 (platform-wide monthly cap)');
+    if (model !== 'unconfigured' && !priced(model)) problems.push(`a price for ${model} in CREATIVE_MODEL_PRICING`);
+    if (!problems.length) continue;
+    if (rawSource[key]) throw new EnvValidationError([`${key}=openai with an API key can spend money. Missing: ${problems.join('; ')}`]);
+    env[key] = 'none';
   }
   if (env.VIDEO_PROVIDER === 'openai' && env.VIDEO_MODEL === 'unconfigured') {
     throw new EnvValidationError(['VIDEO_PROVIDER=openai requires VIDEO_MODEL: no video model is assumed, set one your account can access']);
